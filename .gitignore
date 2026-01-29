@@ -1,0 +1,7 @@
+#
+# Configure git to ignore specific files based on patttern.
+#
+*~
+*.swp
+*.swo
+*.un~

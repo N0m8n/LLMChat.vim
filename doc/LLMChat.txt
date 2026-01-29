@@ -1,0 +1,655 @@
+*LLMChat*
+*LLMChat.txt*
+*llmchat*
+*llmchat.txt*
+===============================================================================
+>
+     __    __    __  ___________          __
+    / /   / /   /  |/  / ____/ /_  ____ _/ /_
+   / /   / /   / /|_/ / /   / __ \/ __ `/ __/
+  / /___/ /___/ /  / / /___/ / / / /_/ / /_
+ /_____/_____/_/  /_/\____/_/ /_/\__,_/\__/
+<
+
+--------------------
+Author: James Hurley
+
+===============================================================================
+CONTENTS                                                      *LLMChat_Contents*
+
+  Overview..............................................|LLMChat_Overview|
+  Installation..........................................|LLMChat_Installation|
+  Usage Quick Start.....................................|LLMChat_QuickStart|
+  Chat Log Format.......................................|LLMChat_LogFormat|
+  Chat Options..........................................|LLMChat_ChatOptions|
+  Authentication........................................|LLMChat_Authentication|
+  Plugin Commands.......................................|LLMChat_Commands|
+  Plugin Key Mappings...................................|LLMChat_KeyMappings|
+  Custom Configurations.................................|LLMChat_Configuration|
+  Debugging.............................................|LLMChat_Debugging|
+  Limitations...........................................|LLMChat_Limitations|
+
+
+===============================================================================
+                                                              *LLMChat_Overview*
+Plugin Overview
+---------------
+
+This plugin is written to allow conversations with a remote LLM (Large Langauge
+Model) accessible via an Ollama or Open-WebUI server to take place directly in
+the Vim editor.  Such conversations are seen to occur within the context of a
+buffer holding a special document known as the "chat log".  At its most basic,
+this document contains (1) the setup information required for this plugin to
+submit requests to the LLM and (2) the full chat history for the associated
+conversation.
+
+To engage in a chat a user will write the message they would like to send to the
+LLM into the chat document and then invoke the appropriate command to send it.
+Once a response is received back than the plugin will automatically update the
+buffer containing the chat log with the response and will prep the log for the
+user to submit another chat.  Note that chat requests use the asynchronous job
+logic within Vim so it is possible to continue using the editor while the
+chat response is pending.
+
+More than one chat log can be open at a time and each chat log can have a
+completely different setup and conversation.  Chat logs, being just text
+documents themselves, can be managed just like any other text file within Vim
+providing a convenient way to save chats, edit chat history, etc.  Chat
+submissions always require a chat log to be active at the time of sending so
+it is clear which chat document that the submission belongs to.
+
+
+===============================================================================
+                                                          *LLMChat_Installation*
+Installing the LLMChat Plugin
+-----------------------------
+
+This plugin can be installed via a plugin manager such as Pathogen / Vundle or,
+may be installed using the "packages" feature from Vim itself (see ":help
+|packages|" for details).  For installation via package manager simply follow
+the standard instructions for adding a plugin as indicated by your plugin
+manager of choice.
+
+Note that this plugin requires the cURL utility to be installed to the local
+system and to be available within the path Vim sees.  If this utility is not
+available or cannot be located than the plugin will be unable to submit requests
+to the remote LLM server.
+
+===============================================================================
+                                                            *LLMChat_QuickStart*
+Usage Quick Start
+-----------------
+
+To quickly start using the plugin after install the following workflow may be
+used:
+
+1). Create a new, default chat document by running the ":NewChat" command.
+
+2). Change the 'Server Type', 'Server URL', and 'Model ID' option values found
+    within the new chat document so that they are appropriate for the LLM you
+    which to converse with.
+
+3). At the bottom of the document type the message you would like to send
+    after the '>>>' sequence; note that you can type immediately after the
+    sequence or may begin your message on a line below it.  Leading whitespace
+    found between the opening '>>>' and the first non-whitespace letter in the
+    message will be automatically trimmed.
+
+4). Use the ":SendChat" command to submit the new chat to the remote LLM
+    server.  Once executed you will see a message at the bottom of the editor
+    window indicating that the submission was made and the response will be
+    automatically posted to the chat log once received.
+
+    NOTE: You MUST run the ":SendChat" command while the chat log is open and
+          set as the active document being edited; this is required in order
+          for the plugin to understand which chat is to be submitted and
+          ultimately which buffer needs to be updated with the received
+          response.
+
+5). Further chat interactions may be performed by simply repeating steps #3 and
+    #4.  Be aware that when a chat is submitted all prior messages found in
+    the chat history will also be included as part of the context for the
+    chat dialog.  The endpoints currently in use for the LLM are stateless so
+    only the conversation history within the chat log document itself will be
+    referenced during a chat interaction; this fact also means that you may
+    edit the chat history as appropriate before prompting further.
+
+NOTES:
+  (1) Be aware that this plugin is designed to move the chat log cursor to
+      the beginning of any LLM response after such response has been written
+      to the buffer so that it can be immediately read from the start.  This
+      behavior means that it can sometimes be difficult to tell that a response
+      was posted since significant updates to the chat buffer are typically
+      not evident.
+
+
+===============================================================================
+                                                             *LLMChat_DocFormat*
+Chat Log Format
+---------------
+
+The chat log document consists of two primary parts; the header section and the
+body.  The header section appears at the top of the chat log and contains a
+series of options that control how the plugin will conduct chat interactions.
+Some of these options, such as 'Server Type', 'Server URL', etc, are required
+and must be provided with valid values before any chats from the document may be
+submitted.  Other options are elective and may or may not be defined within the
+chat log.
+
+An option declaration always starts on its own line, begins with the name of the
+option followed by a ':' character, and then defines the option value.  As an
+example of this, a declaration for some option called "Foo" which should be
+given the value "bar" would appear as follows:
+
+  Foo: bar
+
+For most options the value is terminated at the end of the line and
+leading/trailing whitespace around the option value will be automatically
+removed during parsing of the option.  A few options support values which may
+span more than one line and for such options a traiing empty line is required to
+terminate the option value.  For full details on the set of available options
+please refer to the |LLMChat_ChatOptions| section of this document.
+
+The special sequence '* ENDSETUP *' is used to delmit the header section of the
+chat log document from its body section (where the header is assumed to come
+before this delmiter and the portion of the document after the delmiter is
+considered the body).  Note that the '*' characters at either end of this
+delmiter may be extended such that '* ENDSETUP *', '** ENDSETUP **', and
+'********* ENDSETUP ****' are all considered to be the same delmiter (note that
+the last example intentionally used unbalanced '*' sequences to show that these
+are not required to be equal).  This delmiter must always appear on its
+own line in order to be properly recognized by the parsing.
+
+The body portion of the chat log is where chat messages are placed and
+ultimately holds the full history for the dialog with the LLM.  New chat
+messages are written to the bottom of this section with the upper segment being
+left to hold historical messages that are still relevant to the chat.
+
+A user message is required to begin with the sequence ">>>" and may be
+terminated by either (1) an explicit "<<<" sequence written on its own line
+after the chat message or (2) the end of the document (note that in this later
+case the closing "<<<" sequence will be automatically filled in when an LLM
+response is received for the messsage).
+
+LLM or "assistant" messages will be written to the bottom of the chat log and
+will always follow the user chat messages that they are responding to.  These
+messages will start with a "=>>" sequence and are terminated by the sequence
+"<<=".  When the reasoning feature has been enabled (on a model that supports
+it) than the special sequence "#=>> REASONING" will appear at the start of the
+reasoning output and the sequence "#<<= REASONING" will terminate such block.
+Reasoning output is also placed immediately above the assistant message that it
+applies to.
+
+Chat logs are required to follow proper dialog sequence where a user message
+is written then is followed by an assistant message.  It is considered an error
+to place two user messages back-to-back or two assistant messages back-to-back.
+If such a situation occurs within your chat log document than you will see an
+error message during chat submission and you will need to manually correct the
+document to show messages in the proper ordering.
+
+Within the body of the chat log, sequences of '-' characters may appear outside
+the context of a user or assistant message and are intended to serve as
+separator sequences.  These will be ignored during parsing and serve no function
+other than to help delmit parts of the document (note that such a separator
+will be inserted by default between each user/assistant message pairing).
+
+Comments are seen to be any line whose first non-whitespace character is a '#'
+and these may appear anywhere within the chat log document so long as they
+are not within the context of another statement (so, for example you cannot
+add a comment after an option declaration nor can you put comments inside the
+delmiters for a chat message; the comment must begin on its own line that is
+not otherwise part of a statement).  The content of comment lines is considered
+arbitrary and such lines are discarded by the parsing logic when encountered.
+
+In general comments are useful for adding notes or for disabling statements
+within a chat document without deleting them directly.  For example an option
+can be "commented-out" from use by simply placing a '#' at the start of its line
+and historical messages within the chat may be excluded from the chat history by
+prefixing all their lines with '#' characters (be aware that to comment out a
+chat block you must comment out ALL lines between the message start and end
+delimiters including the lines containing the delimiters).  Since comments are
+entirely excluded by processing their modification or removal has no impact on
+the processing or flow of chat interactions.
+
+Referring back to the reasoning output associated with an assistant response
+you should now recognize that this is simply a special type of comment and is
+therefore immaterial from the perspective of chat context or historcal message
+data.  Reasoning information can therefore be safely removed from a chat when it
+is no longer needed without affecting the context history of the chat.
+
+Finally some discussion must be had related to the general recognition that a
+particular document is a "chat log".  Within the plugin logic, local files
+storing chat log documents are recognized by having the extension ".chtlg".
+Additionally when such documents are loaded into a buffer within Vim the
+filetype for the buffer is set to 'chtlg' which enables syntax highlighting and
+compatibility with the commands in this plugin.  New buffers created in Vim
+which are not associated with a file need to have their filetype set to 'chtlg'
+via the command below if they are to be used as chat log documents; otherwise
+exceptions will be thrown when basic actions like chat submissions are
+undertaken:
+
+  set filetype=chtlg
+
+
+===============================================================================
+                                                       *LLMChat_ChatOptions*
+Chat Options
+------------
+
+The chat options listed below are supported for use from within the header
+section of a chat log document.  Note that each chat log MUST contain ALL
+options specified within the REQUIRED section and may or may not contain options
+listed in the elective section.
+
+  REQUIRED Options:
+  =================
+
+Model ID - The identifier for the particular LLM model that you want to
+           interact with.  Note that this needs to be a fully qualified LLM
+           name that will be recognized by the remote LLM server (for example
+           something like 'qwen:8b' for an Ollama sever).
+
+Server Type - This option specifies the type of remote server that we will
+              contact in order to interact with the LLM.  Currently this must
+              be set to one of the following:
+
+                 Ollama         (for an LLM hosted by an Ollama server)
+                 Open WebUI     (for an LLM reached via an Open-WebUI server)
+
+Server URL - The value for this option specifies the "base" URL to be used
+             for contacting the LLM server.  This means that for most servers it
+             should simply be of the form "http://server:port" or
+             "https://server:port" as the path portion of the URL used for
+             reaching a particular API will be appended by the plugin logic
+             during a chat submission.  In some circumstances, where the LLM
+             server being reached is proxied, than some portion of the URL
+             path may need to be added so that appending of the expected API
+             path later results in a properly formed request URL.
+
+             For more details on how to troubleshoot values given for this
+             option that don't seem to be working please see section
+             |LLMChat_Debugging|
+
+
+  Elective Options:
+  =================
+
+Auth Token - This option explicitly gives a bearer token that should be
+             used on each request to the remote LLM server for authentication.
+             Note that the token given must provided verbatim and must be
+             on the same line as the 'Auth Token' option declaration (this can't
+             span multiple lines).
+
+             Declaration of this option will cause logic processing the chat
+             log document to assume that authentication is required, and that
+             the given bearer token must be supplied, unless a 'Use Auth Token'
+             option is also provided with a value of 'false'.
+
+             Note that inclusion of a plain text bearer token within a
+             human-readable document such as the chat log is an insecure means
+             of providing authentication tokens.  For other options please
+             see section |LLMChat_Authentication| within this document.
+
+Option - This allows for the declaration of LLM model "options" within your
+         chat log document.  When provided than the "value" must be of the
+         form "name = value" where 'name' is an LLM model option supported
+         for use by the remote server and 'value' is a valid setting for that
+         option.
+
+         Example:
+
+            Option: seed = 123456
+
+         NOTE: Since this plugin only passes through model options it is
+               unaware what options are available and, more importantly, what
+         type of value that the option supports.  This has consequences when the
+         value is embedded into the request JSON as string values must be
+         added differently than other data types like booleans and numbers.
+         To get model option values that are strings to pass properly
+         you MUST wrap these in quotes and the quotes will be passed along as
+         part of the value.
+
+         Example:
+
+            Option: stop = "STOP"
+
+Show Reasoning - This option can be used to enable the "reasoning" or
+                 "show thinking" feature that is supported by some LLM models.
+                 Enabling generally causes additional response output that can
+                 help to show how an LLM arrived at the answer it provided back
+                 to you.  When defined, this option may use any value supported
+                 by the remote LLM server which may be 'true', 'false', 'high',
+                 'low', etc.  The value 'false' is the only one of these
+                 possible values that is expicitly recognized by the scripting
+                 and which will disable the appending of reasoning output to
+                 the chat log document.
+
+                 Be aware that when this option is not defined within a chat
+                 log the logic assumes a default of 'false'.
+
+System Prompt - This option provides the system prompt that the remote LLM
+                model should use when engaging with the chat request.  System
+                prompts are typically text messages used to set the tone and
+                expectations for the chat so that these are known by the LLM
+                model upfront.
+
+Use Auth Token - This option specifies whether or not authentication is
+                 required when sending requests to the LLM server.  When set to
+                 a value of 'false' than it is assumed anonymous access
+                 is enabled for requests and no authentication will be provided.
+                 When this option is set to the value 'true' than the
+                 authentication resolution logic for this plugin will be engaged
+                 to resolve an authentication token for chat requests to
+                 supply.  For more details on the resolution process for such
+                 tokens please see section |LLMChat_Authentication| in this
+                 document.
+
+                 Note that when this option is not defined within a chat log
+                 it is the same as supplying the option with a value of
+                 'false'.
+
+
+===============================================================================
+                                                        *LLMChat_Authentication*
+Authentication
+--------------
+
+This plugin supports interactions with secured systems and provides a
+multi-layer process for finding the authentication token that it should use
+when submitting chat requests.  Note that this logic is ONLY engaged when the
+chat log being processed explicitly gives a 'Use Auth Token' option having the
+value 'true'.
+
+When authentication is required the plugin will take the following steps in
+order to resolve an authentication token for its requests:
+
+  1). Check for 'Auth Token' Option - If an 'Auth Token' option has been
+                                      declared within the header of the chat
+          document being processed than the value it contains will be used
+          by default.  Should no such option exist than the next resolution
+          option in this listing will be tried.
+
+  2). Check for Buffer Auth Variable - A special variable called
+                                       'b:llmchat_auth_token' can be set on
+          the buffer containing the chat log and, when present, the value of
+          this variable will be used as the auth token to submit with requests.
+          Note that setting of this variable can be done manually via the 'let'
+          Vim command or, the more preferred way, by using the 'SetAuthToken'
+          command from this plugin.  For more details on the 'SetAuthToken'
+          command please refer to section |LLMChat_Commands| within this
+          document.
+
+          If no buffer auth variable is found to be set than the next option on
+          this list will be tried.
+
+  3). Check for Global Auth File - This final option looks for a global variable
+                                   called 'g:llmchat_apikey_file' whose value
+          is assumed to be the path to a file on the local system that holds
+          the authentication token to use.  When such variable is set than the
+          file it refers to will be read and the full content of that file will
+          be used, verbatim, as the authentication token to provide with
+          requests.
+
+          Should this final step in the resolution process be unsuccessful at
+          finding an authentication token than the request will automatically
+          fail and an exception will be thrown.  For such case no submission of
+          a chat request will be made and further chat interactions will be
+          blocked until steps are taken to ensure resolution of a token is
+          possible.
+
+
+===============================================================================
+                                                              *LLMChat_Commands*
+Plugin Commands
+---------------
+
+Actions taken by the plugin are mostly controlled via custom commands which are
+documented at length below:
+
+AbortChatExec - This command can be used to abort a chat submission that was
+                made by the "SendChat" command.  It is primarily useful in
+                situations where an extremely large model was loaded (perhaps
+                accidently) causing the submission to remain open for a very
+                lengthy period of time.  As mentioned earlier in this document,
+                only one chat submission at a time can be pending so having
+                a long running submission effectively blocks use of the plugin
+                for LLM interactions.  Aborting such a submission will
+                immediately cancel off the cURL call that was waiting for
+                response as well as cleanup the plugin state so that a new
+                chat submission can be made.
+
+NewChat - This is a convenience command for initializing a new buffer with
+          either a new or existing chat document.  When executed the command
+          will open a split and the new buffer created by the split will be
+          setup in one of the following ways:
+
+            1). No Filepath Given - In this instance no additional information
+                                    was provided to the command so it will
+                    create a default chat log document within the new split.
+                    Such document is generated based on a template held by the
+                    plugin and will have the appropriate filetype for working
+                    with the plugin logic.
+
+                    Example:
+
+                      :NewChat
+
+            2). Non-Existant Path Given - In this case a filepath was provided
+                                          to the command but no such file
+                    resides on the current system.  Again, a default document
+                    will be setup within the new buffer but this time it will
+                    also be associated with the given system path so it can be
+                    directly saved.
+
+                    Example:
+                      :NewChat /no/such/file.chtlg
+
+            3). Existing Path Given - In this case a filepath was provided to
+                                      the command AND such path referred to a
+                    file existing locally.  For such a case the content of the
+                    file will be loaded into the split and the filetype for
+                    the buffer will be set to 'chtlg' so that the buffer
+                    contents are recognized as a chat log.
+
+                    Example:
+                      :NewChat /home/myuser/MyChat.chtlg
+
+SendChat - This command will submit a chat request to the configured LLM server
+           and will update the chat log document it was run from when a response
+           is received.  Note that executions of this command must always be
+           performed with a particular chat log set as the active document
+           within Vim as this is how the plugin associates the submission with
+           the chat log it belongs to.  The command itself does not take any
+           arguments and may be run simply as:
+
+             :SendChat
+
+           Be aware that execution of this command to send a chat will only be
+           possible if all of the following are true:
+
+             1). The Last Message is a User Message - Sending a chat request
+                                                      that either contains no
+                     messages or is based on a document in which the most
+                     recent message (i.e., the last message in the document) is
+                     from the LLM itself (i.e., is an "assistant" message) is
+                     not allowed.
+
+             2). A Chat Request Must Not Be Pending - Only one chat request at
+                                                      a time may be submitted
+                     so it is not possible to send another request until the
+                     already completed request has received a response (or has
+                     been aborted).
+
+             3). A Chat Request MUST Come From a Chat Log - When a chat request
+                                                            is made the logic
+                     within this plugin will check the filetype of the buffer
+                     that was active when the request was made and such request
+                     will ONLY be allowed if the buffer filetype was 'chtlg'.
+
+SetAuthToken - This command will set an authentication token into a buffer
+               local variable that is associated with the chat log document it
+               is invoked from.  As with the 'SendChat' command, a chat log must
+               be the active document at the time the command is run or it will
+               not work as expected.  When invoked the authentication token to
+               use must be provided, verbatim, as the only argument supplied and
+               such token will then be used to setup the variable.  For more
+               details on the authentication token resolution process for
+               secured LLM servers and how this command fits into that process
+               please see section |LLMChat_Authentication| within this document.
+
+               Example:
+                 :SetAuthToken abc123
+
+SetDebugTarget - This command is used to both (1) toggle debug mode within the
+                 plugin and (2) to set or unset a target for debug mode to
+                 use.  A "target" in this context is an output location to which
+                 the collected debug output can be spooled.  When the command
+                 is invoked and provided an argument that starts with the '@'
+                 symbol than the remainder of the argument text is assumed to
+                 be the number of an available buffer that should receive the
+                 debug output as it is generated.  When the argument given
+                 does NOT begin with an '@' symbol, but is non-empty, than it
+                 is assumed to be the path to a file that the debug information
+                 should be written to.  Note that in either of these cases
+                 a real target for debug mode has been provided so such mode
+                 will be implicitly enabled in the plugin.
+
+                 If NO argument is given to this command it will (1) disable
+                 debug mode within the plugin and (2) clear any debug target
+                 that may have been in use.  Note that toggling debug mode is a
+                 completely safe operation so disabling debug if it was already
+                 off or switching debug to use a different target if it was
+                 already will not prompt faults.
+
+                 For more information on the use of this command within the
+                 debug workflow provided by this plugin please refer to section
+                 |LLMChat_Debugging|.
+
+                 Example - Setup buffer 11 as the debug "target"
+                   :SetDebugTarget @11
+
+                 Example - Use the file ~/debug.out as the debug "target"
+                   :SetDebugTarget /home/myuser/debug.out
+
+
+===============================================================================
+                                                           *LLMChat_KeyMappings*
+Plugin Key Mappings
+-------------------
+
+In the current release this plugin does not supply any out-of-the-box key
+mappings and is driven exclusively by custom commands (see
+":help |*LLM_Commands|").  It is up to the plugin user to decide what mappings
+they would like to use, if any, and set those mappings up to invoke one of
+the available commands when typed.
+
+
+===============================================================================
+                                                         *LLMChat_Configuration*
+Custom Configurations
+---------------------
+
+This plugin supports a number of custom configurations that range from default
+behaviors to tweaks in the way that information is written to the chat log.
+All of these options are documented extenisvely in the file at path
+'plugin/LLMChat.vim' within the assets of this plugin and to avoid unnecessary
+duplication the user is referred to the content of such file for full details.
+
+
+===============================================================================
+                                                             *LLMChat_Debugging*
+Debugging
+---------
+
+This plugin supports a debug feature which can provide more transparency into
+what actions are being taken by the code; especially when chat executions
+associated with a particular chat log are not succeeeding.  In debug mode you
+can see the exact request that was generated, the cURL call used to submit the
+request, and any response that was returned (this includes both response header
+and payload data).
+
+Debug mode is designed to be enabled when you provide a "target" for it to use
+and to be disabled when you remove that target from it.  A "target" is
+essentially an output location for the debug logic to write the information
+that it receives.  As documented by the 'SetDebugTarget' command (see section
+|LLMChat_Commands| in this document) such target may be either (1) an available
+buffer within Vim or (2) a file on disk.
+
+Be aware that debug mode does NOT clear targets of data so it is up to the
+user to provide any cleaning that should take place during a debugging session.
+For the case of both targets new data generated by debug writes will be appended
+to the end of the debug target in use.
+
+To use debug mode simply follow the basic workflow below:
+
+1). Enable debug mode by setting a debug target via the "SetDebugTarget"
+    command.
+
+2). Execute the plugin command you are experencing trouble with and then review
+    the generated debug information as it is made available.  Note that debug
+    mode does not care that information is retained so you can edit or remove
+    debug output at any time from the target it was written to.
+
+3). When finished debugging simply run the 'SetDebugTarget' command with no
+    argument to clear the target in use and disable debug mode.
+
+
+===============================================================================
+                                                           *LLMChat_Limitations*
+Limitations
+-----------
+
+The following limitations are known to exist with the current release of this
+plugin:
+
+  * Even though the plugin supports streaming interactions with the remote
+    LLM server these interactions are not actually useful and end up generating
+    more network traffic than non-streaming interactions.  The underlying issue
+    is that Vim is single threaded so there is no practical way to start a
+    listening process that can, in real time, receive response fragments and
+    update the document with them.  Instead the entire submission is made
+    externally via cURL and the call will not complete until all streaming
+    responses are received back (this means that from the client side the
+    streaming and non-streaming interactions appear to behave the same; in both
+    cases the response is fully received before the cURL call making the
+    request returns).
+
+    Support for streaming was introduced into the plugin after witnessing
+    interactions with particular models in Ollama return empty responses in
+    non-streaming mode but then return complete responses to the same chat
+    message when streaming.  This is therefore a workaround option for cases
+    where non-streaming mode is not working as expected rather than a way to
+    provide more real-time responses from the LLM.
+
+ * Currently one chat at a time may be submitted to the remote LLM across any
+   chat document that is open.  This exists as a limitation simply from the
+   current implementation and the desire to not push things too far with the
+   asynchronous job framework in the current release.
+
+   Realistically, this plugin was written to support the use of private LLMs
+   which are typically not running with sufficient hardware to field large
+   numbers of requests simultaneously.  It is therefore also unclear how much
+   value would be added to enhance the plugin to allow simultaneous requests
+   from different chats to be submitted in parallel.
+
+   Submitting chats from a single conversation will always remain linear from
+   the perspective that the plugin models a proper dialog where the user and
+   the LLM both take turns participating.  It therefore is natural that the
+   user should not be submitting additional messages in parallel with their
+   last before the LLM can even respond.
+
+ * This plugin CANNOT be used from neovim.  This is an unfortunate outcome and
+   stems from the following facts:
+
+     1). Vim9script was used to optimize the plugin code and to make structures
+         like functions and constants reusable across different code paths.
+         Basic Vimscript is extremely limited in how it lets you handle
+         modularity and a good portion of the code in this plugin had to be
+         refactored into Vim9script to fix reusability problems about halfway
+         through development of the first release (this is ultimately why some
+         files were in Vimscript and some are in Vim9script).
+
+     2). Neovim does not support Vim9script and seems to have no plans for
+         such support.  Should this ever change than support within neovim may
+         be reconsidered.
+

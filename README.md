@@ -16,7 +16,7 @@ Currently the plugin supports all of the following features:
   - Has syntax highlighting for chat logs
   - Makes use of the asynchronous job framework in Vim for chat submissions so that the editor is usable while waiting on a response.
   - Supports the use of authentication for interacting with LLMs on secured servers.
-    
+
 ## Installation
 * Note that this plugin requires the use of Vim 9.x or later as it makes use of vim9script for plugin modularity.  Unfortunately, also because it uses vim9script, this plugin is currently incompatible with neovim.
 
@@ -30,6 +30,10 @@ For [Pathogen](https://github.com/tpope/vim-pathogen) users the following lines 
 cd ~/.vim/bundle
 git clone https://github.com/N0m8n/LLMChat.vim.git
 ```
+
+## License
+This plugin is provided for general use under the terms of the GNU Public License v3.
+
 
 ## RoadMap
 There are plans for supporting the following features as this plugin evolves:
