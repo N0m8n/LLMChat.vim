@@ -16,6 +16,12 @@ Currently the plugin supports all of the following features:
   - Has syntax highlighting for chat logs
   - Makes use of the asynchronous job framework in Vim for chat submissions so that the editor is usable while waiting on a response.
   - Supports the use of authentication for interacting with LLMs on secured servers.
+  - Only depends on the availability of `curl` locally (see the "Requirements" section below) and is otherwise written in pure vimscript (no additional requirements on language bindings, no need for specially compiled Vim binaries, etc)
+
+## Requirements
+This plugin requires that [cURL](https://github.com/curl/curl) be installed to, and can be located via the PATH on,
+the system where the plugin will be used.  If not already available, this utility can be added to Linux systems via
+the package manager (for example `apt-get install curl` on Debian/Ubuntu) or via standalone executable for Windows.
 
 ## Installation
 * Note that this plugin requires the use of Vim 9.x or later as it makes use of vim9script for plugin modularity.  Unfortunately, also because it uses vim9script, this plugin is currently incompatible with neovim.
