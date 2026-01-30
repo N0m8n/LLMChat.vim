@@ -96,6 +96,14 @@ function LLMChat#new_chat#OpenNewChatSplit(file_path="")
     execute l:split_create_cmd
 
 
+    " Check to see if variable 'g:llmchat_fully_expand_new_chats' has been set to 1 (i.e., 'true') and if so update the
+    " 'foldlevel' value for the buffer so that all folds will be open by default.  If 'g:llmchat_fully_expand_new_chats'
+    " is NOT 1 than take no action; by default Vim uses a foldlevel of '0' which opens documents with all folds closed.
+    if g:llmchat_fully_expand_new_chats
+        setlocal foldlevel=2
+    endif
+
+
     " Always set the 'filetype' in the new split to 'chtlg'.  This will happen automatically in some cases (for instance
     " if a 'file_path' is given whose file ends with the extension '.chtlg') but for others it won't.  In any event the
     " new chat window should ALWAYS have this filetype assigned so there is no harm in doing it directly.
@@ -264,7 +272,7 @@ function LLMChat#new_chat#InitializeChatBuffer()
         silent put! = l:init_text
 
 
-        " Finally move the cursort to the appropriate place in the document; either to the opening of the first user
+        " Finally move the cursor to the appropriate place in the document; either to the opening of the first user
         " message (if variable 'let l:position_cursor_at_end' was still set to 1) or at the model ID declaration line
         " (if variable 'let l:position_cursor_at_end' was 0).
         if l:position_cursor_at_end

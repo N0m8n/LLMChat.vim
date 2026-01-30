@@ -18,9 +18,12 @@ Author: James Hurley
 CONTENTS                                                      *LLMChat_Contents*
 
   Overview..............................................|LLMChat_Overview|
+  Plugin Requirements...................................|LLMChat_Requirements|
   Installation..........................................|LLMChat_Installation|
   Usage Quick Start.....................................|LLMChat_QuickStart|
   Chat Log Format.......................................|LLMChat_ChatLogFormat|
+  Text Escape Sequences.................................|LLMChat_TextEscapes|
+  Custom Folding........................................|LLMChat_CustomFolding|
   Chat Options..........................................|LLMChat_ChatOptions|
   Authentication........................................|LLMChat_Authentication|
   Plugin Commands.......................................|LLMChat_Commands|
@@ -57,6 +60,26 @@ documents themselves, can be managed just like any other text file within Vim
 providing a convenient way to save chats, edit chat history, etc.  Chat
 submissions always require a chat log to be active at the time of sending so
 it is clear which chat document that the submission belongs to.
+
+
+===============================================================================
+                                                          *LLMChat_Requirements*
+Plugin Requirements
+-------------------
+
+While this plugin was intentionally created to be as self-sufficient as
+possible it does still require that the 'curl' utility be available on the
+local system.  Curl is a program for executing HTTP requests (among others)
+from scripts or directly from the terminal.  This utility is ultimately the
+means by which network interactions with remote LLM systems are performed.
+
+Most distributions provide curl as an installable package via their default
+package manager so if this utility is not already available it is typically
+easy to add.  For Windows, standalone executables can be downloaded and unpacked
+to a suitable install location for use.
+
+Note that once curl is available on your system you may also need to add it to
+your PATH environment variable so that Vim can find it.
 
 
 ===============================================================================
@@ -232,7 +255,81 @@ undertaken:
 
 
 ===============================================================================
-                                                       *LLMChat_ChatOptions*
+                                                           *LLMChat_TextEscapes*
+Text Escape Sequences
+---------------------
+
+On occasion it may be necessary to use one of the chat log's special delimiting
+sequences within the content of a chat message and to do this such sequence
+must be "escaped".  Note that all such escaped sequences will be converted to
+their unescaped equivalent after the chat log content is parsed so downstream
+logic (such a remote LLM) will not see the escaped text.
+
+Below is a summary of reserved sequences used by the text parsing and what
+their corresponding escape sequence is:
+
+Reserved Token  |  Escape Sequence | Description
+================+==================+====================================
+      >>>       |       \>>>       | User message start delimiter
+----------------+------------------+------------------------------------
+      <<<       |       \<<<       | User message end delimiter
+----------------+------------------+------------------------------------
+      =>>       |       \=>>       | Assistant message start delimiter
+----------------+------------------+------------------------------------
+      <<=       |       \<<=       | Assistant message end delimiter
+----------------+------------------+------------------------------------
+
+In addition to these reserved sequences the following "special" sequences may
+also be encoded into messages for expansion during parsing:
+
+Sequence  | Meaning
+==========+==============================
+   \n     | The newline separator
+----------+------------------------------
+
+
+===============================================================================
+                                                         *LLMChat_CustomFolding*
+Custom Folding
+--------------
+
+This plugin comes with a custom folding implementation that will allow the
+following constructs within chat logs to be consolidated using the standard Vim
+folding commands (see ':help |folding|' for full details on this):
+
+  * Comment blocks - Any consecutive block of two or more comment lines may
+                     be folded up to a single line.
+
+  * Message Exchanges - Pairings of user and assistant response messages may
+                        be folded up to a single line.
+
+  * Assistant Messages - The assistant message portion of any any message
+                         exchange pairing may be folded up to a single line.
+
+For comment blocks, folding and unfolding can be performed by positioning the
+cursor on any line occuring within the block then using the desired folding
+command.  For user and assistant messages the following rules are used to define
+the start and end locations for folds; you will need to position your cursor
+within such area to then fold and unfold text:
+
+  1). If the line containing the opening '>>>' or '=>>' delimiter for the
+      message is immediately followed by message content than that becomes the
+      start for the fold; if the message text begins on the line below the
+      delimiter instead than that becomes the start for the fold.
+
+  2). The fold for the message exchange pair will always end on the line that
+      contains the '<<=' closing delimiter for the assistant message.
+
+  3). The fold for the assistant message will always end on the line above
+      the '<<=' delimiter.
+
+See the global variables documented in file 'plugin/LLMChat.vim' for details
+on additional customizations that can be setup with regard to the plugin
+folding feature.
+
+
+===============================================================================
+                                                           *LLMChat_ChatOptions*
 Chat Options
 ------------
 

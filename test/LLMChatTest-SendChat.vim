@@ -1,5 +1,5 @@
 
-UTSuite LLMPlugin SendChat Tests
+UTSuite LLMChat SendChat Tests
 
 " Tests for logic found in the 'autoload/LLMChat/send_chat.vim' script.
 

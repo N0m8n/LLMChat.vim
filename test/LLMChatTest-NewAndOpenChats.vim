@@ -1,5 +1,5 @@
 
-UTSuite LLMPlugin New and Open Chat Tests
+UTSuite LLMChat New and Open Chat Tests
 
 " Tests for functionality found in the 'autoload/LLMChat/new_chat.vim' script.
 

@@ -31,41 +31,47 @@ vim9script
 # The following declarations represent constants that are needed by the utilities within this script as well as
 # potentially tests using this script.
 
-# This constant holds the plugin default value this test expects for variable 'g:llmchat_default_server_type'.
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_server_type'.
 const default_llm_default_server_type_value = "Ollama"
 
-# This constant holds the plugin default value this test expects for variable 'g:llmchat_default_server_url'.
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_server_url'.
 const default_llmchat_default_server_url_value = "http://localhost:11434"
 
-# This constant holds the plugin default value this test expects for variable 'g:llmchat_default_model_id'.
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_model_id'.
 const default_llmchat_default_model_id_value = ''
 
-# This constant holds the plugin default value this test expects for variable 'g:llmchat_default_system_prompt'.
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_system_prompt'.
 const default_llmchat_default_system_prompt_value = ''
 
-# This constant holds the plugin default value this test expects for variable 'g:llmchat_apikey_file'.
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_apikey_file'.
 const default_llmchat_apikey_file_value = ''
 
-# This constant holds the plugin default value this test expects for variable 'g:llmchat_open_splits_in_insert_mode'.
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_open_splits_in_insert_mode'.
 const default_llmchat_open_new_chats_in_insert_mode_value = 1
 
-# This constant holds the plugin default value this test expects for variable 'g:llmchat_chat_split_type'.
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_fully_expand_new_chats'.
+const default_llmchat_fully_expand_new_chats = 1
+
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_chat_split_type'.
 const default_llmchat_chat_split_type_value = "horizontal"
 
-# This constant holds the plugin default value this test expects for variable 'g:llmchat_header_sep_size'.
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_header_sep_size'.
 const default_llmchat_header_sep_size_value = 28
 
-# This constant holds the plugin default value this test expects for variable 'g:llmchat_separator_bar_size'.
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_separator_bar_size'.
 const default_llmchat_separator_bar_size_value = 28
 
-# This constant holds the plugin default value this text expects for variable
+# This constant holds the plugin default value that tests expect for variable
 # 'g:llmchat_assistant_message_follow_style'.
 const default_llmchat_assistant_message_follow_style = 0
 
-# This constant holds the plugin default value this test expects for variable 'g:llmchat_use_streaming_mode'.
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_use_streaming_mode'.
 const default_llmchat_use_streaming_mode = 0
 
-# This constant holds the plugin default value this test expects for variable 'g:llmchat_curl_extra_args'.
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_use_chat_folding'.
+const default_llmchat_use_chat_folding = 1
+
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_curl_extra_args'.
 const default_llmchat_curl_extra_args = ''
 
 
@@ -733,6 +739,10 @@ export def RestoreGlobalVars(restore_dict: dict<any>)
         g:llmchat_open_new_chats_in_insert_mode = restore_dict["g:llmchat_open_new_chats_in_insert_mode"]
     endif
 
+    if has_key(restore_dict, "g:llmchat_fully_expand_new_chats")
+        g:llmchat_fully_expand_new_chats = restore_dict["g:llmchat_fully_expand_new_chats"]
+    endif
+
     if has_key(restore_dict, "g:llmchat_chat_split_type")
         g:llmchat_chat_split_type = restore_dict["g:llmchat_chat_split_type"]
     endif
@@ -751,6 +761,10 @@ export def RestoreGlobalVars(restore_dict: dict<any>)
 
     if has_key(restore_dict, "g:llmchat_use_streaming_mode")
         g:llmchat_use_streaming_mode = restore_dict["g:llmchat_use_streaming_mode"]
+    endif
+
+    if has_key(restore_dict, "g:llmchat_use_chat_folding")
+        g:llmchat_use_chat_folding = restore_dict["g:llmchat_use_chat_folding"]
     endif
 
     if has_key(restore_dict, "g:llmchat_curl_extra_args")
@@ -777,11 +791,13 @@ export def GetGlobalVariableDefaults(): dict<any>
              "g:llmchat_default_system_prompt": default_llmchat_default_system_prompt_value,
              "g:llmchat_apikey_file": default_llmchat_apikey_file_value,
              "g:llmchat_open_splits_in_insert_mode": default_llmchat_open_new_chats_in_insert_mode_value,
+             "g:llmchat_fully_expand_new_chats": default_llmchat_fully_expand_new_chats,
              "g:llmchat_chat_split_type": default_llmchat_chat_split_type_value,
              "g:llmchat_header_sep_size": default_llmchat_header_sep_size_value,
              "g:llmchat_separator_bar_size": default_llmchat_separator_bar_size_value,
              "g:llmchat_assistant_message_follow_style": default_llmchat_assistant_message_follow_style,
              "g:llmchat_use_streaming_mode": default_llmchat_use_streaming_mode,
+             "g:llmchat_use_chat_folding": default_llmchat_use_chat_folding,
              "g:llmchat_curl_extra_args": default_llmchat_curl_extra_args
            }
 

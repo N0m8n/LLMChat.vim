@@ -7,3 +7,13 @@
 "                     with the basic skeleton structure for a chat log file (i.e., the required header elements and an
 "                     initial user message start token).
 call LLMChat#new_chat#InitializeChatBuffer()
+
+
+" Setup a custom folding definition created specifically for chatlog files.  Note that this can be disabled by changing
+" the value used for 'g:llmchat_use_chat_folding' to 0 either in the plugin code or in your ~/.vimrc file.
+if g:llmchat_use_chat_folding
+
+    setlocal foldmethod=expr
+    setlocal foldexpr=LLMChatFolding(v:lnum)
+
+endif

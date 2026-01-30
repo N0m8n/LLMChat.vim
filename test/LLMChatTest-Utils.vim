@@ -1,5 +1,5 @@
 
-UTSuite LLMPlugin Utility Tests
+UTSuite LLMChat Utility Tests
 
 " Tests for logic found in the the 'import/utils.vim' script.
 

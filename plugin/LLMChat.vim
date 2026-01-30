@@ -75,6 +75,19 @@ if ! exists("g:llmchat_open_new_chats_in_insert_mode")
 endif
 
 
+" This variable specifies whether or not new, empty chats that are initialized by the plugin should be displayed as
+" "fully expanded".  When this variable has been given a value of 1 than a new chat log will be shown with all
+" folds fully expanded so that the entire template content for the new chat can be easily seen.  When this variable
+" has been given a value of 0 than a new chat log will be shown with all folds fully closed.
+"
+" For new users it is useful to leave this value set to its default so that help information about the chat log and
+" its structure can be seen directly in the document itself.  Familiar users may dislike the display of so much
+" information that they are already familiar with and may prefer to start new documents will all of this hidden.
+if ! exists("g:llmchat_fully_expand_new_chats")
+    let g:llmchat_fully_expand_new_chats = 1
+endif
+
+
 " This variable specifies what type of split should be opened when the ":NewChat" command is executed.  Possible
 " values are enumerated below:
 "
@@ -106,17 +119,17 @@ endif
 
 
 " This variable specifies the style to be used when writing received assistant messages into the chat buffer.  When
-" given a value of 1 than the start of a message will be pushed to the line after the opening chat delimiter and when
-" set to 0 than the start of a message will come immediately after the opening delimiter.
+" given a value of 1 than the start of an assistant message will begin on the same line as the opening chat delmiter and
+" when given a value of 0 the start of the message will be pushed to the line under the opening delimiter.
 "
 " Graphically this looks like the following:
 "
-"    *When set to 1:
+"    *When set to 0:
 "
 "         =>>
 "         Start of assistant message.
 "
-"    *When set to 0:
+"    *When set to 1:
 "
 "         =>> Start of assistant message.
 "
@@ -145,6 +158,14 @@ endif
 " will use whatever mode is appropriate for interactions.
 if ! exists("g:llmchat_use_streaming_mode")
     let g:llmchat_use_streaming_mode = 0
+endif
+
+
+" This variable specifies whether or not to use the custom folding feature that has been defined by this plugin for
+" chat log files.  When set to a value of 1 than custom folding will be enabled (the default) and if set to 0 than
+" folding will be disabled.
+if ! exists("g:llmchat_use_chat_folding")
+    let g:llmchat_use_chat_folding = 1
 endif
 
 
@@ -252,4 +273,163 @@ command -nargs=0 AbortChatExec call LLMChat#send_chat#AbortRunningChatExec()
 " This command can be invoked at any time and will switch the debug target currently in use.
 command -nargs=? -complete=file SetDebugTarget execute "let g:llmchat_debug_mode_target='<args>' | " ..
                                                      \ "echo ('<args>' == '' ? \"Debug disabled\" : \"Debug Enabled\")"
+
+
+
+" =====================
+" ====             ====
+" ====  Functions  ====
+" ====             ====
+" =====================
+
+" This section contains a small subset of functions that should always be loaded when Vim starts.  Note that the
+" majority of functions should be pushed out to either (1) autoload scripts or (2) vim9script library files in order
+" to not effect the Vim startup time and to avoid unnecessarily cluttering memory with things that aren't immediately
+" needed.
+
+
+" This function provides the basis for a custom folding method appropriate to chat log files.  In its current
+" implementation the function will create folds according to the following rules:
+"
+"   1). The first line of all comment blocks (i.e., sequences of 2 or more consecutive comment lines) can be rolled
+"       up into a single fold.
+"
+"   2). All message exchanges (i.e., pairings of user messages and their assistant responses) can be rolled up into
+"       a single fold.
+"
+"   3). Within any message exchange the assistant message can be rolled up into its own fold as well (so a second
+"       level fold within the message exhange fold).
+"
+" On invocation the operation of this function will attempt to determine what "fold level" to assign the line whose
+" number has been provided as argument "line_num".  The method will then return a resolved "fold level" for the line
+" that adheres to the level types as specified in help section 'fold-expr'.
+"
+" In order to use this function for folding the following must be set in Vim for a buffer containing a chat log file:
+"
+"   setlocal foldmethod=expr
+"   setlocal foldexpr=LLMChatFolding(v:lnum)
+"
+" Arguments:
+"   line_num - The line number that this function should determine the fold level for.
+"
+" Returns: A string value representing the "fold level" for the line as per the accepted fold levels documented in
+"          help section 'fold-expr'.
+"
+function! LLMChatFolding(line_num)
+    " Fetch the text from the 'line_num' given and then determine what folding level should be assigned.
+    let l:line_text = getline(a:line_num)
+
+    " Assume that we want to return "-1" (intentially forced to be a string) by default as this will be the majority
+    " case for most lines in the file.  Essentially this tells Vim to look at the fold level for the line above or below
+    " the current line and assign whichever value is smaller.  For more details see 'help fold-expr'.
+    let l:fold_level = "-1"
+
+
+    " Now setup fold levels so that the following goals are met:
+    "
+    "   1). First level folds should roll up comments and individual chat exchanges (i.e., separate pairings of
+    "       user/assistant messages).
+    "
+    "   2). Second level folds should roll up assistant messages only.
+    "
+    " Note that for chat messages we want to expose the first line of the actual message text in the fold rollup so
+    " that there is some reference as to what the message was.  This can be a bit tricky since users can format their
+    " chats according to their own preference and may even change the chat log content to be contradictory to some
+    " global settings like 'g:llmchat_assistant_message_follow_style'.
+    "
+    " To meet this goal we will therefore check for text that follows the opening message delimiter (both for user and
+    " assistant messages) and, if found, we will set the line we found this in as the start of the fold.  If we don't
+    " see any characters (other than whitespace) follow the delimiter than we will set the next line down as the start
+    " of the fold.
+    "
+    " Note that this scheme isn't perfect and some users could include multiple lines of whitespace between the
+    " opening delimiter and the start of their actual message.  For now we're not worried about this case as we expect
+    " most users to either start their message immediately after the delmiter or on the line under it.
+    "
+    if l:line_text =~ '\v^\>\>\>\s*\S+(.)*'
+        " In this case we found the opening delimiter for a user message AND such delimiter was followed by at least
+        " one non-whitespace character.  Assume that this should be the start of a fold and update the value held by
+        " variable 'l:fold_level' accordingly.
+        let l:fold_level = ">1"
+
+    elseif a:line_num > 1 && getline(a:line_num - 1) =~ '\v^\>\>\>\s*$'
+        " In this case we found a line that was immediately preceeded by a line containing ONLY the opening delimiter
+        " for a user message (and possibly some trailing whitespace); for such a case assume that the current line
+        " should open a fold and update variable 'l:fold_level' accordingly.
+        let l:fold_level = ">1"
+
+    elseif l:line_text =~ '\v^\=\>\>\s*\S+(.)*'
+        " In this case we found the opening delimiter for an assistant message AND such delmiter was followed by at
+        " least one non-whitespace character.  Assume that this should be the start of a fold and update the value held
+        " by variable 'l:fold_level' accordingly.
+        let l:fold_level = ">2"
+
+    elseif a:line_num > 1 && getline(a:line_num -1) =~ '\v^\=\>\>\s*$'
+        " In this case we found a line that was immediately preceeded by a line containing ONLY the opening delimiter
+        " for an assistant message (and possibly some trailing whitespace); for such a case assume that the current
+        " line should open a fold and update variable 'l:fold_level' accordingly.
+        let l:fold_level = ">2"
+
+    elseif getline(a:line_num + 1) =~ '\v^\<\<\=(.)*'
+        " In this case we encountered a line whose next line closes out an assistant message; go ahead and close out
+        " the second level fold as the next line will need to close out the first level fold.
+        let l:fold_level = "<2"
+
+    elseif l:line_text =~ '\v^\<\<\=\s*'
+        " We have found a line that contains the assistant message closing delimiter so close out the first level
+        " fold.
+        let l:fold_level = "<1"
+
+    elseif l:line_text =~ '\v\s*\*+ ENDSETUP \*+\s*'
+        " Always mark the delimiter line between the header and body portions of the document as fold level 0.
+        let l:fold_level = "0"
+
+    elseif l:line_text =~ '\v\s*\#(.)*'
+        " If the logic comes here than we've found a comment line.  To properly process comments we need to determine
+        " a few things like:
+        "
+        "   * Is this just a single comment line or part of a block?
+        "   * If part of a block is this comment line the start?  the end?  somewhere in the middle?
+        "
+        " Thankfully all of these questions can be asked fairly simply inside some if conditions provided we know the
+        " following:
+        "
+        "   1). Does the current comment line have a previous comment line above it?
+        "   2). Does the current comment line have another comment line below it?
+        "
+        " Create some variables that will store the answers to these questions as Vimscript booleans before proceeding
+        " further (where Vimscript uses 0 to mean 'false' and anything else to mean 'true')
+        let l:prior_line = a:line_num - 1
+        let l:next_line = a:line_num + 1
+
+        let l:has_above_comment = l:prior_line > 0 && getline(l:prior_line) =~ '\v\s*\#(.)*' ? 1 : 0
+        let l:has_below_comment = getline(l:next_line) =~ '\v\s*\#(.)*' ? 1 : 0
+
+
+        " Now determine the folding level based on whether the current line was preceeded by a comment and if it has
+        " a comment following it.  The goal is to have the following as as result:
+        "
+        "   1). Single line comments should be left defaulted to "-1".
+        "   2). Comment blocks (i.e., two or more comment lines together) should have the first line of the block
+        "       marked as the fold start and the last line of the block marked as the fold end.  All lines in between
+        "       the start and end should be given a fold level of 1.
+        "
+        if ! l:has_above_comment && l:has_below_comment
+            let l:fold_level = ">1"
+
+        elseif l:has_above_comment && ! l:has_below_comment
+            let l:fold_level = "<1"
+
+        elseif l:has_above_comment && l:has_below_comment
+            let l:fold_level = 1
+
+        endif
+
+    endif
+
+
+    "Return the resolved fold level back to the caller.
+    return l:fold_level
+
+endfunction
 
