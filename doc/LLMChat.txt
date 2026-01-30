@@ -20,7 +20,7 @@ CONTENTS                                                      *LLMChat_Contents*
   Overview..............................................|LLMChat_Overview|
   Installation..........................................|LLMChat_Installation|
   Usage Quick Start.....................................|LLMChat_QuickStart|
-  Chat Log Format.......................................|LLMChat_LogFormat|
+  Chat Log Format.......................................|LLMChat_ChatLogFormat|
   Chat Options..........................................|LLMChat_ChatOptions|
   Authentication........................................|LLMChat_Authentication|
   Plugin Commands.......................................|LLMChat_Commands|
@@ -124,7 +124,7 @@ NOTES:
 
 
 ===============================================================================
-                                                             *LLMChat_DocFormat*
+                                                         *LLMChat_ChatLogFormat*
 Chat Log Format
 ---------------
 
