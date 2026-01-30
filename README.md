@@ -43,22 +43,22 @@ git clone https://github.com/N0m8n/LLMChat.vim.git
 ```
 
 ## Usage
-To use this plugin after installation simply type the command ":NewChat" in order to initialize a new chat log document.
+To use this plugin after installation simply type the command `:NewChat` in order to initialize a new chat log document.
 Inside this document you will see that there is a "header" section at the top and a "body" section at the bottom;
 these two document segments are separated from each other by an `* ENDSETUP *` delimiter line.  The header section
 holds a series of "Name: Value" style options that define behaviors for the chat execution; you *MUST* at minimum
 provide values for the 'Server Type', 'Server URL', and 'Model ID' options seen here.  A short description of each
 of these is provided below:
 
-  - *Server Type* - The type of LLM server the plugin will be contacting; this must be set to either "Ollama" or
-                    "Open WebUI".
-  - *Server URL* - The "base" URL to reach the server at.  In general this will just contain the server host or IP and
-                   any necessary port number (for example "http://localhost:11434" for a locally running Ollama
-                   server).  For more advanced use cases just be aware that this URL should be sufficient for the
-                   plugin logic to invoke the API methods provided by the server type given by simply appending the
-                   path to the API onto the supplied URL.
- - *Model ID* - This is the fully qualified name of the LLM model you would like to use.  Note that the name given
-                must be recognizable to the remote server and must belong to an LLM model that is available for use.
+  - **Server Type** - The type of LLM server the plugin will be contacting; this must be set to either "Ollama" or
+                      "Open WebUI".
+  - **Server URL** - The "base" URL to reach the server at.  In general this will just contain the server host or IP and
+                     any necessary port number (for example "http://localhost:11434" for a locally running Ollama
+                     server).  For more advanced use cases just be aware that this URL should be sufficient for the
+                     plugin logic to invoke the API methods provided by the server type given by simply appending the
+                     path to the API onto the supplied URL.
+ - **Model ID** - This is the fully qualified name of the LLM model you would like to use.  Note that the name given
+                  must be recognizable to the remote server and must belong to an LLM model that is available for use.
 
 Once the header section of the chat document has been properly setup than you can type the message you would like to
 send to the LLM after the '>>>' sequence found at the bottom of the document.  The message can either immediately follow
@@ -68,7 +68,7 @@ you may, optionally, add the closing '<<<' sequence for user messages or allow t
 (note that if you don't add this sequence it will be added automatically when a response is posted; only the last
 message in the document is permitted to use the end of document to denote the message close).
 
-After a message has been added it can be sent to the remote LLM by executing the ':SendChat' command.  This will cause
+After a message has been added it can be sent to the remote LLM by executing the `:SendChat` command.  This will cause
 an asynchronous job to run that behind the scenes executes a curl call and eventually updates the chat log document with
 the LLM response.  Note that the plugin is designed to leave the chat log document at the top of the LLM response so you
 don't need to backup to read it but this also means that you won't see a dramatic shift in the document when the
@@ -81,12 +81,12 @@ next message is added and sent.
 
 Chat logs should be saved with the file extension ".chtlg" so that Vim features like syntax highlighting, custom
 folding, etc, are enabled when the file is loaded.  More than one chat log can be created as well by simply using the
-":NewChat" command and saving each log off as a separate file.  This makes it easy to manage multiple concurrently
+`:NewChat` command and saving each log off as a separate file.  This makes it easy to manage multiple concurrently
 running chats that have different histories on different topics.  Just be aware that when submitting chats with the
-":SendChat" command *only one pending chat at a time is permitted*.  This means that after you send a chat to the LLM
-you need to wait for a response before sending another.
+`:SendChat` command ***only one pending chat at a time is permitted***.  This means that after you send a chat to the
+LLM you need to wait for a response before sending another.
 
-For full help information on this plugin beyond this simple quick start discussion see 'help LLMChat' inside of Vim
+For full help information on this plugin beyond this simple quick start discussion see `:help LLMChat` inside of Vim
 itself.
 
 
