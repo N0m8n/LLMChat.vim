@@ -2561,6 +2561,79 @@ function s:TestCreateOllamaChatRequestPayloadWithEnabledStreaming()
 endfunction
 
 
+" This test verifies that function CreateOllamaChatRequestPayload() behaves as expected when the parse dictionary it
+" is given contains instructions to limit the message context to include within the request.
+function s:TestCreateOllamaChatRequestPayloadWithLimitedMessageContext()
+    " Create a minimal parse dictionary for testing that includes a header option for limiting the message context to
+    " a known length.
+    let l:test_parse_dict = {
+                          \   "header":
+                          \   {
+                          \     "server type": "Ollama",
+                          \     "server url": "http://localhost:11434",
+                          \     "model id": "qwen:latest",
+                          \     "max context": 2
+                          \   },
+                          \   "messages":
+                          \   [
+                          \     {
+                          \       "user": "User message 1",
+                          \       "assistant": "Assistant message 1"
+                          \     },
+                          \     {
+                          \       "user": "User message 2",
+                          \       "assistant": "Assistant message 2"
+                          \     },
+                          \     {
+                          \       "user": "User message 3",
+                          \     }
+                          \   ]
+                          \ }
+
+    " Invoke the CreateOllamaChatRequestPayload() function and provide to it (1) the test parse dictionary created
+    " earlier and (2) the path to a temporary file that it can output its result to.
+    let l:temp_file = tempname()
+
+    call LLMChat#send_chat#CreateOllamaChatRequestPayload(l:test_parse_dict, l:temp_file)
+
+
+    " Read all lines from the temporary file that function CreateOllamaChatRequestPayload() wrote its output to, join
+    " the lines back together using newline sequences, then compare the result to an expected text block.
+    let l:expected_output = "{" ..
+                        \ "\n  \"model\": \"qwen:latest\"," ..
+                        \ "\n  \"think\": false," ..
+                        \ "\n  \"stream\": false," ..
+                        \ "\n  \"messages\":" ..
+                        \ "\n    [" ..
+                        \ "\n      {" ..
+                        \ "\n        \"role\": \"user\"," ..
+                        \ "\n        \"content\": \"User message 2\"" ..
+                        \ "\n      }," ..
+                        \ "\n      {" ..
+                        \ "\n        \"role\": \"assistant\"," ..
+                        \ "\n        \"content\": \"Assistant message 2\"" ..
+                        \ "\n      }," ..
+                        \ "\n      {" ..
+                        \ "\n        \"role\": \"user\"," ..
+                        \ "\n        \"content\": \"User message 3\"" ..
+                        \ "\n      }" ..
+                        \ "\n    ]" ..
+                        \ "\n}"
+
+    let l:actual_output = join(readfile(l:temp_file), "\n")
+
+    call s:testutil.AssertEqualTextBlocks(expand('<sflnum>') - 9, '', l:expected_output, l:actual_output)
+
+
+    " Now that the test has completed take the following cleanup actions:
+    "
+    "   1). Remove the temporary file now that testing has completed.
+    "
+    call delete(l:temp_file)
+
+endfunction
+
+
 " **************************************************************
 " ****  CreateOpenWebUIChatRequestPayload() Function Tests  ****
 " **************************************************************
@@ -2800,6 +2873,78 @@ function s:TestCreateOpenWebUIChatRequestPayloadWithEnabledStreaming()
 
 
     " Remove the temporary file now that testing has completed.
+    call delete(l:temp_file)
+
+endfunction
+
+
+" This test verifies that function CreateOpenWebUIChatRequestPayload() behaves as expected when the parse dictionary it
+" is given contains instructions to limit the message context to include within the request.
+function s:TestCreateOpenWebUIChatRequestPayloadWithLimitedMessageContext()
+    " Create a minimal parse dictionary for testing that will indicate the message context length for the request should
+    " be limited.
+    let l:test_parse_dict = {
+                          \   "header":
+                          \   {
+                          \     "server type": "Open WebUI",
+                          \     "server url": "http://localhost:11434",
+                          \     "model id": "qwen:latest",
+                          \     "max context": 2
+                          \   },
+                          \   "messages":
+                          \   [
+                          \     {
+                          \       "user": "User message 1",
+                          \       "assistant": "Assistant message 1"
+                          \     },
+                          \     {
+                          \       "user": "User message 2",
+                          \       "assistant": "Assistant message 2"
+                          \     },
+                          \     {
+                          \       "user": "User message 3"
+                          \     }
+                          \   ]
+                          \ }
+
+    " Invoke the CreateOpenWebUIChatRequestPayload() function and provide to it (1) the test parse dictionary created
+    " earlier and (2) the path to a temporary file that it can output its result to.
+    let l:temp_file = tempname()
+
+    call LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(l:test_parse_dict, l:temp_file)
+
+
+    " Read all lines from the temporary file that function CreateOpenWebUIChatRequestPayload() wrote its output to, join
+    " the lines back together using newline sequences, then compare the result to an expected text block.
+    let l:expected_output = "{" ..
+                        \ "\n  \"model\": \"qwen:latest\"," ..
+                        \ "\n  \"stream\": false," ..
+                        \ "\n  \"messages\":" ..
+                        \ "\n    [" ..
+                        \ "\n      {" ..
+                        \ "\n        \"role\": \"user\"," ..
+                        \ "\n        \"content\": \"User message 2\"" ..
+                        \ "\n      }," ..
+                        \ "\n      {" ..
+                        \ "\n        \"role\": \"assistant\"," ..
+                        \ "\n        \"content\": \"Assistant message 2\"" ..
+                        \ "\n      }," ..
+                        \ "\n      {" ..
+                        \ "\n        \"role\": \"user\"," ..
+                        \ "\n        \"content\": \"User message 3\"" ..
+                        \ "\n      }" ..
+                        \ "\n    ]" ..
+                        \ "\n}"
+
+    let l:actual_output = join(readfile(l:temp_file), "\n")
+
+    call s:testutil.AssertEqualTextBlocks(expand('<sflnum>') - 9, '', l:expected_output, l:actual_output)
+
+
+    "Now that the test has completed take the following actions as part of cleanup:
+    "
+    "  1). Remove the temporary file that was allocated earliery to receive the generated request payload.
+    "
     call delete(l:temp_file)
 
 endfunction
@@ -3182,6 +3327,505 @@ function s:TestProcessOpenWebUIChatResponsePayloadWithStreamingResponse()
     let l:default_values_dict = s:testutil.GetGlobalVariableDefaults()
     let g:llmchat_use_streaming_mode = l:default_values_dict["g:llmchat_use_streaming_mode"]
 
+endfunction
+
+
+
+" **********************************************
+" ****  GetMessageContext() Function Tests  ****
+" **********************************************
+
+" This test asserts the proper operation of function GetMessageContext() when no context size was specified within the
+" given parse dictionary AND the 'g:llmchat_max_context_messages' variable was not set.
+function s:TestGetMessageContextWithNoContextLimit()
+    " Define a minimal parse dictionary that can be passed to the GetMessageContext() method for testing and which does
+    " NOT explicitly include any header options for limiting context size.  Note that the parse dictionary we create
+    " here is not fully complete, from the perspective of what a *real* parse dictionary would look like, but in this
+    " case it is fine as the function to be tested will not try to interact with or validate the missing content.
+    let l:test_parse_dict = {
+                          \   "header": { },
+                          \   "messages":
+                          \   [
+                          \     {
+                          \       "user": "User message 1",
+                          \       "assistant": "Assistant message 1"
+                          \     },
+                          \     {
+                          \       "user": "User message 2",
+                          \       "assistant": "Assistant message 2"
+                          \     },
+                          \     {
+                          \       "user": "User message 3",
+                          \       "assistant": "Assistant message 3",
+                          \     },
+                          \     {
+                          \       "user": "User message 4"
+                          \     }
+                          \   ]
+                          \ }
+
+    " Now invoke the GetMessageContext() function and store the list that it returns into local varible.
+    let l:actual_messages = LLMChat#send_chat#GetMessageContext(l:test_parse_dict)
+
+    " Define an "expected" messages list and assert that the actual messages list returned is identical to it.
+    let l:expected_messages = [
+                            \   {
+                            \     "user": "User message 1",
+                            \     "assistant": "Assistant message 1"
+                            \   },
+                            \   {
+                            \     "user": "User message 2",
+                            \     "assistant": "Assistant message 2"
+                            \   },
+                            \   {
+                            \     "user": "User message 3",
+                            \     "assistant": "Assistant message 3",
+                            \   },
+                            \   {
+                            \     "user": "User message 4"
+                            \   }
+                            \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_messages,
+                                   \ l:actual_messages)
+
+endfunction
+
+
+" This test asserts the proper operation of function GetMessageContext() when a maximum context message size was
+" explicitly specified within the parse dictionary provided to it.  Note that, as part of the testing performed, the
+" function behavior will also be verified for the following sub-cases:
+"
+"   1). The maximum context size given was negative.
+"   2). The maximum context size given was 0.
+"   3). The maximum context size given was smaller than the number of messages found.
+"   4). The maximum context size given was equal to the number of messages found.
+"   5). The maximum context size given was larger than the number of messages found.
+"
+function s:TestGetMessageContextWithContextLimitInParseDict()
+    " *******************************************************************
+    " ***  Subcondition #1 - Maximum context size given was negative  ***
+    " *******************************************************************
+    "
+    " Define a minimal parse dictionary that can be passed to the GetMessageContext() method for testing and which
+    " includes a header option to control the message history to be included.  Note that the parse dictionary we create
+    " here is not fully complete, from the perspective of what a *real* parse dictionary would look like, but in this
+    " case it is fine as the function to be tested will not try to interact with or validate the missing content.
+    let l:test_parse_dict = {
+                          \   "header":
+                          \   {
+                          \     "max context": -1
+                          \   },
+                          \   "messages":
+                          \   [
+                          \     {
+                          \       "user": "User message 1",
+                          \       "assistant": "Assistant message 1"
+                          \     },
+                          \     {
+                          \       "user": "User message 2",
+                          \       "assistant": "Assistant message 2"
+                          \     },
+                          \     {
+                          \       "user": "User message 3",
+                          \       "assistant": "Assistant message 3",
+                          \     },
+                          \     {
+                          \       "user": "User message 4"
+                          \     }
+                          \   ]
+                          \ }
+
+
+    " Invoke the GetMessageContext() function and store the list that it returns into local varible.
+    let l:actual_messages = LLMChat#send_chat#GetMessageContext(l:test_parse_dict)
+
+    " Define an "expected" messages list for the current subcondition and assert that the actual messages list returned
+    " is identical to it.
+    let l:expected_messages = [
+                            \   {
+                            \     "user": "User message 1",
+                            \     "assistant": "Assistant message 1"
+                            \   },
+                            \   {
+                            \     "user": "User message 2",
+                            \     "assistant": "Assistant message 2"
+                            \   },
+                            \   {
+                            \     "user": "User message 3",
+                            \     "assistant": "Assistant message 3",
+                            \   },
+                            \   {
+                            \     "user": "User message 4"
+                            \   }
+                            \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_messages,
+                                   \ l:actual_messages)
+
+
+    " ***************************************************************
+    " ***  Subcondition #2 - Maximum context size given was zero  ***
+    " ***************************************************************
+    "
+    " Update the 'max context' option value held by the 'l:test_parse_dict' so that it is appropriate for the current
+    " subcondition test.
+    let l:test_parse_dict['header']['max context'] = 0
+
+
+    " Invoke the GetMessageContext() function and store the list that it returns into local varible.
+    let l:actual_messages = LLMChat#send_chat#GetMessageContext(l:test_parse_dict)
+
+    " Define an "expected" messages list for the current subcondition and assert that the actual messages list returned
+    " is identical to it.
+    let l:expected_messages = [
+                            \   {
+                            \     "user": "User message 1",
+                            \     "assistant": "Assistant message 1"
+                            \   },
+                            \   {
+                            \     "user": "User message 2",
+                            \     "assistant": "Assistant message 2"
+                            \   },
+                            \   {
+                            \     "user": "User message 3",
+                            \     "assistant": "Assistant message 3",
+                            \   },
+                            \   {
+                            \     "user": "User message 4"
+                            \   }
+                            \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_messages,
+                                   \ l:actual_messages)
+
+
+    " *****************************************************************************************
+    " ***  Subcondition #3 - Maximum context size given was smaller than the message count  ***
+    " *****************************************************************************************
+    "
+    " Update the 'max context' option value held by the 'l:test_parse_dict' so that it is appropriate for the current
+    " subcondition test.
+    let l:test_parse_dict['header']['max context'] = 2
+
+
+    " Invoke the GetMessageContext() function and store the list that it returns into local varible.
+    let l:actual_messages = LLMChat#send_chat#GetMessageContext(l:test_parse_dict)
+
+    " Define an "expected" messages list for the current subcondition and assert that the actual messages list returned
+    " is identical to it.
+    let l:expected_messages = [
+                            \   {
+                            \     "user": "User message 3",
+                            \     "assistant": "Assistant message 3",
+                            \   },
+                            \   {
+                            \     "user": "User message 4"
+                            \   }
+                            \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_messages,
+                                   \ l:actual_messages)
+
+
+    " *************************************************************************************
+    " ***  Subcondition #4 - Maximum context size given was equal to the message count  ***
+    " *************************************************************************************
+    "
+    " Update the 'max context' option value held by the 'l:test_parse_dict' so that it is appropriate for the current
+    " subcondition test.
+    let l:test_parse_dict['header']['max context'] = 4
+
+
+    " Invoke the GetMessageContext() function and store the list that it returns into local varible.
+    let l:actual_messages = LLMChat#send_chat#GetMessageContext(l:test_parse_dict)
+
+    " Define an "expected" messages list for the current subcondition and assert that the actual messages list returned
+    " is identical to it.
+    let l:expected_messages = [
+                            \   {
+                            \     "user": "User message 1",
+                            \     "assistant": "Assistant message 1"
+                            \   },
+                            \   {
+                            \     "user": "User message 2",
+                            \     "assistant": "Assistant message 2"
+                            \   },
+                            \   {
+                            \     "user": "User message 3",
+                            \     "assistant": "Assistant message 3",
+                            \   },
+                            \   {
+                            \     "user": "User message 4"
+                            \   }
+                            \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_messages,
+                                   \ l:actual_messages)
+
+
+    " ****************************************************************************************
+    " ***  Subcondition #5 - Maximum context size given was larger than the message count  ***
+    " ****************************************************************************************
+    "
+    " Update the 'max context' option value held by the 'l:test_parse_dict' so that it is appropriate for the current
+    " subcondition test.
+    let l:test_parse_dict['header']['max context'] = 7
+
+
+    " Invoke the GetMessageContext() function and store the list that it returns into local varible.
+    let l:actual_messages = LLMChat#send_chat#GetMessageContext(l:test_parse_dict)
+
+    " Define an "expected" messages list for the current subcondition and assert that the actual messages list returned
+    " is identical to it.
+    let l:expected_messages = [
+                            \   {
+                            \     "user": "User message 1",
+                            \     "assistant": "Assistant message 1"
+                            \   },
+                            \   {
+                            \     "user": "User message 2",
+                            \     "assistant": "Assistant message 2"
+                            \   },
+                            \   {
+                            \     "user": "User message 3",
+                            \     "assistant": "Assistant message 3",
+                            \   },
+                            \   {
+                            \     "user": "User message 4"
+                            \   }
+                            \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_messages,
+                                   \ l:actual_messages)
+
+endfunction
+
+
+" This test asserts the proper operation of function GetMessageContext() when a maximum context message size was
+" explicitly specified by global variable 'g:llmchat_max_context_messages'.  Note that, as part of the testing
+" performed, the function behavior will also be verified for the following sub-cases:
+"
+"   1). The maximum context size specified was negative.
+"   2). The maximum context size specified was 0.
+"   3). The maximum context size specified was smaller than the number of messages found.
+"   4). The maximum context size specified was equal to the number of messages found.
+"   5). The maximum context size specified was larger than the number of messages found.
+"
+function s:TestGetMessageContextWithContextLimitInGlobalVar()
+    " *******************************************************************
+    " ***  Subcondition #1 - Maximum context size given was negative  ***
+    " *******************************************************************
+    "
+    " Define a minimal parse dictionary that can be passed to the GetMessageContext() method for testing and which does
+    " NOT include any header option for controlling the message history to be included (for this test we will be using
+    " the 'g:llmchat_max_context_messages' variable to control context length).  Note that the parse dictionary we
+    " create here is not fully complete, from the perspective of what a *real* parse dictionary would look like, but in
+    " this case it is fine as the function to be tested will not try to interact with or validate the missing content.
+    let l:test_parse_dict = {
+                          \   "header": { },
+                          \   "messages":
+                          \   [
+                          \     {
+                          \       "user": "User message 1",
+                          \       "assistant": "Assistant message 1"
+                          \     },
+                          \     {
+                          \       "user": "User message 2",
+                          \       "assistant": "Assistant message 2"
+                          \     },
+                          \     {
+                          \       "user": "User message 3",
+                          \       "assistant": "Assistant message 3",
+                          \     },
+                          \     {
+                          \       "user": "User message 4"
+                          \     }
+                          \   ]
+                          \ }
+
+    " Set the value held by variable 'g:llmchat_max_context_messages' to be appropriate for the subcondition test
+    " being perfomed.
+    let g:llmchat_max_context_messages = -1
+
+    " Invoke the GetMessageContext() function and store the list that it returns into local varible.
+    let l:actual_messages = LLMChat#send_chat#GetMessageContext(l:test_parse_dict)
+
+    " Define an "expected" messages list for the current subcondition and assert that the actual messages list returned
+    " is identical to it.
+    let l:expected_messages = [
+                            \   {
+                            \     "user": "User message 1",
+                            \     "assistant": "Assistant message 1"
+                            \   },
+                            \   {
+                            \     "user": "User message 2",
+                            \     "assistant": "Assistant message 2"
+                            \   },
+                            \   {
+                            \     "user": "User message 3",
+                            \     "assistant": "Assistant message 3",
+                            \   },
+                            \   {
+                            \     "user": "User message 4"
+                            \   }
+                            \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_messages,
+                                   \ l:actual_messages)
+
+
+    " ***************************************************************
+    " ***  Subcondition #2 - Maximum context size given was zero  ***
+    " ***************************************************************
+    "
+    " Update the value held by variable 'g:llmchat_max_context_messages' to be approriate for the subcondition test
+    " to be performed.
+    let g:llmchat_max_context_messages = 0
+
+    " Invoke the GetMessageContext() function and store the list that it returns into local varible.
+    let l:actual_messages = LLMChat#send_chat#GetMessageContext(l:test_parse_dict)
+
+    " Define an "expected" messages list for the current subcondition and assert that the actual messages list returned
+    " is identical to it.
+    let l:expected_messages = [
+                            \   {
+                            \     "user": "User message 1",
+                            \     "assistant": "Assistant message 1"
+                            \   },
+                            \   {
+                            \     "user": "User message 2",
+                            \     "assistant": "Assistant message 2"
+                            \   },
+                            \   {
+                            \     "user": "User message 3",
+                            \     "assistant": "Assistant message 3",
+                            \   },
+                            \   {
+                            \     "user": "User message 4"
+                            \   }
+                            \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_messages,
+                                   \ l:actual_messages)
+
+
+    " *****************************************************************************************
+    " ***  Subcondition #3 - Maximum context size given was smaller than the message count  ***
+    " *****************************************************************************************
+    "
+    " Update the 'max context' option value held by the 'l:test_parse_dict' so that it is appropriate for the current
+    " subcondition test.
+    let l:test_parse_dict['header']['max context'] = 1
+
+
+    " Invoke the GetMessageContext() function and store the list that it returns into local varible.
+    let l:actual_messages = LLMChat#send_chat#GetMessageContext(l:test_parse_dict)
+
+    " Define an "expected" messages list for the current subcondition and assert that the actual messages list returned
+    " is identical to it.
+    let l:expected_messages = [
+                            \   {
+                            \     "user": "User message 4"
+                            \   }
+                            \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_messages,
+                                   \ l:actual_messages)
+
+
+    " *************************************************************************************
+    " ***  Subcondition #4 - Maximum context size given was equal to the message count  ***
+    " *************************************************************************************
+    "
+    " Update the 'max context' option value held by the 'l:test_parse_dict' so that it is appropriate for the current
+    " subcondition test.
+    let l:test_parse_dict['header']['max context'] = 4
+
+
+    " Invoke the GetMessageContext() function and store the list that it returns into local varible.
+    let l:actual_messages = LLMChat#send_chat#GetMessageContext(l:test_parse_dict)
+
+    " Define an "expected" messages list for the current subcondition and assert that the actual messages list returned
+    " is identical to it.
+    let l:expected_messages = [
+                            \   {
+                            \     "user": "User message 1",
+                            \     "assistant": "Assistant message 1"
+                            \   },
+                            \   {
+                            \     "user": "User message 2",
+                            \     "assistant": "Assistant message 2"
+                            \   },
+                            \   {
+                            \     "user": "User message 3",
+                            \     "assistant": "Assistant message 3",
+                            \   },
+                            \   {
+                            \     "user": "User message 4"
+                            \   }
+                            \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_messages,
+                                   \ l:actual_messages)
+
+
+    " ****************************************************************************************
+    " ***  Subcondition #5 - Maximum context size given was larger than the message count  ***
+    " ****************************************************************************************
+    "
+    " Update the 'max context' option value held by the 'l:test_parse_dict' so that it is appropriate for the current
+    " subcondition test.
+    let l:test_parse_dict['header']['max context'] = 5
+
+
+    " Invoke the GetMessageContext() function and store the list that it returns into local varible.
+    let l:actual_messages = LLMChat#send_chat#GetMessageContext(l:test_parse_dict)
+
+    " Define an "expected" messages list for the current subcondition and assert that the actual messages list returned
+    " is identical to it.
+    let l:expected_messages = [
+                            \   {
+                            \     "user": "User message 1",
+                            \     "assistant": "Assistant message 1"
+                            \   },
+                            \   {
+                            \     "user": "User message 2",
+                            \     "assistant": "Assistant message 2"
+                            \   },
+                            \   {
+                            \     "user": "User message 3",
+                            \     "assistant": "Assistant message 3",
+                            \   },
+                            \   {
+                            \     "user": "User message 4"
+                            \   }
+                            \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_messages,
+                                   \ l:actual_messages)
 endfunction
 
 

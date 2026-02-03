@@ -822,7 +822,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                 throw "[ERROR] - A duplicate 'Show Reasoning' declaration was found within the " ..
                                       "header segment of the current chat buffer on line " .. curr_buffer_line_cntr ..
                                       ".  This declaration may be given only once per chat document; to resolve " ..
-                                      "this issue you will need to remove the dupliate definition."
+                                      "this issue you will need to remove the duplicate definition."
                             endif
 
                             var trimmed_value = substitute(curr_buff_line, '\v\s*Show Reasoning\:\s*', '', '')
@@ -914,6 +914,54 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             add(curr_text_block, trimmed_value)
 
                             inside_system_msg = true
+
+                        elseif curr_buff_line =~# '\v^\s*Max Context Messages\:.*$'
+                            # In this case we've encountered a max context size declaration within the header.  Process
+                            # this statement by taking the following actions:
+                            #
+                            #  1). Verify that the 'header_dict' dictionary does NOT have any value already associated
+                            #      with the key 'parse_dictionary_header_max_context'; if such key does exist it means
+                            #      we have found a duplicate max context size declaration in the chat header and we'll
+                            #      throw an exception.
+                            #
+                            #  2). Strip the 'Max Context Messages:' name prefix from the front of the line along with
+                            #      any leading or trailing whitespace around it.
+                            #
+                            #  3). Remove any trailing whitespacer from the end of the remaining value and then parse
+                            #      the final result into a number.
+                            #
+                            #  4). Add the extracted and parsed value into the 'header_dict' variable.  Note that since
+                            #      any number can be considered valid for use we are not concerned with any range
+                            #      verifications.
+                            #
+                            if has_key(header_dict, parse_dictionary_header_max_context)
+                                throw "[ERROR] - A duplicate 'Max Context Messages' declaration was found within " ..
+                                      "the header segment of the current chat buffer on line " ..
+                                      curr_buffer_line_cntr .. ".  This declaration may only be given once per chat " ..
+                                      "document; to resolve this issue you will need to remove the duplicate " ..
+                                      "definition."
+                            endif
+
+                            var trimmed_value = substitute(curr_buff_line, '\v\s*Max Context Messages\:\s*', '', '')
+                            trimmed_value = substitute(trimmed_value, '\v\s+$', '', '')
+
+                            var max_context_size = str2nr(trimmed_value)
+                            if max_context_size == 0 && trimmed_value != "0"
+                                # In this case we assume that an error has occurred during parsing of the value so we
+                                # will throw an exception.  Unfortunately str2nr() returns 0 when (1) the input was
+                                # empty, (2) there was an error parsing the input or (3) the number given really was
+                                # zero.  This means the error case is not cleanly distinguished for us and we must
+                                # explicitly check to see if the input was actually "0" to resolve the ambiguity.
+                                throw "[ERROR] - The value found for the 'Max Context Messages' declaration on " ..
+                                      "line " .. curr_buffer_line_cntr .. " could not be parsed to a number.  " ..
+                                      "This option must always be given an integer as its value which indicates " ..
+                                      "either (1) the maximum number of messages to include as context (if the " ..
+                                      "value was 1 or greater) or (2) to use all messages in the context (if the " ..
+                                      "value was less than or equal to 0).  Please correct the value assigned to " ..
+                                      "this option to resolve the fault."
+                            endif
+
+                            header_dict[parse_dictionary_header_max_context] = max_context_size
 
                         elseif curr_buff_line =~# '\v^\s*Option\:.*$'
                             # In this case we've encountered an option declaration.  Call out to a utility function to
@@ -1969,6 +2017,7 @@ export const parse_dictionary_header_auth_key = "auth key"
 export const parse_dictionary_header_system_prompt = "system prompt"
 export const parse_dictionary_header_show_thinking = "show thinking"
 export const parse_dictionary_header_options_dict = "options"
+export const parse_dictionary_header_max_context = "max context"
 
 
     # --------------------------------

@@ -65,6 +65,17 @@ if ! exists("g:llmchat_apikey_file")
 endif
 
 
+" This variable specifies the maximum length of chat history to use as context when submitting new messages to the
+" remote LLM.  A value of 0 or less indicates that ALL available chat history should be included on each chat request
+" made.  A positive value of 1 more more indicates that only the specified number of messages (beginning from the most
+" recent and going backwards in the chat history) should be included.  Note that this setting does NOT impact the chat
+" history being kept within the log file itself; it only effects the number of those messages that are included for
+" context when new chats are sent to the LLM.
+if ! exists("g:llmchat_max_context_messages")
+    let g:llmchat_max_context_messages = 0
+endif
+
+
 " This variable specifies whether or not a new, empty chat that is opened by the plugin should automatically set the
 " mode to insert.  In general it is expected that this is the most user friendly thing to do so that the user can
 " immediately begin typing messages.  Some users, however, may have trouble adjusting to the sudden switch in mode and

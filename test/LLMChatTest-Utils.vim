@@ -550,6 +550,7 @@ function s:TestParseChatBufferToBlocksWithMaxDoc()
         \ "\nUse Auth Token: True" ..
         \ "\nAuth Token: 3jdu93nfk3h" ..
         \ "\nShow Reasoning: medium" ..
+        \ "\nMax Context Messages: 3" ..
         \ "\n" ..
         \ "\nSystem Prompt:   You are a helpful, knowledgable, and respectful" ..
         \ "\nassistant that will respond to any asked questions to the best" ..
@@ -615,6 +616,7 @@ function s:TestParseChatBufferToBlocksWithMaxDoc()
                               \       "use auth": "true",
                               \       "auth key": "3jdu93nfk3h",
                               \       "show thinking": "medium",
+                              \       "max context": 3,
                               \       "system prompt": "You are a helpful, knowledgable, and respectful " ..
                               \                        "assistant that will respond to any asked questions to the " ..
                               \                        "best of your ability.",
@@ -1516,6 +1518,89 @@ function s:TestParseChatBufferToBlocksWithDuplicateSystemPromptDecl()
                            \ "duplicate system prompt declarations; however, no exception occurred.")
 
     catch /\c[error].*duplicate 'system prompt:'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
+    bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
+" buffer content being processed contains a duplicate max context messages declaration in its header.
+function s:TestParseChatBufferToBlocksWithDuplicateMaxContextMessagesDecl()
+    " Define an invalid chat log document that contains a header with duplicate max context messsages declarations.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nMax Context Messages: 0" ..
+      \ "\nModel ID: Some model" ..
+      \ "\nMax Context Messages: 2" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "duplicate max context size declarations; however, no exception occurred.")
+
+    catch /\c[error].*duplicate 'max context messages'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
+    bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
+" buffer content being processed contains a max context message declaration whose value is not parseable to a number.
+function s:TestParseChatBufferToBlocksWithBadMaxContextMessagesValue()
+    " Define an invalid chat log document that contains a header with a bad max context messsages declaration.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nMax Context Messages: abc" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained a " ..
+                           \ "max context size declaration with a bad value; however, no exception occurred.")
+
+    catch /\c[error].*'max context messages'.*could not be parsed.*/
         " The caught exception has a message that matches the expression we were looking for; assume that the test
         " was successful and take no further action.
     endtry

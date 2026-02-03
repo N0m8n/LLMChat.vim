@@ -46,6 +46,9 @@ const default_llmchat_default_system_prompt_value = ''
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_apikey_file'.
 const default_llmchat_apikey_file_value = ''
 
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_max_context_messages'.
+const default_llmchat_max_context_messages = 0
+
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_open_splits_in_insert_mode'.
 const default_llmchat_open_new_chats_in_insert_mode_value = 1
 
@@ -640,11 +643,27 @@ export def ResetGlobalVars(): dict<any>
     endif
 
 
+    # Check to see if the 'g:llmchat_max_context_messages' variable has been set to a non-default value and if so backup
+    # its value within the 'orig_values_dict' before resetting it to the plugin default.
+    if g:llmchat_max_context_messages != default_llmchat_max_context_messages
+        orig_values_dict["g:llmchat_max_context_messages"] = g:llmchat_max_context_messages
+        g:llmchat_max_context_messages = default_llmchat_max_context_messages
+    endif
+
+
     # Check to see if the 'g:llmchat_open_splits_in_insert_mode' variable has been set to a non-default value and if so
     # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
     if g:llmchat_open_new_chats_in_insert_mode != default_llmchat_open_new_chats_in_insert_mode_value
         orig_values_dict["g:llmchat_open_new_chats_in_insert_mode"] = g:llmchat_open_new_chats_in_insert_mode
         g:llmchat_open_new_chats_in_insert_mode = default_llmchat_open_new_chats_in_insert_mode_value
+    endif
+
+
+    # Check to see if the 'g:llmchat_fully_expand_new_chats' varible has been set to a non-default value and if so
+    # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
+    if g:llmchat_fully_expand_new_chats != default_llmchat_fully_expand_new_chats
+        orig_values_dict["g:llmchat_fully_expand_new_chats"] = g:llmchat_fully_expand_new_chats
+        g:llmchat_fully_expand_new_chats = default_llmchat_fully_expand_new_chats
     endif
 
 
@@ -685,6 +704,14 @@ export def ResetGlobalVars(): dict<any>
     if g:llmchat_use_streaming_mode != default_llmchat_use_streaming_mode
         orig_values_dict["g:llmchat_use_streaming_mode"] = g:llmchat_use_streaming_mode
         g:llmchat_use_streaming_mode = default_llmchat_use_streaming_mode
+    endif
+
+
+    # Check to see if the 'g:llmchat_use_chat_folding' variable has been set to a non-default value and if so backup
+    # its value within the 'orig_values_dict' before resetting it to the plugin default.
+    if g:llmchat_use_chat_folding != default_llmchat_use_chat_folding
+        orig_values_dict["g:llmchat_use_chat_folding"] = g:llmchat_use_chat_folding
+        g:llmchat_use_chat_folding = default_llmchat_fully_expand_new_chats
     endif
 
 
@@ -733,6 +760,10 @@ export def RestoreGlobalVars(restore_dict: dict<any>)
 
     if has_key(restore_dict, "g:llmchat_apikey_file")
         g:llmchat_apikey_file = restore_dict["g:llmchat_apikey_file"]
+    endif
+
+    if has_key(restore_dict, "g:llmchat_max_context_messages")
+        g:llmchat_max_context_messages = restore_dict["g:llmchat_max_context_messages"]
     endif
 
     if has_key(restore_dict, "g:llmchat_open_new_chats_in_insert_mode")
@@ -790,6 +821,7 @@ export def GetGlobalVariableDefaults(): dict<any>
              "g:llmchat_default_model_id": default_llmchat_default_model_id_value,
              "g:llmchat_default_system_prompt": default_llmchat_default_system_prompt_value,
              "g:llmchat_apikey_file": default_llmchat_apikey_file_value,
+             "g:llmchat_max_context_messages": default_llmchat_max_context_messages,
              "g:llmchat_open_splits_in_insert_mode": default_llmchat_open_new_chats_in_insert_mode_value,
              "g:llmchat_fully_expand_new_chats": default_llmchat_fully_expand_new_chats,
              "g:llmchat_chat_split_type": default_llmchat_chat_split_type_value,

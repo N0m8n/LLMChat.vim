@@ -827,9 +827,13 @@ function LLMChat#send_chat#CreateOllamaChatRequestPayload(parse_dictionary, outp
     " this will make retrieval of the items it holds more convenient in the code that follows.
     let l:header_dict = a:parse_dictionary[s:util.parse_dictionary_header_key]
 
-    " Retrieve the messages array from the 'parse_dictionary' and assign this to a local variable for more convenient
-    " processing later.
-    let l:message_array = a:parse_dictionary[s:util.parse_dictionary_messages_key]
+
+    " Retrieve the list of messages to be included into the request and store this into a local variable.  Note that we
+    " will call out to a utility method to retreive this list for us (rather than take it directly from the parse
+    " dictionary passed to this function) since it is possible that context limiting configurations are in use and we
+    " may not be using all messages from the chat history.
+    let l:message_array = LLMChat#send_chat#GetMessageContext(a:parse_dictionary)
+
 
     " Begin building up the request payload that we should send for a chat interaction with an Ollama server.
     let l:thinking_value = has_key(l:header_dict, s:util.parse_dictionary_header_show_thinking) ?
@@ -965,9 +969,13 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
     " variable; this will make retrieval of the items it holds more convenient in the code that follows.
     let l:header_dict = a:parse_dictionary[s:util.parse_dictionary_header_key]
 
-    " Retrieve the messages array from the 'parse_dictionary' and assign this to a local variable for more convenient
-    " processing later.
-    let l:message_array = a:parse_dictionary[s:util.parse_dictionary_messages_key]
+
+    " Retrieve the list of messages to be included into the request and store this into a local variable.  Note that we
+    " will call out to a utility method to retreive this list for us (rather than take it directly from the parse
+    " dictionary passed to this function) since it is possible that context limiting configurations are in use and we
+    " may not be using all messages from the chat history.
+    let l:message_array = LLMChat#send_chat#GetMessageContext(a:parse_dictionary)
+
 
     " Begin building up the request payload that we should send for a chat interaction with an Open-WebUI server.
     "
@@ -1600,6 +1608,85 @@ function LLMChat#send_chat#ProcessOpenWebUIChatResponsePayload(payload_filepath)
 
 endfunction
 
+
+" This function is responsible for determining the message context history to be used for LLM chats and for returning
+" that history back to the caller.  Internally the function will use the following process to determine if chat history
+" length is to be controlled and if so how many messages to include:
+"
+"   1). Check to see if a header option exists within the 'parse_dict' dictionary provided that would place a cap on
+"       the message context history to use.
+"
+"   2). Check to see if global variable 'g:llmchat_max_context_messages' has been set and if so does the value it holds
+"       impose a limit on the context history.
+"
+" After determining any message limits the function will return the current sequence of messages held by the
+" 'parse_dict' and will then return the appropriate subset that conforms to any history restrictions in place (note that
+" if no restrictions exist than all chat messages are simply returned).
+"
+" Arguments:
+"   parse_dict - The parse dictionary containing all current header options and the full history of chat messages from
+"                a chat log file.
+"
+" Returns: A list containing only the subset of messages that should be submitted to a remote LLM as part of a chat
+"          request.
+"
+function LLMChat#send_chat#GetMessageContext(parse_dict)
+    " Define a variable that will serve as the "limit" for the number of messages we return back to the caller from the
+    " given 'parse_dict'.  By default we will assign the value for this limit as 0 which means that no limit is being
+    " imposed and ALL messages should be returned.
+    let l:context_limit = 0
+
+    " Check to see if the 'parse_dict' given contains a value for the max context messages header field; if so we will
+    " extract such value and use it to update the value being stored by 'l:context_limit'.  If no such header field
+    " is found we will look for the presence of global variable 'g:llmchat_max_context_messages', and if found, we
+    " will use its value instead to update the content of variable 'l:context_limit'.
+    let l:header_dict = a:parse_dict[s:util.parse_dictionary_header_key]
+    if has_key(l:header_dict, s:util.parse_dictionary_header_max_context)
+        let l:context_limit = l:header_dict[s:util.parse_dictionary_header_max_context]
+
+    elseif exists("g:llmchat_max_context_messages")
+        let l:context_limit = g:llmchat_max_context_messages
+
+    endif
+
+
+    " Retrieve all messages to be returned back to the caller from the 'parse_dict' argument given.  The process for
+    " doing this can take any of the following paths:
+    "
+    "   1). If the value held by variable 'l:context_limit' is 0 or smaller than simply return back all messages
+    "       stored within the parse dictionary.
+    "
+    "   2). If the value held by variable 'l:context_limit' is 1 or greater but is larger than or equal to the
+    "       number of messages stored within the parse dictionary than we will still return back all messages.
+    "
+    "   3). If the value held by variable 'l:context_limit' is 1 or greater and is SMALLER than the number of messages
+    "       stored within the parse dictionary given than we will return ONLY those messages that fall within the
+    "       given size from the END (i.e., from the most recent) of the messages list.
+    "
+    " Note that paths 1 & 2 culminate in the same end behavior and may be grouped together as the 'default' return to
+    " assume (we have to retrieve the messages list anyways to get its size so it makes sense to go ahead and stage
+    " this as the default).  We can then separate condition #3 out as its own special case and make adjustments to the
+    " return list IF that condition is found.
+    "
+    let l:messages_list = a:parse_dict[s:util.parse_dictionary_messages_key]
+    let l:messages_size = len(l:messages_list)
+
+    if l:context_limit > 0 && l:context_limit < l:messages_size
+        " If the logic comes here than we have a context limit that is 1 or greater AND such size is smaller than the
+        " number of messages found.  Take a slice of the 'l:messages_list' that will contain 'l:context_limit' number
+        " of messages from the END of the list and set this as the messages list to be returned.  Note that to find
+        " the starting index for the slice we will simply take the length of the messages list then subtract from it
+        " the number of messages we want to retain for return (i.e., the 'l:context_limit' since the limit can be
+        " fully reached).
+        let l:messages_list = slice(l:messages_list, l:messages_size - l:context_limit)
+
+    endif
+
+
+    " Return the final 'l:messages_list' resolved back to the caller.
+    return l:messages_list
+
+endfunction
 
 
 " ============================
