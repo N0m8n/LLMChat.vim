@@ -96,7 +96,6 @@ This plugin is provided for general use under the terms of the GNU Public Licens
 
 ## RoadMap
 There are plans for supporting the following features as this plugin evolves:
-  - Support for limiting the chat history submitted to the remote LLM (currently all chat history is used).
   - Command for retrieving a list of available models on the remote LLM server.
   - Support for managing and using files with LLM interactions through Open WebUI.
   - Support for managing and using knowledge collections with LLM interactions in Open WebUI.
