@@ -93,6 +93,22 @@ itself.
 ## License
 This plugin is provided for general use under the terms of the GNU Public License v3.
 
+## Release Info
+Releases are made by tagging the repository with one of the versions listed below.  To install a specific release you
+will need to checkout the tag associated with the release you would like to use after cloning the repository locally.
+
+  - **v0.3.0** - Added support for folding to chat log documents.
+  - **v0.2.0** - Added support for controlling how much chat log history to include in chat submissions (previously
+                 all chat log messages were used).  This can be adjusted either globally via plugin variable or on
+                 a per-chat basis via a new "Max Context Messages" chat option.
+  - **v0.1.0**: Initial release of this plugin for public use that contained the following features:
+    * Full workflow for chatting with a remote LLM hosted on an Ollama server or through Open WebUI.
+    * Support for creating new chat log documents from template.
+    * Syntax highlighting for chat logs.
+    * Integrated debug workflow for troubleshooting chat log settings.
+    * Support for interacting with secured LLM servers
+    * Use of asynchronous job framework in VIM for chat submissions (allows editor to be used while waiting on a
+      response).
 
 ## RoadMap
 There are plans for supporting the following features as this plugin evolves:
@@ -106,4 +122,5 @@ The following issues are known to exist in the plugin and have yet to be resolve
     than the next line will incorrectly be started with a '>>>'.  You must then remove this opening sequence to continue
     typing your message (note that starting messages on the line after the '>>>' works around this problem).  It is
     unclear exactly what causes this and the issue remains under investigation.
-
+  - Folds are not updating as new messages are posted; currently researching how to fix this.
+  -
