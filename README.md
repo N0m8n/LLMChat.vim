@@ -16,12 +16,14 @@ Currently the plugin supports all of the following features:
   - Supports chat interactions with LLMs hosted via Ollama or through Open WebUI.
   - Has syntax highlighting for chat logs
   - Can query for and display the set of LLM models available from a remote server.
+  - Supports the output of reasoning (i.e., "thinking") responses produced by some LLM models.
   - Makes use of the asynchronous job framework in Vim for chat submissions so that the editor is usable while waiting
     on a response.
   - Supports the use of authentication for interacting with LLMs on secured servers.
   - Only depends on the availability of `curl` locally (see the "Requirements" section below) and is otherwise written
     in pure vimscript (no additional requirements on language bindings, no need for specially compiled Vim binaries,
     etc)
+  - Includes integrated debug support for troubleshooting chat connection and setup issues.
 
 ## Requirements
 This plugin requires that [cURL](https://github.com/curl/curl) be installed to, and can be located via the PATH on,
