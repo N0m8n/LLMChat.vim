@@ -125,3 +125,9 @@ The following issues are known to exist in the plugin and have yet to be resolve
     unclear exactly what causes this and the issue remains under investigation.
   - Folds are not updating as new messages are posted; currently researching how to fix this.
 
+## Additional Screenshots
+### Showing Remote Model Listing
+<img width="852" height="748" alt="ListModels" src="https://github.com/user-attachments/assets/f0bd97f9-6b3b-4d7e-be02-2196246a45d3" />
+<img width="887" height="859" alt="ListModels-Details" src="https://github.com/user-attachments/assets/774b7b63-94fe-4d52-adaa-4ea9c8fb0f23" />
+
+
