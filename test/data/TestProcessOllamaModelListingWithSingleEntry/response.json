@@ -1,0 +1,1 @@
+{"models":[{"name":"nous-hermes2:10.7b","model":"nous-hermes2:10.7b","modified_at":"2025-11-14T09:21:09.08187336-06:00","size":6072407285,"digest":"d50977d0b36ae5779167f2d376da80b512886a0789e5f7e122cdb6f85fc86f85","details":{"parent_model":"","format":"gguf","family":"llama","families":["llama"],"parameter_size":"11B","quantization_level":"Q4_0"}}]}

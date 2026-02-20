@@ -57,6 +57,72 @@ endfunction
 
 
 "
+" ========================================= Start Test Utilities =============================================
+"
+" This section contains functions that are used to support tests found within this file but which do not perform any
+" direct testing themselves.
+"
+
+"
+function s:DetectVerticalSpaceLossOnSplit(tab_num = tabpagenr())
+    " Begin by verifying that the tab whose identifying number was given to us contains ONLY a single window.
+    let l:layout_array = winlayout(a:tab_num)
+
+    if len(l:layout_array) != 2 || l:layout_array[0] != "leaf"
+        " In this case the layout array indicates that the current tab does not meet the assumptions imposed by this
+        " function for proper operation; throw an exception whose message details the problem encountered.
+        throw "[ERROR] - The layout array returned from function winlayout() does NOT meet the requirements of " ..
+           \ "this function for proper operation.  This array was expected to contain only two elements, the " ..
+           \ "first of which should have contained the string 'leaf'; this would have indicated that the tab " ..
+           \ "contained a single window that could be used for the necessary computation.  Instead the layout " ..
+           \ "array returned for tab " .. tab_num .. " was: " .. string(l:layout_array)
+
+    endif
+
+
+    " If the logic comes here than we assume that we have verified the tab contains only a single window.  Go ahead
+    " and check if the given tab is active and if not than switch to it.
+    let l:curr_tab = tabpagenr()
+    if l:curr_tab != a:tab_num
+        execute 'tabnext ' .. a:tab_num
+    endif
+
+
+    " Now invoke function winheight() and save the number returned as the total height of the tab window.
+    let l:initial_win_height = winheight(l:layout_array[1])
+
+
+    " Split the window in the tab horizontally then lookup the heights for both windows; store these into some
+    " local variables for later computation.
+    execute "split"
+    let l:layout_array = winlayout(a:tab_num)
+    let l:win_1_height = winheight(l:layout_array[1][0][1])
+    let l:win_2_height = winheight(l:layout_array[1][1][1])
+
+
+    " Unsplit the tab window so we can return it to its original state.
+    execute "hide"
+
+
+    " Check to see if we changed tabs at the start of the function execution and if so than restore focus to the
+    " original tab.
+    if l:curr_tab != a:tab_num
+        execute 'tabnext ' .. l:curr_tab
+    endif
+
+
+    " Now subtract the sum of the heights of the windows in the horizontal split configuration from the total height
+    " of the single window and return the difference.  If no display elements cause a loss of vertical space when a
+    " horizontal split is made than 0 will be returned; otherwise the vertical thickness of the visual element that
+    " is injected will be returned instead.
+    return l:initial_win_height - (l:win_1_height + l:win_2_height)
+
+endfunction
+
+
+" =========================================== End Test Utilities =============================================
+
+"
 " =========================================  Start Standalone Tests  =========================================
 "
 
@@ -2681,17 +2747,767 @@ function s:TestUnescapeSpecialSequences()
 endfunction
 
 
+
+" ***************************************************
+" ****  FormatDictionaryToText() Function Tests  ****
+" ***************************************************
+
+" This test asserts the proper operation of function FormatDictionaryToText() when it is invoked to format a dictionary
+" of known content.
+function s:TestFormatDictionaryToTextWithKnownDict()
+    " Unset the 'g:llmchat_h_disp_elem_aug_value' variable to clear the thousands separator (outputs using this
+    " separator will be handled under another test).
+    unlet g:llmchat_thousands_sep_char
+
+    " Define a known dictionary that holds a variety of different values within it.
+    let l:test_dict = {
+                    \   "string_key": "string value",
+                    \   "numeric_key": 12345,
+                    \   "boolean_true": v:true,
+                    \   "boolean_false": v:false,
+                    \   "child_list":
+                    \   [
+                    \     "string element",
+                    \     98745,
+                    \     [ ],
+                    \     [
+                    \       564
+                    \     ],
+                    \     [
+                    \       v:true,
+                    \       v:false
+                    \     ],
+                    \     {
+                    \        "nested key": "nested value"
+                    \     }
+                    \   ],
+                    \   "child_dict":
+                    \   {
+                    \     "abc": "def",
+                    \     "nested_list":
+                    \     [
+                    \       "list value",
+                    \       33333,
+                    \       "another list value"
+                    \     ]
+                    \   }
+                    \ }
+
+    " Invoke the FormatDictionaryToText() function to format the test dictionary.
+    let l:actual_text_lines = s:util.FormatDictionaryToText(l:test_dict, 2)
+
+    " Define a list of "expected" text lines and then assert that the actual text lines returned from the function call
+    " matches to it.
+    let l:expected_text_lines = [
+                              \   "\"boolean_false\": false",
+                              \   "\"boolean_true\": true",
+                              \   "\"child_dict\":",
+                              \   "{",
+                              \   "  \"abc\": \"def\"",
+                              \   "  \"nested_list\":",
+                              \   "  [",
+                              \   "    \"list value\"",
+                              \   "    33333",
+                              \   "    \"another list value\"",
+                              \   "  ]",
+                              \   "}",
+                              \   "\"child_list\":",
+                              \   "[",
+                              \   "  \"string element\"",
+                              \   "  98745",
+                              \   "  [ ]",
+                              \   "  [ 564 ]",
+                              \   "  [",
+                              \   "    true",
+                              \   "    false",
+                              \   "  ]",
+                              \   "  {",
+                              \   "    \"nested key\": \"nested value\"",
+                              \   "  }",
+                              \   "]",
+                              \   "\"numeric_key\": 12345",
+                              \   "\"string_key\": \"string value\""
+                              \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:expected_text_lines, l:actual_text_lines)
+
+    " Cleanup - Restore the testing default value to variable 'g:llmchat_thousands_sep_char' now that the test has
+    "           finished.
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_thousands_sep_char = l:defaults_dict["g:llmchat_thousands_sep_char"]
+
+endfunction
+
+
+" This test asserts the proper operation of function FormatDictionaryToText() when it is invoked to format an empty
+" dictionary.
+function s:TestFormatDictionaryToTextWithEmptyDictionary()
+
+    " Invoke the FormatDictionaryToText() function with an empty dictionary and assert that and empty list is returned
+    " back.
+    let l:text_list = s:util.FormatDictionaryToText({ }, 2, '')
+    let l:return_type = type(l:text_list)
+    AssertTxt(l:return_type == v:t_list,
+            \ "Expected to see a list object returned from function FormatDictionaryToText() when an empty " ..
+            \ "dictionary was provided as input; however, the returned value was of type " .. l:return_type .. ".")
+
+    AssertTxt(empty(l:text_list),
+            \ "Expected to see an empty list returned from function FormatDictionaryToText() when an empty " ..
+            \ "dictionary was provided as input but the list returned had length " ..  len(l:text_list) .. " instead.")
+
+endfunction
+
+
+" This test asserts the proper operation of function FormatDictionaryToText() when it is invoked to format a dictionary
+" holding integer values AND the 'g:llmchat_thousands_sep_char' variable has been set to a known value.
+function s:TestFormatDictionaryToTextWithThousandsSeparatedNumbers()
+    " Set variable 'g:llmchat_thousands_sep_char' to a known value for testing.
+    let g:llmchat_thousands_sep_char = '|'
+
+    " Define a test dictionary of known content which contains various numbers.
+    let l:test_dict = {
+                    \   "a": 0,
+                    \   "b": 123,
+                    \   "c": 1234,
+                    \   "d": 123456789,
+                    \   "e": 1.0,
+                    \   "f": 1234.0,
+                    \   "g":
+                    \   {
+                    \     "h":
+                    \     {
+                    \       "i": 123456,
+                    \       "j": 123456.0
+                    \     },
+                    \     "k":
+                    \     [
+                    \       123456,
+                    \       123456.0
+                    \     ]
+                    \   }
+                    \ }
+
+    " Invoke the FormatDictionaryToText() function to format the test dictionary.
+    let l:actual_text_lines = s:util.FormatDictionaryToText(l:test_dict, 2)
+
+    " Define a list of "expected" text lines and then assert that the actual text lines returned from the function call
+    " matches to it.
+    let l:expected_text_lines = [
+                              \   "\"a\": 0",
+                              \   "\"b\": 123",
+                              \   "\"c\": 1|234",
+                              \   "\"d\": 123|456|789",
+                              \   "\"e\": 1.0",
+                              \   "\"f\": 1234.0",
+                              \   "\"g\":",
+                              \   "{",
+                              \   "  \"h\":",
+                              \   "  {",
+                              \   "    \"i\": 123|456",
+                              \   "    \"j\": 123456.0",
+                              \   "  }",
+                              \   "  \"k\":",
+                              \   "  [",
+                              \   "    123|456",
+                              \   "    123456.0",
+                              \   "  ]",
+                              \   "}"
+                              \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:expected_text_lines, l:actual_text_lines)
+
+    " Cleanup - Restore the testing default value to variable 'g:llmchat_thousands_sep_char' now that the test has
+    "           finished.
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_thousands_sep_char = l:defaults_dict["g:llmchat_thousands_sep_char"]
+
+endfunction
+
+
+
+" *********************************************
+" ****  FormatListToText() Function Tests  ****
+" *********************************************
+
+" This test asserts the proper operation of function FormatListToText() when it is invoked to format a list of known
+" content.
+function s:TestFormatDictionaryToTextWithKnownList()
+    " Unset the 'g:llmchat_h_disp_elem_aug_value' variable to clear the thousands separator (outputs using this
+    " separator will be handled under another test).
+    unlet g:llmchat_thousands_sep_char
+
+    " Define a known list that holds a variety of different values within it.
+    let l:test_list = [
+                    \   v:true,
+                    \   45689,
+                    \   234.56,
+                    \   'a',
+                    \   "abc",
+                    \   {
+                    \     "child_dict":
+                    \     {
+                    \       "foo": "bar",
+                    \       "empty_list": [ ],
+                    \       "xyz": "XYZ",
+                    \       "descendant_dict":
+                    \       {
+                    \         "child_list":
+                    \         [
+                    \           [ "single value list" ],
+                    \           [
+                    \             "one",
+                    \             "two",
+                    \             "three"
+                    \           ]
+                    \         ],
+                    \         "descendant_prop": "desc"
+                    \       }
+                    \     }
+                    \   },
+                    \   [
+                    \     "abc"
+                    \   ],
+                    \   [
+                    \     123,
+                    \     "xyz"
+                    \   ],
+                    \   v:false,
+                    \ ]
+
+    " Invoke the FormatListToText() function to format the test list.
+    let l:actual_text_lines = s:util.FormatListToText(l:test_list, 2)
+
+    "Define a list of "expected" test lines and then assert that the actual text lines returned from the function call
+    "matches to it.
+    let l:expected_text_lines = [
+                              \   "true",
+                              \   "45689",
+                              \   "234.56",
+                              \   "\"a\"",
+                              \   "\"abc\"",
+                              \   "{",
+                              \   "  \"child_dict\":",
+                              \   "  {",
+                              \   "    \"descendant_dict\":",
+                              \   "    {",
+                              \   "      \"child_list\":",
+                              \   "      [",
+                              \   "        [ \"single value list\" ]",
+                              \   "        [",
+                              \   "          \"one\"",
+                              \   "          \"two\"",
+                              \   "          \"three\"",
+                              \   "        ]",
+                              \   "      ]",
+                              \   "      \"descendant_prop\": \"desc\"",
+                              \   "    }",
+                              \   "    \"empty_list\": [ ]",
+                              \   "    \"foo\": \"bar\"",
+                              \   "    \"xyz\": \"XYZ\"",
+                              \   "  }",
+                              \   "}",
+                              \   "[ \"abc\" ]",
+                              \   "[",
+                              \   "  123",
+                              \   "  \"xyz\"",
+                              \   "]",
+                              \   "false"
+                              \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:expected_text_lines, l:actual_text_lines)
+
+    " Cleanup - Restore the testing default value to variable 'g:llmchat_thousands_sep_char' now that the test has
+    "           finished.
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_thousands_sep_char = l:defaults_dict["g:llmchat_thousands_sep_char"]
+
+endfunction
+
+
+" This test asserts the proper operation of function FormatListToText() when it is invoked ot format an empty list.
+function s:TestformatListToTextWithEmptyList()
+
+    " Invoke the FormatListToText() function with an empty list and assert that an empty is list is returned back.
+    let l:text_list = s:util.FormatListToText([ ], 2, '')
+    let l:return_type = type(l:text_list)
+    AssertTxt(l:return_type == v:t_list,
+            \ "Expected to see a list object returned from function FormatListToText() when an empty list was " ..
+            \ "provided as input; however, the returned value was of type " .. l:return_type .. ".")
+
+    AssertTxt(empty(l:text_list),
+            \ "Expected to see an empty list returned from function FormatListToText() when an empty list was " ..
+            \ "provided as input but the list returned had length " .. len(l:text_list) .. " instead.")
+
+endfunction
+
+
+" This test asserts the proper operation of function FormatListToText() when it is invoked to format a list holding
+" integer values aND the 'g:llmchat_thousands_sep_char' variable has been set to a known value.
+function s:TestFormatListToTextWithThousandsSeparatedNumbers()
+    " Set variable 'g:llmchat_thousands_sep_char' to a known value for testing.
+    let g:llmchat_thousands_sep_char = ','
+
+    " Define a test list of known content which contains various numbers.
+    let l:test_list = [
+                    \   0,
+                    \   123,
+                    \   1234,
+                    \   1234567890,
+                    \   1.0,
+                    \   1234.0,
+                    \   {
+                    \     "a": 1234
+                    \   },
+                    \   [
+                    \     {
+                    \       "b": 1234567,
+                    \       "c": 1234.0
+                    \     }
+                    \   ],
+                    \ ]
+
+    " Invoke the FormatListToText() function to format the test list.
+    let l:actual_text_lines = s:util.FormatListToText(l:test_list, 2)
+
+    " Define a list of "expected" text lines and then assert that the actual text lines returned from the function call
+    " matches to it.
+    let l:expected_text_lines = [
+                              \   "0",
+                              \   "123",
+                              \   "1,234",
+                              \   "1,234,567,890",
+                              \   "1.0",
+                              \   "1234.0",
+                              \   "{",
+                              \   "  \"a\": 1,234",
+                              \   "}",
+                              \   "[",
+                              \   "  {",
+                              \   "    \"b\": 1,234,567",
+                              \   "    \"c\": 1234.0",
+                              \   "  }",
+                              \   "]"
+                              \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:expected_text_lines, l:actual_text_lines)
+
+
+    " Cleanup - Restore the testing default value to variable 'g:llmchat_thousands_sep_char' now that the test has
+    "           finished.
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_thousands_sep_char = l:defaults_dict["g:llmchat_thousands_sep_char"]
+
+endfunction
+
+
+
+" ****************************************************
+" ****  CalculateTotalWinHeight() Function Tests  ****
+" ****************************************************
+
+" This test asserts the proper operation of function CalculateTotalWinHeight() when invoked in a tab that contains
+" a single window.
+function s:TestCalculateTotalWinHeightWithSingleWindow()
+    " Open a new tab for testing.  Note that we expect focus to immediately shift to this tab so there are no
+    " explicit commands provided to manually change to it.
+    execute "tabnew"
+
+
+    " Compute the height of the current tab window and store this into a local variable.
+    let l:window_height = winheight(winnr())
+
+
+    " Call function DetectVerticalSpaceLossOnSplit() to detect any space loss during a horizontal split due to
+    " the use of additional display elements between windows (for example a configured status bar) and then set
+    " global variable 'g:llmchat_h_disp_elem_aug_value' to the value returned.
+    let g:llmchat_h_disp_elem_aug_value = s:DetectVerticalSpaceLossOnSplit()
+
+
+   " Invoke the CalculateTotalWinHeight() function and assert that it returns a value that is the same as the height
+   " of the window computed earlier.
+   AssertIs(l:window_height, s:util.CalculateTotalWinHeight())
+
+
+    " Perform the following cleanup actions now that the test has completed:
+    "
+    "   1). Close out the tab used for testing.
+    "   2). Restore the default value used for global varible 'g:llmchat_h_disp_elem_aug_value' by the tests.
+    "
+    execute "tabclose"
+
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_h_disp_elem_aug_value = l:defaults_dict["g:llmchat_h_disp_elem_aug_value"]
+
+endfunction
+
+
+" This test asserts the proper operation of function CalculateTotalWinHeight() when invoked in a tab that contains
+" two horizontally split windows.
+function s:TestCalculateTotalWinHeightWithHorizontalSplit()
+    " Open a new tab for testing.  Note that we expect focus to immediately shift to this tab so there are no
+    " explicit commands provided to manually change to it.
+    execute "tabnew"
+
+
+    " Compute the height of the current tab window and store this into a local variable.
+    let l:window_height = winheight(winnr())
+
+
+    " Call function DetectVerticalSpaceLossOnSplit() to detect any space loss during a horizontal split due to
+    " the use of additional display elements between windows (for example a configured status bar) and then set
+    " global variable 'g:llmchat_h_disp_elem_aug_value' to the value returned.
+    let g:llmchat_h_disp_elem_aug_value = s:DetectVerticalSpaceLossOnSplit()
+
+
+    " Horizontally split the current tab into 2 separate windows.
+    execute "split"
+
+
+   " Invoke the CalculateTotalWinHeight() function and assert that it returns a value that is the same as the height
+   " of the window computed earlier.
+   AssertIs(l:window_height, s:util.CalculateTotalWinHeight())
+
+
+    " Perform the following cleanup actions now that the test has completed:
+    "
+    "   1). Close out the tab used for testing.
+    "   2). Restore the default value used for global varible 'g:llmchat_h_disp_elem_aug_value' by the tests.
+    "
+    execute "tabclose"
+
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_h_disp_elem_aug_value = l:defaults_dict["g:llmchat_h_disp_elem_aug_value"]
+
+endfunction
+
+
+" This test asserts the proper operation of function CalculateTotalWinHeight() when invoked in a tab that contains
+" two vertically split windows.
+function s:TestCalculateTotalWinHeightWithVerticalSplit()
+    " Open a new tab for testing.  Note that we expect focus to immediately shift to this tab so there are no
+    " explicit commands provided to manually change to it.
+    execute "tabnew"
+
+
+    " Compute the height of the current tab window and store this into a local variable.
+    let l:window_height = winheight(winnr())
+
+
+    " Call function DetectVerticalSpaceLossOnSplit() to detect any space loss during a horizontal split due to
+    " the use of additional display elements between windows (for example a configured status bar) and then set
+    " global variable 'g:llmchat_h_disp_elem_aug_value' to the value returned.
+    let g:llmchat_h_disp_elem_aug_value = s:DetectVerticalSpaceLossOnSplit()
+
+
+    " Vertically split the current tab into 2 separate windows.
+    execute "vsplit"
+
+
+   " Invoke the CalculateTotalWinHeight() function and assert that it returns a value that is the same as the height
+   " of the window computed earlier.
+   AssertIs(l:window_height, s:util.CalculateTotalWinHeight())
+
+
+    " Perform the following cleanup actions now that the test has completed:
+    "
+    "   1). Close out the tab used for testing.
+    "   2). Restore the default value used for global varible 'g:llmchat_h_disp_elem_aug_value' by the tests.
+    "
+    execute "tabclose"
+
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_h_disp_elem_aug_value = l:defaults_dict["g:llmchat_h_disp_elem_aug_value"]
+
+endfunction
+
+
+" This test asserts the proper operation of function CalculateTotalWinHeight() when invoked in a tab that contains
+" multiple horizontal splits.
+function s:TestCalculateTotalWinHeightWithMultipleHorizontalSplits()
+    " Open a new tab for testing.  Note that we expect focus to immediately shift to this tab so there are no
+    " explicit commands provided to manually change to it.
+    execute "tabnew"
+
+
+    " Compute the height of the current tab window and store this into a local variable.
+    let l:window_height = winheight(winnr())
+
+
+    " Call function DetectVerticalSpaceLossOnSplit() to detect any space loss during a horizontal split due to
+    " the use of additional display elements between windows (for example a configured status bar) and then set
+    " global variable 'g:llmchat_h_disp_elem_aug_value' to the value returned.
+    let g:llmchat_h_disp_elem_aug_value = s:DetectVerticalSpaceLossOnSplit()
+
+
+    " Horizontally split the current tab into 3 separate windows.
+    execute "split"
+    execute "split"
+
+
+   " Invoke the CalculateTotalWinHeight() function and assert that it returns a value that is the same as the height
+   " of the window computed earlier.
+   AssertIs(l:window_height, s:util.CalculateTotalWinHeight())
+
+
+    " Perform the following cleanup actions now that the test has completed:
+    "
+    "   1). Close out the tab used for testing.
+    "   2). Restore the default value used for global varible 'g:llmchat_h_disp_elem_aug_value' by the tests.
+    "
+    execute "tabclose"
+
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_h_disp_elem_aug_value = l:defaults_dict["g:llmchat_h_disp_elem_aug_value"]
+
+endfunction
+
+
+" This test asserts the proper operation of function CalculateTotalWinHeight() when invoked in a tab that contains
+" multiple vertical splits.
+function s:TestCalculateTotalWinHeightWithMultipleVerticalSplits()
+    " Open a new tab for testing.  Note that we expect focus to immediately shift to this tab so there are no
+    " explicit commands provided to manually change to it.
+    execute "tabnew"
+
+
+    " Compute the height of the current tab window and store this into a local variable.
+    let l:window_height = winheight(winnr())
+
+
+    " Call function DetectVerticalSpaceLossOnSplit() to detect any space loss during a horizontal split due to
+    " the use of additional display elements between windows (for example a configured status bar) and then set
+    " global variable 'g:llmchat_h_disp_elem_aug_value' to the value returned.
+    let g:llmchat_h_disp_elem_aug_value = s:DetectVerticalSpaceLossOnSplit()
+
+
+    " Vertically split the current tab into 3 separate windows
+    execute "vsplit"
+    execute "vsplit"
+
+
+   " Invoke the CalculateTotalWinHeight() function and assert that it returns a value that is the same as the height
+   " of the window computed earlier.
+   AssertIs(l:window_height, s:util.CalculateTotalWinHeight())
+
+
+    " Perform the following cleanup actions now that the test has completed:
+    "
+    "   1). Close out the tab used for testing.
+    "   2). Restore the default value used for global varible 'g:llmchat_h_disp_elem_aug_value' by the tests.
+    "
+    execute "tabclose"
+
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_h_disp_elem_aug_value = l:defaults_dict["g:llmchat_h_disp_elem_aug_value"]
+
+endfunction
+
+
+" This test asserts the proper operation of function CalculateTotatWinHeight() when invoked in a tab that contains
+" nested splits inside an initial horizontal split.
+function s:TestCalculateTotalWinHeightWithInitialHorizontalAndNestedSplits()
+    " Open a new tab for testing.  Note that we expect focus to immediately shift to this tab so there are no
+    " explicit commands provided to manually change to it.
+    execute "tabnew"
+
+
+    " Compute the height of the current tab window and store this into a local variable.
+    let l:window_height = winheight(winnr())
+
+
+    " Call function DetectVerticalSpaceLossOnSplit() to detect any space loss during a horizontal split due to
+    " the use of additional display elements between windows (for example a configured status bar) and then set
+    " global variable 'g:llmchat_h_disp_elem_aug_value' to the value returned.
+    let g:llmchat_h_disp_elem_aug_value = s:DetectVerticalSpaceLossOnSplit()
+
+
+    " Now split the window horizontally, then vertically, and horizontally again.  This should leave one window from
+    " the initial split alone while nesting splits within the other window.
+    execute "split"
+    execute "vsplit"
+    execute "split"
+
+
+    " Invoke the CalculateTotalWinHeight() function and assert that it returns a value that is the same as the height
+    " of the window computed earlier.
+    AssertIs(l:window_height, s:util.CalculateTotalWinHeight())
+
+
+    " Perform the following cleanup actions now that the test has completed:
+    "
+    "   1). Close out the tab used for testing.
+    "   2). Restore the default value used for global varible 'g:llmchat_h_disp_elem_aug_value' by the tests.
+    "
+    execute "tabclose"
+
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_h_disp_elem_aug_value = l:defaults_dict["g:llmchat_h_disp_elem_aug_value"]
+
+endfunction
+
+
+" This test asserts the proper operation of function CalculateTotalWinHeight() when invoked in a tab that contains
+" nested splits inside an initial vertical split.
+function s:TestCalculateTotalWinHeightWithInitialVerticalAndNestedSplits()
+    " Open a new tab for testing.  Note that we expect focus to immediately shift to this tab so there are no
+    " explicit commands provided to manually change to it.
+    execute "tabnew"
+
+
+    " Compute the height of the current tab window and store this into a local variable.
+    let l:window_height = winheight(winnr())
+
+
+    " Call function DetectVerticalSpaceLossOnSplit() to detect any space loss during a horizontal split due to
+    " the use of additional display elements between windows (for example a configured status bar) and then set
+    " global variable 'g:llmchat_h_disp_elem_aug_value' to the value returned.
+    let g:llmchat_h_disp_elem_aug_value = s:DetectVerticalSpaceLossOnSplit()
+
+
+    " Now vertically split the window, then horizontally split it, and vertically split it again.  This should leave
+    " one window from the initial split alone while nesting splits within the other window.
+    execute "vsplit"
+    execute "split"
+    execute "vsplit"
+
+
+    " Invoke the CalculateTotalWinHeight() function and assert that it returns a value that is the same as the height
+    " of the window computed earlier.
+    AssertIs(l:window_height, s:util.CalculateTotalWinHeight())
+
+
+    " Perform the following cleanup actions now that the test has completed:
+    "
+    "   1). Close out the tab used for testing.
+    "   2). Restore the default value used for global varible 'g:llmchat_h_disp_elem_aug_value' by the tests.
+    "
+    execute "tabclose"
+
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_h_disp_elem_aug_value = l:defaults_dict["g:llmchat_h_disp_elem_aug_value"]
+
+endfunction
+
+
+
+" *******************************************************
+" ****  FormatNumberWithThousandsSep Function Tests  ****
+" *******************************************************
+
+" This test asserts the proper operation of function FormatNumberWithThousandsSep() when global variable
+" 'g:llmchat_thousands_sep_char' has been unset.
+function s:TestFormatNumberWithThousandsSepAndNoSepChar()
+    " Unset the 'g:llmchat_thousands_sep_char' to clear any separator that might be found by the function logic.
+    unlet g:llmchat_thousands_sep_char
+
+
+    " Invoke the FormatNumberWithThousandsSep() using a number that is less than 1,000 and verify the result.
+    AssertIs("680", s:util.FormatNumberWithThousandsSep(680))
+
+
+    " Invoke the FormatNumberWithThousandsSep() using a number that is over 1,000 and verify the result.
+    AssertIs("5680", s:util.FormatNumberWithThousandsSep(5680))
+
+
+    " Invoke the FormatNumberWithThousandsSep() using a number that would require multiple thousands separators to be
+    " inserted and verify the result.
+    AssertIs("1234567890", s:util.FormatNumberWithThousandsSep(1234567890))
+
+
+    " Cleanup - Perform the following tasks to cleanup after testing:
+    "
+    "   1). Restore the test default value to the 'g:llmchat_thousands_sep_char' variable.
+    "
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_thousands_sep_char = l:defaults_dict["g:llmchat_thousands_sep_char"]
+
+endfunction
+
+
+" This test asserts the proper operation of function FormatNumberWithThousandsSep() when global variable
+" 'g:llmchat_thousands_sep_char' has been set to the empty string.
+function s:TestFormatNumberWithThousandsSepAndEmptySepChar()
+    " Set the 'g:llmchat_thousands_sep_char' variable to hold the empty string.
+    let g:llmchat_thousands_sep_char = ''
+
+
+    " Invoke the FormatNumberWithThousandsSep() using a number that is less than 1,000 and verify the result.
+    AssertIs("680", s:util.FormatNumberWithThousandsSep(680))
+
+
+    " Invoke the FormatNumberWithThousandsSep() using a number that is over 1,000 and verify the result.
+    AssertIs("5680", s:util.FormatNumberWithThousandsSep(5680))
+
+
+    " Invoke the FormatNumberWithThousandsSep() using a number that would require multiple thousands separators to be
+    " inserted and verify the result.
+    AssertIs("1234567890", s:util.FormatNumberWithThousandsSep(1234567890))
+
+
+    " Cleanup - Perform the following tasks to cleanup after testing:
+    "
+    "   1). Restore the test default value to the 'g:llmchat_thousands_sep_char' variable.
+    "
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_thousands_sep_char = l:defaults_dict["g:llmchat_thousands_sep_char"]
+
+endfunction
+
+
+" This test asserts the proper operation of function FormatNumberWithThousandsSep() when global variable
+" 'g:llmchat_thousands_sep_char' has been set to a known character.
+function s:TestFormatNumberWithThousandsSepAndNonEmptySep()
+    " Set the 'g:llmchat_thousands_sep_char' to a known character value for testing.
+    let g:llmchat_thousands_sep_char = ','
+
+
+    " Invoke the FormatNumberWithThousandsSep() using a number that is less than 1,000 and verify the result.
+    AssertIs("680", s:util.FormatNumberWithThousandsSep(680))
+
+
+    " Invoke the FormatNumberWithThousandsSep() using a number that is over 1,000 and verify the result.
+    AssertIs("5,680", s:util.FormatNumberWithThousandsSep(5680))
+
+
+    " Invoke the FormatNumberWithThousandsSep() using a number that would require multiple thousands separators to be
+    " inserted and verify the result.
+    AssertIs("1,234,567,890", s:util.FormatNumberWithThousandsSep(1234567890))
+
+
+    " Cleanup - Perform the following tasks to cleanup after testing:
+    "
+    "   1). Restore the test default value to the 'g:llmchat_thousands_sep_char' variable.
+    "
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_thousands_sep_char = l:defaults_dict["g:llmchat_thousands_sep_char"]
+
+endfunction
+
+
 "
 " =========================================  End Standalone Tests  =========================================
 "
+
+" This function will take the following actions after the execution of each test function in this script:
+"
+"   1). Reset all global variables to their testing defaults; this helps to minimize the impact of test failures
+"       that may prevent proper cleanup of global variable settings.
+"
+function s:Teardown()
+    " Reset all global variables to their testing defaults.  This is done in case of a test failure that prevents
+    " cleanup logic within the test from properly restoring the global variable value.  For such a case leakage of
+    " the variable value into the execution of other tests may cause unexpected failures and make it difficult to
+    " diagnose where the original fault occurred.
+    call s:testutil.RestoreGlobalVars(s:testutil.GetGlobalVariableDefaults())
+
+endfunction
 
 
 " This function is responsible for restoring the editor state following the execution of the unit tests in this file.
 " Primarily this will consist of taking the following actions:
 "
-"   1). Check for the existance of script local "backup variables" that were used to preserve editor state information
-"       during the execution of function BeforeAll() and restore the values they hold to the appropriate global scope
-"       variables.
+"   1). Call a test utility function that will restore any global variables whose value was backed up in dictionary
+"       's:restore_values_dict' at the start of testing.
 "
 function s:AfterAll()
     " Call a test utility function to handle the value restoration to any global variable that was reset when this test

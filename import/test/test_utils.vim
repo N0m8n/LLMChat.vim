@@ -68,6 +68,15 @@ const default_llmchat_separator_bar_size_value = 28
 # 'g:llmchat_assistant_message_follow_style'.
 const default_llmchat_assistant_message_follow_style = 0
 
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_h_disp_elem_aug_value'.
+const default_llmchat_h_disp_elem_aug_value = 0
+
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_h_win_adjust'.
+const default_llmchat_h_win_adjust = 0
+
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_thousands_sep_char'.
+const default_llmchat_thousands_sep_char = ','
+
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_use_streaming_mode'.
 const default_llmchat_use_streaming_mode = 0
 
@@ -699,6 +708,30 @@ export def ResetGlobalVars(): dict<any>
     endif
 
 
+    # Check to see if the 'g:llmchat_h_disp_elem_aug_value' variable has been set to a non-default value and if so
+    # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
+    if g:llmchat_h_disp_elem_aug_value != default_llmchat_h_disp_elem_aug_value
+        orig_values_dict["g:llmchat_h_disp_elem_aug_value"] = g:llmchat_h_disp_elem_aug_value
+        g:llmchat_h_disp_elem_aug_value = default_llmchat_h_disp_elem_aug_value
+    endif
+
+
+    # Check to see if the 'g:llmchat_h_win_adjust' variable has been set to a non-default value and if so backup its
+    # value within the 'orig_values_dict' before resetting it to the plugin default.
+    if g:llmchat_h_win_adjust != default_llmchat_h_win_adjust
+        orig_values_dict["g:llmchat_h_win_adjust"] = g:llmchat_h_win_adjust
+        g:llmchat_h_win_adjust = default_llmchat_h_win_adjust
+    endif
+
+
+    # Check to see if the 'g:llmchat_thousands_sep_char' variable has been set to a non-default value and if so backup
+    # its value within the 'orig_values_dict' before resetting it to the plugin default.
+    if g:llmchat_thousands_sep_char != default_llmchat_thousands_sep_char
+        orig_values_dict["g:llmchat_thousands_sep_char"] = g:llmchat_thousands_sep_char
+        g:llmchat_thousands_sep_char  = default_llmchat_thousands_sep_char
+    endif
+
+
     # Check to see if the 'g:llmchat_use_streaming_mode' variable has been set to a non-default value and if so backup
     # its value within the 'orig_values_dict' before resetting it to the plugin default.
     if g:llmchat_use_streaming_mode != default_llmchat_use_streaming_mode
@@ -790,6 +823,18 @@ export def RestoreGlobalVars(restore_dict: dict<any>)
         g:llmchat_assistant_message_follow_style = restore_dict["g:llmchat_assistant_message_follow_style"]
     endif
 
+    if has_key(restore_dict, "g:llmchat_h_disp_elem_aug_value")
+        g:llmchat_h_disp_elem_aug_value = restore_dict["g:llmchat_h_disp_elem_aug_value"]
+    endif
+
+    if has_key(restore_dict, "g:llmchat_h_win_adjust")
+        g:llmchat_h_win_adjust = restore_dict["g:llmchat_h_win_adjust"]
+    endif
+
+    if has_key(restore_dict, "g:llmchat_thousands_sep_char")
+        g:llmchat_thousands_sep_char = restore_dict["g:llmchat_thousands_sep_char"]
+    endif
+
     if has_key(restore_dict, "g:llmchat_use_streaming_mode")
         g:llmchat_use_streaming_mode = restore_dict["g:llmchat_use_streaming_mode"]
     endif
@@ -828,6 +873,9 @@ export def GetGlobalVariableDefaults(): dict<any>
              "g:llmchat_header_sep_size": default_llmchat_header_sep_size_value,
              "g:llmchat_separator_bar_size": default_llmchat_separator_bar_size_value,
              "g:llmchat_assistant_message_follow_style": default_llmchat_assistant_message_follow_style,
+             "g:llmchat_h_disp_elem_aug_value": default_llmchat_h_disp_elem_aug_value,
+             "g:llmchat_h_win_adjust": default_llmchat_h_win_adjust,
+             "g:llmchat_thousands_sep_char": default_llmchat_thousands_sep_char,
              "g:llmchat_use_streaming_mode": default_llmchat_use_streaming_mode,
              "g:llmchat_use_chat_folding": default_llmchat_use_chat_folding,
              "g:llmchat_curl_extra_args": default_llmchat_curl_extra_args

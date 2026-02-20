@@ -42,7 +42,7 @@ cd ~/.vim/bundle
 git clone https://github.com/N0m8n/LLMChat.vim.git
 ```
 
-## Usage
+## Quick Start Usage
 To use this plugin after installation simply type the command `:NewChat` in order to initialize a new chat log document.
 Inside this document you will see that there is a "header" section at the top and a "body" section at the bottom;
 these two document segments are separated from each other by an `* ENDSETUP *` delimiter line.  The header section
@@ -97,6 +97,8 @@ This plugin is provided for general use under the terms of the GNU Public Licens
 Releases are made by tagging the repository with one of the versions listed below.  To install a specific release you
 will need to checkout the tag associated with the release you would like to use after cloning the repository locally.
 
+  - **v0.4.0** - Added support for retrieving and displaying a list of available LLM models found on the remote server.
+                 For more details see ":help LLMChat_ListingModels" in Vim after installing the plugin release.
   - **v0.3.0** - Added support for folding to chat log documents.
   - **v0.2.0** - Added support for controlling how much chat log history to include in chat submissions (previously
                  all chat log messages were used).  This can be adjusted either globally via plugin variable or on
@@ -112,7 +114,6 @@ will need to checkout the tag associated with the release you would like to use 
 
 ## RoadMap
 There are plans for supporting the following features as this plugin evolves:
-  - Command for retrieving a list of available models on the remote LLM server.
   - Support for managing and using files with LLM interactions through Open WebUI.
   - Support for managing and using knowledge collections with LLM interactions in Open WebUI.
 
@@ -123,4 +124,4 @@ The following issues are known to exist in the plugin and have yet to be resolve
     typing your message (note that starting messages on the line after the '>>>' works around this problem).  It is
     unclear exactly what causes this and the issue remains under investigation.
   - Folds are not updating as new messages are posted; currently researching how to fix this.
-  -
+

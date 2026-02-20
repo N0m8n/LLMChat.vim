@@ -26,6 +26,7 @@ CONTENTS                                                      *LLMChat_Contents*
   Custom Folding........................................|LLMChat_CustomFolding|
   Chat Options..........................................|LLMChat_ChatOptions|
   Authentication........................................|LLMChat_Authentication|
+  Listing Remote Models.................................|LLMChat_ListingModels|
   Plugin Commands.......................................|LLMChat_Commands|
   Plugin Key Mappings...................................|LLMChat_KeyMappings|
   Custom Configurations.................................|LLMChat_Configuration|
@@ -504,6 +505,71 @@ order to resolve an authentication token for its requests:
 
 
 ===============================================================================
+                                                         *LLMChat_ListingModels*
+Listing Remote Models
+---------------------
+
+In order to query for the list of available LLM models on the remote server you
+will need to meet the following prerequisites:
+
+  1). You must have a chat document setup that contains the following fields
+      in its header section with appropriate values assigned:
+
+        Server URL
+        Server Type
+        Model ID (This can be a simple text token such as 'TBD' or even a
+                  single letter like 'x' if no initial model is known to
+                  place in the document; the field is currently required by
+                  parsing so some value must be given).
+
+      Additionally, if the server is secured, than you will need the appropriate
+      authentication headers and token resolution setup as well.
+
+  2). The chat document containing the information for the remote server you
+      want to run the query against must be active when the listing request is
+      initiated (so similar to sending a chat; the chat log document must be
+      the active document or you will see an exception thrown).
+
+Once these prerequisites are met you can run the "ListChatModels" command to
+perform the following actions:
+
+  1). Request the list of LLM models available on the remote server.
+
+  2). Display the names for the returned models in a popup dialog that you
+      can scroll through.
+
+  3). [Optional] Copy the ID of one of the models from the popup dialog to
+      a register if that model is selected from the popup dialog.  Note that
+      by default the destination register for such copy will be the unnamed
+      register " but a general register may also be given (see the details for
+      the 'ListChatModels' command in section |LLMChat_Commands|).
+
+Navigation within the popup menu displaying the avaiable model names can be
+done with the following keys:
+
+  j or <Down Arrow> - Navigate the selection down one row in the dialog.
+
+  k or <Up Arrow> - Navigate the selection up one row in the dialog.
+
+  'x' or <Esc> - Exit the dialog WITHOUT making any selection.  Note that
+                 because of the way Vim handles <Esc> in this situation there
+                 is a noticeable pause so 'x' is the preferred key to use.
+
+  <Space> or <Enter> - Select the model that is currently highlighted in the
+                       dialog.  This will copy the ID for that model into the
+                       register that was specified for use when the command to
+                       list available LLM models was run.
+
+  ? - Show the "details" dialog for a model.  This will bring up the raw
+      information sent back from the remote server for the model that is
+      currently selected.  Within this additional popup the j/<Down Arrow>,
+      k/<Up Arrow>, and 'x' keys all work as expected.  Selecting a line with
+      <Space> or <Enter> will also exit the dialog but will not actually
+      perform a selection.
+
+
+===============================================================================
+
                                                               *LLMChat_Commands*
 Plugin Commands
 ---------------
@@ -520,6 +586,16 @@ AbortChatExec - This command can be used to abort a chat submission that was
     plugin for LLM interactions.  Aborting such a submission will immediately
     cancel off the cURL call that was waiting for response as well as cleanup
     the plugin state so that a new chat submission can be made.
+
+ListChatModels - This command triggers the workflow for listing available LLM
+                 models on the remote server (see section
+                 |LLMChat_ListingModels| for full details).  When invoked this
+                 command accepts an optional argument which is the name of a
+                 general purpose register that the ID of any selected model
+                 should be copied into.  Accepted values for this argument are
+                 A-Z, a-z, or the unnamed register represented by "; note that
+                 if no argument is given than the " register is used by
+                 default.
 
 NewChat - This is a convenience command for initializing a new buffer with
           either a new or existing chat document.  When executed, the command

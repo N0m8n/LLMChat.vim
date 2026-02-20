@@ -166,9 +166,8 @@ endfunction
 " This function is responsible for restoring the editor state following the execution of the unit tests in this file.
 " Primarily this will consist of taking the following actions:
 "
-"   1). Check for the existance of script local "backup variables" that were used to preserve editor state information
-"       during the execution of function BeforeAll() and restore the values they hold to the appropriate global scope
-"       variables.
+"   1). Call a test utility function that will restore any global variables whose value was backed up in dictionary
+"       's:restore_values_dict' at the start of testing.
 "
 function s:AfterAll()
     " Call a test utility function to handle the value restoration to any global variable that was reset when this test

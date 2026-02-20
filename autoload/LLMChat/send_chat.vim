@@ -1,7 +1,7 @@
 " This file contains the logic needed to send a chat message to an LLM hosted by a remote server then post the response
 " into the chat window the command was run from.  Note that logic related to parsing and validation of the chat window
-" content is also part of this file as it is needed in order to send messages (i.e., the content of the chat window must
-" be processed as the chat history to provide so that context is kept across dialogs).
+" content is imported from the vim9script library file 'import/utils.vim'; such logic must be used multiple separate
+" features within the plugin so it makes sense to keep this separate.
 
 
 " ===================
@@ -201,7 +201,8 @@ function LLMChat#send_chat#InitiateChatInteraction()
         " look at the "server type" information contained by the 'l:header_dict' to decide how to proceed.
         "
         " NOTE: For more user friendliness we will always use case-insensitve comparisons when looking up the server
-        "       type found in the chat document against the fixed identifiers found in this script.
+        "       type found in the chat document against the fixed identifiers found in this script.  We will also
+        "       tolerate some variation in how 'open webui' is specified (for instance with or without a '-' character).
         let l:server_type = l:header_dict[s:util.parse_dictionary_header_server_type]
 
         if l:server_type ==? "ollama"
@@ -230,8 +231,8 @@ function LLMChat#send_chat#InitiateChatInteraction()
             throw "[ERROR] - The current chat log contained a 'Server Type' declaration in its header information " ..
                 \ "whose value was not recognized as a supported type.  Currently this plugin can only support " ..
                 \ "LLM interactions with the types 'Ollama' and 'Open WebUI'.  In order to fix this error please " ..
-                \ "correct this declaration within your chat document to one of the supported values mentioned.  " ..
-                \ "At the time of this value the actual server type value found was: '" .. l:server_type .. "'"
+                \ "correct this declaration within your chat log document to use one of the supported values " ..
+                \ "mentioned.  At the time of this fault the server type value found was: '" .. l:server_type .. "'."
         endif
 
         if s:util.IsDebugEnabled()
@@ -250,7 +251,7 @@ function LLMChat#send_chat#InitiateChatInteraction()
 
         " Now build up the 'cURL' command that we will use to submit the chat request to the remote server.
         "
-         "NOTES:
+        " NOTES:
         "   (1) The '--location' option will cause cURL to automatically handle redirects it encounters rather than
         "       return back with a 302.
         "   (2) The '--write-out' option tells cURL that we want it to return the HTTP response status to us on the
@@ -345,7 +346,6 @@ function LLMChat#send_chat#InitiateChatInteraction()
                                     \ join(v:stacktrace, "\n"))
         endif
 
-        " Output the exception message for the user to see.
         echom v:exception
 
     endtry
@@ -604,11 +604,10 @@ function LLMChat#send_chat#HandleChatResponse(job_id, exit_status)
 
 
         " Begin verifying the outcome of the request by checking the exit status of the cURL command that should be held
-        " by variable 'v:shell_error'.  If this is any value other than 0 we will assume that the request was
-        " unsuccesful.
+        " by argument 'exit_status'.  If this is any value other than 0 we will assume that the request was unsuccesful.
         if a:exit_status != 0
             throw "[ERROR] - The cURL call used to submit the chat request to the remote LLM server returned with " ..
-                \ "a non-zero exit status; due to this condiition it is generally assume that such call failed.  " ..
+                \ "a non-zero exit status; due to this condiition it is generally assumed that such call failed.  " ..
                 \ "Additional details about this issue are provided below:\n" ..
                 \ "Exit Status: " .. a:exit_status .. "\n" ..
                 \ "Standard Out:\n" .. l:http_status_code
@@ -829,7 +828,7 @@ function LLMChat#send_chat#CreateOllamaChatRequestPayload(parse_dictionary, outp
 
 
     " Retrieve the list of messages to be included into the request and store this into a local variable.  Note that we
-    " will call out to a utility method to retreive this list for us (rather than take it directly from the parse
+    " will call out to a utility function to retreive this list for us (rather than take it directly from the parse
     " dictionary passed to this function) since it is possible that context limiting configurations are in use and we
     " may not be using all messages from the chat history.
     let l:message_array = LLMChat#send_chat#GetMessageContext(a:parse_dictionary)
@@ -971,7 +970,7 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
 
 
     " Retrieve the list of messages to be included into the request and store this into a local variable.  Note that we
-    " will call out to a utility method to retreive this list for us (rather than take it directly from the parse
+    " will call out to a utility function to retreive this list for us (rather than take it directly from the parse
     " dictionary passed to this function) since it is possible that context limiting configurations are in use and we
     " may not be using all messages from the chat history.
     let l:message_array = LLMChat#send_chat#GetMessageContext(a:parse_dictionary)

@@ -3338,10 +3338,10 @@ endfunction
 " This test asserts the proper operation of function GetMessageContext() when no context size was specified within the
 " given parse dictionary AND the 'g:llmchat_max_context_messages' variable was not set.
 function s:TestGetMessageContextWithNoContextLimit()
-    " Define a minimal parse dictionary that can be passed to the GetMessageContext() method for testing and which does
-    " NOT explicitly include any header options for limiting context size.  Note that the parse dictionary we create
-    " here is not fully complete, from the perspective of what a *real* parse dictionary would look like, but in this
-    " case it is fine as the function to be tested will not try to interact with or validate the missing content.
+    " Define a minimal parse dictionary that can be passed to the GetMessageContext() function for testing and which
+    " does NOT explicitly include any header options for limiting context size.  Note that the parse dictionary we
+    " create here is not fully complete, from the perspective of what a *real* parse dictionary would look like, but in
+    " this case it is fine as the function to be tested will not try to interact with or validate the missing content.
     let l:test_parse_dict = {
                           \   "header": { },
                           \   "messages":
@@ -3409,7 +3409,7 @@ function s:TestGetMessageContextWithContextLimitInParseDict()
     " ***  Subcondition #1 - Maximum context size given was negative  ***
     " *******************************************************************
     "
-    " Define a minimal parse dictionary that can be passed to the GetMessageContext() method for testing and which
+    " Define a minimal parse dictionary that can be passed to the GetMessageContext() function for testing and which
     " includes a header option to control the message history to be included.  Note that the parse dictionary we create
     " here is not fully complete, from the perspective of what a *real* parse dictionary would look like, but in this
     " case it is fine as the function to be tested will not try to interact with or validate the missing content.
@@ -3629,9 +3629,9 @@ function s:TestGetMessageContextWithContextLimitInGlobalVar()
     " ***  Subcondition #1 - Maximum context size given was negative  ***
     " *******************************************************************
     "
-    " Define a minimal parse dictionary that can be passed to the GetMessageContext() method for testing and which does
-    " NOT include any header option for controlling the message history to be included (for this test we will be using
-    " the 'g:llmchat_max_context_messages' variable to control context length).  Note that the parse dictionary we
+    " Define a minimal parse dictionary that can be passed to the GetMessageContext() function for testing and which
+    " does NOT include any header option for controlling the message history to be included (for this test we will be
+    " using the 'g:llmchat_max_context_messages' variable to control context length).  Note that the parse dictionary we
     " create here is not fully complete, from the perspective of what a *real* parse dictionary would look like, but in
     " this case it is fine as the function to be tested will not try to interact with or validate the missing content.
     let l:test_parse_dict = {
@@ -3863,9 +3863,8 @@ endfunction
 " This function is responsible for restoring the editor state following the execution of the unit tests in this file.
 " Primarily this will consist of taking the following actions:
 "
-"   1). Check for the existance of script local "backup variables" that were used to preserve editor state information
-"       during the execution of function BeforeAll() and restore the values they hold to the appropriate global scope
-"       variables.
+"   1). Call a test utility function that will restore any global variables whose value was backed up in dictionary
+"       's:restore_values_dict' at the start of testing.
 "
 function s:AfterAll()
     " Call a test utility function to handle the value restoration to any global variable that was reset when this test

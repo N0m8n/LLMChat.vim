@@ -1979,11 +1979,442 @@ export def UnescapeSpecialSequences(text: string): string
 enddef
 
 
-# ============================
-# ====                    ====
-# ====  Main Script Logic ====
-# ====                    ====
-# ============================
+# This function will generate a formatted text representation of a given dictionary that is suitable for display to
+# an end user.  Note that internally the function will handle checks on the type of values encountered within the
+# dictionary and it will appropriately handle the formatting of nested data structures such as additional dictionaries
+# or lists.
+#
+# Arguments:
+#   data_dict - The general dictionary that this function should produce a formatted text representation of.
+#   spacing - An integer number that is 0 or greater and which represents how many spaces to indent each nested level
+#             of the dictionary's contents when generating its text representation.
+#   init_offset - A string made up of whitespace characters (generally assumed to be spaces) that represents the
+#                 initial indent margin to use for the formatted text.  Note that this will shift ALL levels of the
+#                 dictionary's text representation by the offset provided.
+#
+# Returns: A list containing a series of text lines that together comprise a formatted text representation of the
+#          given 'data_dict' argument.
+#
+export def FormatDictionaryToText(data_dict: dict<any>, spacing: number, init_offset = ''): list<string>
+    # Declare a list object that will hold the formatted dictionary text to be returned from this function call.
+    var dict_lines: list<string>
+
+    # Build up a string that will hold the "initial offset" value that we need to pass to any other data structure
+    # formatting functions (including recursive calls to this function).  We do this up front so that the offset
+    # spacing is pre-computed and only needs to be passed later.
+    var recursive_init_offset = init_offset
+
+    for counter in range(spacing)
+        recursive_init_offset = recursive_init_offset .. ' '
+    endfor
+
+    # Loop over and process each key/value pairing found in the provided 'data_dict'
+    #
+    # NOTE: To ensure consistent operation we will always sort the keys we iterate over so that their ordering is
+    #        deterministic.
+    #
+    var sorted_keys = sort(keys(data_dict))
+    for key in sorted_keys
+        # Fetch the value for the current key.
+        var value = get(data_dict, key)
+
+        # Check to see what type of value is held by the current pairing and then format it appropriately for
+        # display.
+        var value_type = type(value)
+
+        if value_type == v:t_list
+            # In this case the current value is a list so we will add formatted lines for the key and list start/end.
+            # To format the body of the list we will reach out to a utility function and then append all formatted
+            # lines that it returns to us.
+            #
+            # NOTE: There are some special case conditions we want to field directly in addition to the general
+            #       case described above; these are as follows:
+            #
+            #  1). For an empty list value we want to move the start/end list delimiters to the same line as the key
+            #      (and obviously we will skip any further function calls for value formatting).
+            #
+            if empty(value)
+                add(dict_lines, init_offset .. '"' .. key .. '": [ ]')
+
+            else
+                add(dict_lines, init_offset .. '"' .. key .. '":')
+                add(dict_lines, init_offset .. '[')
+                extend(dict_lines, FormatListToText(value, spacing, recursive_init_offset))
+                add(dict_lines, init_offset .. ']')
+
+            endif
+
+        elseif value_type == v:t_dict
+            # In this case the current value is a dictionary so we will add formatted lines for the key and dictionary
+            # start/end; formatting of the dictionary value itself will be handled by a recursive call back to this
+            # function.
+            #
+            # NOTE: There are some special case conditions we want to field directly in addition to the general
+            #       case described above; these are as follows:
+            #
+            #  1). For an empty dictionary value we want to move the start/end brace delimiters to the same line as the
+            #      key (and obviously we will skip any further function calls for value formatting).
+            #
+            if empty(value)
+                add(dict_lines, init_offset .. '"' .. key .. '": { }')
+
+            else
+                add(dict_lines, init_offset .. '"' .. key .. '":')
+                add(dict_lines, init_offset .. "{")
+                extend(dict_lines, FormatDictionaryToText(value, spacing, recursive_init_offset))
+                add(dict_lines, init_offset .. "}")
+            endif
+
+        elseif value_type == v:t_bool
+            # In this case the value was a boolean so we will output it as 'true' or 'false'.
+            if value
+                add(dict_lines, init_offset .. '"' .. key .. '": true')
+            else
+                add(dict_lines, init_offset .. '"' .. key .. '": false')
+            endif
+
+        elseif value_type == v:t_string
+            # In this case the value was a string so we will surround it with " characters when adding it to the
+            # formatted lines list.
+            add(dict_lines, init_offset .. '"' .. key .. '": "' .. value .. '"')
+
+        elseif value_type == v:t_number
+            # In this case we have an integer value which the user may want to see formatted with thousands separators
+            # for better visibility.  Call out to a utility function to handle the string conversion and embed the
+            # returned string value.
+            add(dict_lines, init_offset .. '"' .. key .. '": ' .. FormatNumberWithThousandsSep(value))
+
+        else
+            # In this case we assume that the value was some other basic data type (for example float) so we will just
+            # add the formatted representation directly.
+            add(dict_lines, init_offset .. '"' .. key .. '": ' .. value)
+
+        endif
+
+    endfor
+
+
+    # Return the formatted text held by list 'dict_lines' back to the caller.
+    return dict_lines
+
+enddef
+
+
+# This function will generate a formatted text representation of a given list that is suitable for display to an
+# end user.  Note that internally the function will handle checks on the type of elements encountered within the list
+# and it will appropriately handle the formatting of nested data structures such as additional lists or dictionaries.
+#
+# Arguments:
+#   data_list - The general list that this function should produce a formatted text representation of.
+#   spacing - An integer number that is 0 or greater and which represents how many spaces to indent each nested level
+#             of the list's contents when generating its text representation.
+#   init_offset - A string made up of whitespace characters (generally assumed to be spaces) that represents the
+#                 initial indent margin to use for the formatted text.  Note that this will shift ALL elements of the
+#                 list's text representation by the offset provided.
+#
+# Returns: A list containing a series of text lines that together comprise a formatted text representation of the given
+#          'data_list' argument.
+#
+export def FormatListToText(data_list: list<any>, spacing: number, init_offset = ''): list<string>
+    # Declare a list object that will hold the formatted list text to be returned from this function call.
+    var list_lines = [ ]
+
+    # Build up a string that will hold the "initial offset" value that we need to pass to any other data structure
+    # formatting functions (including recursive calls to this function).  We do this up front so that the offset
+    # spacing is pre-computed and only needs to be passed later.
+    var recursive_init_offset = init_offset
+
+    for counter in range(spacing)
+        recursive_init_offset = recursive_init_offset .. ' '
+    endfor
+
+    # Loop over and process each element in the provided 'data_list'.
+    for curr_elem in data_list
+        # Check to see what type of value is held by the current list element and then format it appropriately for
+        # display.
+        var elem_type = type(curr_elem)
+
+        if elem_type == v:t_list
+            # In this case the current list element is another list so we will add formatted lines for the list start
+            # and end then recursively call this function to process the child list content itself.
+            #
+            # NOTE: There are some special case conditions we want to field directly in addition to the general case
+            #       described above; these are as follows:
+            #
+            #  1). For an empty child list we simply want to show the list delimiters on the same line (so '[ ]').
+            #
+            #  2). A child list that contains a single element that is NOT a list or dictionary should have its value
+            #      displayed on the same line as its delimiters (so '[ value ]').
+            #
+            if empty(curr_elem)
+                add(list_lines, init_offset .. '[ ]')
+
+            elseif len(curr_elem) == 1
+                var elem_value_type = type(curr_elem[0])
+                if elem_value_type != v:t_list && elem_value_type != v:t_dict
+                    add(list_lines, init_offset .. '[ ' .. join(FormatListToText(curr_elem, spacing, ''), '') .. ' ]')
+                else
+                    add(list_lines, init_offset .. '[')
+                    extend(list_lines, FormatListToText(curr_elem, spacing, recursive_init_offset))
+                    add(list_lines, init_offset .. ']')
+                endif
+
+            else
+                add(list_lines, init_offset .. '[')
+                extend(list_lines, FormatListToText(curr_elem, spacing, recursive_init_offset))
+                add(list_lines, init_offset .. ']')
+            endif
+
+        elseif elem_type == v:t_dict
+            # In this case the current element is a dictionary so we will add formatted lines for the dictionary
+            # start/end then reach out to a separate utility function to handle formatting of the dictionary content
+            # itself.
+            #
+            # NOTE: There are some special case conditions we want to field directly in addition to the general case
+            #       described above; these are as follows:
+            #
+            #  1). For an empty dictionary we want to move the start/end delimiting braces onto the same line (so
+            #      display as '{ }').
+            #
+            if empty(curr_elem)
+                add(list_lines, init_offset .. '{ }')
+
+            else
+                add(list_lines, init_offset .. '{')
+                extend(list_lines, FormatDictionaryToText(curr_elem, spacing, recursive_init_offset))
+                add(list_lines, init_offset .. '}')
+
+            endif
+
+        elseif elem_type == v:t_bool
+            # In this case the 'curr_elem' was a boolean so we will output it as 'true' or 'false'.
+            if curr_elem
+                add(list_lines, init_offset .. 'true')
+            else
+                add(list_lines, init_offset .. 'false')
+            endif
+
+        elseif elem_type == v:t_string
+            # In this case the current element is a string so we will surround it value with " characters when adding
+            # it to the formatted text.
+            add(list_lines, init_offset .. '"' .. curr_elem .. '"')
+
+        elseif elem_type == v:t_number
+            # In this case we have an integer value which the user may want to see formatted with thousands separators
+            # for better visibility.  Call out to a utility function to handle the string conversion and embed the
+            # returned string value.
+            add(list_lines, init_offset .. FormatNumberWithThousandsSep(curr_elem))
+
+        else
+            # In this case we assume that the value was some other basic data type (for example float) so we will just
+            # add the formatted representation directly.
+            add(list_lines, init_offset .. curr_elem)
+
+        endif
+
+    endfor
+
+
+    # Return the formatted text lines held by list 'list_lines' back to the caller.
+    return list_lines
+
+enddef
+
+
+# This function will compute the total height of the window space found within a tab whose number is optionally
+# provided (if not provided than the function will assume it should operate against the currently active tab).  The
+# "window space" in this case is comprised of all windows currently arranged inside the tab and is returned as an
+# integer value representing vertical space as an eqivalent number of "lines" (i.e., how many text lines could be
+# stacked vertically within the space of the tab).
+#
+# Arguments:
+#   tabnr - (Optional) The number of the tab that this function should operate on; if no argument is provided the
+#           currently active tab will be used by default.
+#
+# Returns: The total vertical space within the tab as an integer value corresponding to text lines.
+#
+export def CalculateTotalWinHeight(tabnr = tabpagenr()): number
+    # Retrieve the full window layout information for the tab with the given 'tabnr' (by default this refers to the
+    # currently active tab.
+    var layout_list = winlayout()
+
+    # Call out to a utility function that will recursively determine what the full editor line height is by recursively
+    # analyzing the layout listing.
+    var full_editor_height = CalculateSegmentWinHeight(layout_list)
+
+    # Check to see if variable 'g:llmchat_h_win_adjust' holds a non-zero value and if so adjust the final
+    # 'full_editor_height' accordingly (note that this can be a positive or negative adjustment).
+    if g:llmchat_h_win_adjust != 0
+        full_editor_height = full_editor_height + g:llmchat_h_win_adjust
+
+    endif
+
+    # Return the final computation for the window height back to the caller.
+    return full_editor_height
+
+enddef
+
+
+# This is a utility function for formatting a number into a text value that may optionally have separators at its
+# thousands places (i.e., between every 3 digits inside the number).  Whether or not separators are inserted and what
+# separator is used is entirely controlled by the value assigned to global variable 'g:llmchat_thousands_sep_char';
+# rules related to this determination are provided below:
+#
+#   1). If 'g:llmchat_thousands_sep_char' is not set or has been given a value equal to the empty string than NO
+#       thousands separators will be inserted and a basic string version of the provided number will be returned.
+#
+#   2). If the 'g:llmchat_thousands_sep_char' variable has been set to a non-empty value than such value will be
+#       inserted at every thousands position within the given number and the result will be returned.
+#
+# Arguments:
+#   num_to_format - The number whose (optionally) formatted string representation should be constructed and returned by
+#                   this function.
+#
+# Returns: A formatted string representation of the provided 'num_to_format' argument which may have thousands
+#          separators inserted if the global editor state is setup for such formatting.
+#
+export def FormatNumberWithThousandsSep(num_to_format: number): string
+    # Check to see if global variable 'g:llmchat_thousands_sep_char' exists and if so does it contain a non-empty
+    # value; if both of these checks are true than proceed with formatting the number.  If either of these checks is
+    # NOT true than just return a standard string representation of the given number.
+    var formatted_num = string(num_to_format)       # Assume no formatting as the default case.
+
+    if exists("g:llmchat_thousands_sep_char") && g:llmchat_thousands_sep_char != ''
+        # In this case a non-empty thousands separator was specified for use so we will assume that we should add
+        # separators to the string representation of the number at every thousands place.  To do this we will first
+        # convert the number to a string then we will cycle over each character in that string, back to front, and
+        # insert a separator every time we pass over three characters.
+        #
+        # NOTE: We assume that the numerical digits '0' - '9' won't be represented by multi-byte characters so currently
+        #       the logic does not try to specially handle the multi-byte case.
+        #
+        # NOTE 2: We cycle our loop using incrementing values starting at 0 but fetch characters out of the
+        #         'base_num_str' in reverse; why not just count directly in reverse rather than this weird conversion?
+        #         The reason is that we need our counter to represent a count up from the ones place but numbers are
+        #         right aligned and not left aligned.  If you tried to walk though the number characters in reverse for
+        #         some value that is not an even multiple of 3 you will see that the separators get placed wrong.  Take
+        #         for example the number 4500.  This is 4 characters long with the '4' at index position 0 and the last
+        #         '0' at index position 3.  If we walked a 1-based counter through this from the end to the beginning we
+        #         would see that 4 is not evenly divisible by 3 but then 3 is so our separator would be inserted as
+        #         "45,00" (obviously wrong).  The switch between the way the loop counter runs and the actual character
+        #         index that it fetches is done to avoid this issue.
+        #
+        var base_num_str = formatted_num
+        formatted_num = ''
+        var last_index = strlen(base_num_str) - 1
+
+        for curr_index in range(0, last_index)
+            var curr_char_index = last_index - curr_index
+            var curr_char = base_num_str[curr_char_index]
+
+            formatted_num = curr_char .. formatted_num
+
+
+            # Always make sure to perform our modulus operation at one greater than the 'curr_index' since indices are
+            # 0-based but computations like this are 1-based.
+            if (((curr_index + 1) % 3) == 0) && curr_index != last_index
+                # In this case we've reached a multiple of 3 and this is NOT the last index so we know that at least
+                # one more number will be added; go ahead insert the thousands separator at the front of the
+                # 'formatted_num'.
+                formatted_num = g:llmchat_thousands_sep_char .. formatted_num
+
+            endif
+
+        endfor
+
+    endif
+
+
+    # Return the formatted number representation back to the caller.
+    return formatted_num
+
+enddef
+
+
+
+# =====================================
+# ====                             ====
+# ====  Internal Script Functions  ====
+# ====                             ====
+# =====================================
+#
+# This section of the script contains functions only intended to be called from within the script itself.
+#
+
+# This function will compute the total vertical space taken by the windows whose layout list is provided and will return
+# back that size as an integer value.  Note that "size" in this case refers to the number of text lines that would
+# be occupied by the some total of all windows within the layout.
+#
+# Arguments:
+#   layout_list - This value must be a list whose content and organization exactly matches to the content and format
+#                 of the list returned by Vim function winlayout().
+#
+# Returns: An integer value defining the number of lines of vertical space occupied by the windows within the provided
+#          layout list.
+#
+def CalculateSegmentWinHeight(layout_list: list<any>): number
+    # Check to see if the first element in the list is 'col', 'row', or 'leaf'; this will determine how we have to
+    # process the remainder of the window information contained.
+    var total_window_height = 0    # Default to 0 so that the 'col' case doesn't have to re-initialize for summation.
+    if layout_list[0] == 'col'
+        # In this case we assume that we've encountered two or more horizontally split windows that together make up
+        # a "column".  Since the total vertical space in the editor will be shared among ALL the windows in the row
+        # we must sum up such sizes to get the value to be returned.  Note that to get the height of each window in
+        # the row we will recursively call this function; that way if there are any further splits within the row they
+        # can be properly accounted for.
+        var total_windows = len(layout_list[1])
+        for curr_window_index in range(0, total_windows - 1)
+            total_window_height = total_window_height + CalculateSegmentWinHeight(layout_list[1][curr_window_index])
+
+            # NOTE: When windows are horizontally split it is possible that additional display elements are in play
+            #       that take up further vertical space (for example a status bar that may appear between the
+            #       windows).  Check to see if the following apply and if so augment the 'total_window_height'
+            #       computed accordingly:
+            #
+            #  1). First make sure we only apply augmentation to the value for windows AFTER the first.  Remmber that
+            #      we're accounting for space taken BETWEEN windows so there will necessarily be one less such
+            #      element than there are windows in the row.  We can account for this difference in number easily
+            #      enough by just skipping the first window described by index 0.
+            #
+            #  2). Verify that the value held by variable 'g:llmchat_h_disp_elem_aug_value' is greater than 0.  When
+            #      this is the case we assume that the user has asserted such display element exists and has given an
+            #      allocated size for it.
+            #
+            if curr_window_index > 0 && g:llmchat_h_disp_elem_aug_value > 0
+                total_window_height = total_window_height + g:llmchat_h_disp_elem_aug_value
+
+            endif
+
+        endfor
+
+    elseif layout_list[0] == 'row'
+        # In this case we've encountered two or more vertically split windows that together make up a "row".  Since
+        # all windows will have the same height in this case we only need to compute the height of one of them in
+        # order to return back a value to the caller.  Note that to make this computation we will recursively call
+        # this function with the first element of the nested list found as element 1 so that any further splits
+        # within the column are also accounted for.
+        total_window_height = CalculateSegmentWinHeight(layout_list[1][0])
+
+    else
+        # In this case we assume that we've reached a "leaf" node (i.e., a window with no further splits).  Extract the
+        # window ID from the second element of the given list and return back its height (in columns).
+        total_window_height = winheight(layout_list[1])
+
+    endif
+
+    # Return the computed window height back to the caller.
+    return total_window_height
+
+enddef
+
+
+
+
+# =============================
+# ====                     ====
+# ====  Main Script Logic  ====
+# ====                     ====
+# =============================
 #
 # The following logic should run any time that this file is sourced by Vim and is typically used for initialization,
 # optimization actions, or common values within the script.

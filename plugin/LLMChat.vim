@@ -15,7 +15,27 @@
 " declared here contain default values which may or may not be suitable for use depending on their nature; variable
 " setting will also always defer to existing values such that variables are ONLY set if no value for such variable has
 " been defined yet.
+"
+" The proper way to override a variable from this file is to declare such variable inside your ~/.vimrc file and then
+" provide the value you would like to use there.  Such declarations should have a form like the following:
+"
+"   let <NAME> = <VALUE>
+"
+" Make sure to keep data types the same which means that if you see the value in this value wrapped within quote
+" characters than you need to do the same in your own declaration; if you see the value declared without quotes than
+" declare it the same in your override.
+"
+" As a concrete example of this, assume that we wish to override the "g:llmchat_default_server_type" variable so that
+" it specifies "Open WebUI" by default.  To do this we would create a statement in the ~/.vimrc file that looks
+" like the following:
+"
+"   let g:llmchat_default_server_type = "Open WebUI"
+"
+" Note that we surround the value in quote characters because we see that is the way that a default value was assigned
+" to it within this file.
+"
 
+" -----------------------------------------------------
 
 " This variable defines the default for the "type" of server that we will be interacting through in order to converse
 " with an LLM.  Currently two options exist that can be used:
@@ -151,6 +171,45 @@ if ! exists("g:llmchat_assistant_message_follow_style")
 endif
 
 
+" This variable specifies what width (in terms of extra lines) to expect to be added to the vertical space consumption
+" when windows are split horizontally.  Ultimately this value supplements the window height calculation logic which
+" tries to figure out exactly how high (in text lines) that the full editor interface happens to be for the proper
+" display of popup dialogs.  When you are using custom display elements, such as a status line, that will appear between
+" windows which are horizontally split than you need to set the value of this variable to be equal to how many text
+" lines that such display element takes up.  Note that this only needs to specify the space consumed between two
+" windows as the space taken will be inferred for more than a single split (for example if you are using a custom
+" status line that takes up 1 text row of space and appears each time that the window is horizontally split than you
+" would just set this value to 1).
+if ! exists("g:llmchat_h_disp_elem_aug_value")
+    let g:llmchat_h_disp_elem_aug_value = 0
+endif
+
+
+" This variable adjusts the maximum allowed vertical size of popup dialogs created by this plugin and can help to fix
+" incorrect display issues (for example if the bottom of a popup dialog falls below the bottom of the editor window).
+" The value given is taken as a raw adjustment in terms of text lines so a negative value will shrink the popup
+" window's maximum vertical size by the given amount and a positive value will increase the maximum vertical size
+" allowed.
+"
+" Note that adjusting the maximum size for a popup window via this value does not effect your ability to see larger
+" blocks of content nor does it force all popup windows that are displayed to suddenly become larger or smaller.  This
+" specifically addresses the condition when a popup window will no longer grow vertically and will instead shift to
+" allowing you to scroll through its content using the standard motion keys.
+if ! exists("g:llmchat_h_win_adjust")
+    let g:llmchat_h_win_adjust = 0
+endif
+
+
+" This variable allows for thousands separators to be inserted into the numbers displayed by popup dialogs in this
+" plugin.  Currently the display only affects values seen to be integer types and will not format floating point
+" values.  The character held by this variable will become the separator used for thousands marks within numbers so
+" it may be adjusted to any desired separator.  Note that setting this variable to the empty string will disable the
+" insertion of thousands separators and will cause integer values to be displayed as raw numbers.
+if ! exists("g:llmchat_thousands_sep_char")
+    let g:llmchat_thousands_sep_char = ','
+endif
+
+
 " This variable specifies whether or not to use "streaming" mode when interacting with the remote LLM server.  Streaming
 " essentially returns back fragments of a response that need to be stitched back together before the response message
 " can be written to the chat buffer.  Non-streaming mode provides back a single, complete response that is almost
@@ -190,6 +249,18 @@ if ! exists("g:llmchat_curl_extra_args")
 endif
 
 
+
+" ================================================
+" ====                                        ====
+" ====  Internal Global Variable Definitions  ====
+" ====                                        ====
+" ================================================
+"
+" The variables in this section are considered "internal" from the perspective that plugin users should NOT be
+" overriding them or directly setting them.  These variables will be controlled by commands or processes inside the
+" plugin and are only declared global due to the nature of their use.
+
+
 " This variable specifies the "target" for debug mode to use.  A target can either be (1) a buffer or (2) a file and
 " defines where debug information output from the plugin will be written.  When targeting a buffer the value provided
 " for this variable must have the form "@N" when 'N' is the number of an open buffer in the editor.  When targeting
@@ -201,6 +272,7 @@ endif
 if ! exists("g:llmchat_debug_mode_target")
     let g:llmchat_debug_mode_target = ''
 endif
+
 
 
 " ===============================
@@ -268,6 +340,30 @@ command -nargs=1 SetAuthToken execute "let b:llmchat_auth_token='<args>' | echo 
 command -nargs=0 AbortChatExec call LLMChat#send_chat#AbortRunningChatExec()
 
 
+" This command is used to list the LLM models that are supported for use on the remote server.  When run, the command
+" will execute a cURL call to query models from the server then it will display a listing of those models in a popup
+" dialog.  You can navigate within the popup dialog by using the 'j' and 'k' keys (or arrow keys) and can use the
+" 'x' key to exit the popup without making a selection.  Additionally you can press the '?' key while highlighting
+" the display name for any model in order to see the detail information that was returned from the server for that
+" model.  If you press the <Enter> or <Space> keys while in the model listing dialog than the identifier for that
+" model, as recognized by the remote server, will be copied to the default, no-name register (i.e., register " just
+" as content would be copied to if performing a yank operation).  This will allow you to easily paste the ID for the
+" model anywhere you like; typically into the chat log document itself to finish configuring it for a chat session.
+" If you would like the model ID placed in a register other than " you may pass the name of that register to this
+" command when invoked; it supports the use of any of the standard user registers identified by the letters A-Z and
+" a-z.
+"
+" Note that when run this command (1) must be run while a chat log is the active document and (2) such chat log must
+" have, at minimum, the server type and server URL options fully filled in as both will be required to query for the
+" model listing.
+"
+" Examples:
+"    :ListChatModels     <== Query for and show LLM models available; place any selection name in the " register.
+"    :ListChatModels a   <== Query for and show LLM models available; place any selection name into register 'a'.
+"
+command -nargs=? ListChatModels call LLMChat#get_models#FetchModels(<f-args>)
+
+
 " This is a convenience command for setting the debug target to be used by this plugin.  The "target" is the
 " destination to which debug output will be sent and can be any of the following:
 "
@@ -312,7 +408,7 @@ command -nargs=? -complete=file SetDebugTarget execute "let g:llmchat_debug_mode
 "       level fold within the message exhange fold).
 "
 " On invocation the operation of this function will attempt to determine what "fold level" to assign the line whose
-" number has been provided as argument "line_num".  The method will then return a resolved "fold level" for the line
+" number has been provided as argument "line_num".  The function will then return a resolved "fold level" for the line
 " that adheres to the level types as specified in help section 'fold-expr'.
 "
 " In order to use this function for folding the following must be set in Vim for a buffer containing a chat log file:
