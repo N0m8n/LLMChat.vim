@@ -15,6 +15,7 @@ Currently the plugin supports all of the following features:
     other text file.
   - Supports chat interactions with LLMs hosted via Ollama or through Open WebUI.
   - Has syntax highlighting for chat logs
+  - Can query for and display the set of LLM models available from a remote server.
   - Makes use of the asynchronous job framework in Vim for chat submissions so that the editor is usable while waiting
     on a response.
   - Supports the use of authentication for interacting with LLMs on secured servers.
