@@ -114,8 +114,8 @@ will need to checkout the tag associated with the release you would like to use 
 
 ## RoadMap
 There are plans for supporting the following features as this plugin evolves:
-  - Support for managing and using files with LLM interactions through Open WebUI.
-  - Support for managing and using knowledge collections with LLM interactions in Open WebUI.
+  - Support for embedding file and buffer content into chats (still being designed).
+  - Support for dynamic updates to buffer content based on chat responses (still under research).
 
 ## Known Issues
 The following issues are known to exist in the plugin and have yet to be resolved:
@@ -123,5 +123,7 @@ The following issues are known to exist in the plugin and have yet to be resolve
     than the next line will incorrectly be started with a '>>>'.  You must then remove this opening sequence to continue
     typing your message (note that starting messages on the line after the '>>>' works around this problem).  It is
     unclear exactly what causes this and the issue remains under investigation.
-  - Folds are not updating as new messages are posted; currently researching how to fix this.
+  - Folds are not being reliably added in some cases due to non-alphanumeric characters being embedded in many chat
+    responses that are confusing the current logic.  A temporary workaround is to request that your LLM only respond
+    using alphanumeric ASCII characters and should avoid things like markdown formatting in responses.
 
