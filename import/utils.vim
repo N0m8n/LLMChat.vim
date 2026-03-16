@@ -441,6 +441,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
     var buff_info_dict = buff_info_dict_array[0]
 
+    # Define a list variable that will collect debug trace information IF debug mode has been enabled.  Note that we
+    # don't want to just dump trace data every time the parsing process runs as this is generally wasteful and clutters
+    # the debug output (typcially the parse is successful and when parsing succeeds we don't need to debug it).  To
+    # avoid this we will collect trace data in a list and will ONLY dump the data to the debug output IF the parse
+    # encounters a fail condition.
+    var debug_trace_list = [ ]
 
     # To handle the buffer content parsing we will walk line-by-line through the file and will collect processable
     # content into either a "header" dictionary or into "chat interaction" dictionaries.  Which dictionary content is
@@ -487,6 +493,18 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
     # Variables used for tracking our parse through all lines in the buffer
     var curr_buffer_line_cntr = 1
     var total_buffer_lines = buff_info_dict["linecount"]
+
+    # If debug mode is enabled then add lines to the trace list indicating that the parse is beginning.
+    if IsDebugEnabled()
+        var new_trace_lines = [
+                                "------------------------------------------",
+                                "Starting chat buffer parse (chat_buff_num = '" .. chat_buff_num .. "')",
+                                " ",
+                                "Assuming header section processing mode at start."
+                              ]
+        extend(debug_trace_list, new_trace_lines)
+
+    endif
 
     while curr_buffer_line_cntr <= total_buffer_lines
         # Fetch the content of the line whose line number matches to 'curr_buffer_line_cntr'.
@@ -535,6 +553,19 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     curr_text_block = []
                     inside_system_msg = false
 
+                    if IsDebugEnabled()
+                        var new_trace_lines =
+                            [
+                              "Exiting processing mode for system prompt chat option (line = " ..
+                              curr_buffer_line_cntr .. ")",
+                              "Extracted system prompt value:",
+                              " ",
+                              trimmed_prompt,
+                              " "
+                            ]
+                        extend(debug_trace_list, new_trace_lines)
+                    endif
+
                 else
                      # In this case we have encountered a non-empty line which we assume to be part of the system
                      # message.  Trim any leading or trailing whitespace from the line then add the result as a new
@@ -574,6 +605,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     #      the next loop conditional check is made.
                     #
                     if ! has_key(header_dict, parse_dictionary_header_server_type)
+                        if IsDebugEnabled()
+                            WriteToDebug(join(debug_trace_list, "\n"))
+                        endif
+
                         throw "[ERROR] - No 'Server Type:' declaration found within the header portion of the " ..
                               "current chat buffer content.  This declaration is required and must be set to the " ..
                               "type of server that the chat will be submitted to (for example 'Server Type: Ollama' " ..
@@ -581,12 +616,20 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     endif
 
                     if ! has_key(header_dict, parse_dictionary_header_server_url)
+                        if IsDebugEnabled()
+                            WriteToDebug(join(debug_trace_list, "\n"))
+                        endif
+
                         throw "[ERROR] - No 'Server URL:' declaration found within the header portion of the " ..
                               "current chat buffer content.  This declaration is required and must be set to the " ..
                               "URL of the LLM service that chats are to be sent to."
                     endif
 
                     if ! has_key(header_dict, parse_dictionary_header_model_id)
+                        if IsDebugEnabled()
+                            WriteToDebug(join(debug_trace_list, "\n"))
+                        endif
+
                         throw "[ERROR] - No 'Model ID:' declaration found within the header portion of the current " ..
                               "chat buffer content.  This declaration is required and must be set to the ID of the " ..
                               "LLM model that chats should be submitted to."
@@ -603,6 +646,13 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                         # 'total_buffer_lines' and the main parsing loop will terminate.
                         curr_buffer_line_cntr = total_buffer_lines
                     endif
+
+                    if IsDebugEnabled()
+                        add(debug_trace_list,
+                            "Found header section delimiter on line " .. curr_buffer_line_cntr .. "; transitioning " ..
+                            "to body section processing mode.")
+                    endif
+
                 else
                     # In this case we haven't found the delimiter that ends the header section of the document yet so we
                     # assume that we've got a normal line.  Check to see now if such line matches to one of the
@@ -649,6 +699,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #  5). Add the extracted and cleaned up value into the 'header_dict' variable.
                             #
                             if has_key(header_dict, parse_dictionary_header_server_type)
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - A duplicate 'Server Type' declaration was found within the header " ..
                                       "segment of the current chat buffer on line " .. curr_buffer_line_cntr ..
                                       ".  This declaration may be given only once per chat document; to resolve " ..
@@ -659,6 +713,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             trimmed_value = substitute(trimmed_value, '\v\s+$', '', '')
 
                             if trimmed_value == ''
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - The 'Server Type' declaration found within the header segment " ..
                                       "of the current chat buffer (line '" .. curr_buffer_line_cntr .. "') had " ..
                                       "an empty value.  Please supply a valid, non-empty value for this declaration " ..
@@ -666,6 +724,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             endif
 
                             header_dict[parse_dictionary_header_server_type] = trimmed_value
+
+                            if IsDebugEnabled()
+                                add(debug_trace_list,
+                                    "Processed 'Server Type' chat option (line = " .. curr_buffer_line_cntr  ..
+                                    ", value = '" .. trimmed_value .. "')")
+                            endif
 
                         elseif curr_buff_line =~# '\v^\s*Server URL\:.*$'
                             # In this case we've found a server URL declaration; process it by taking the following
@@ -687,6 +751,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #  5). Add the extracted and cleaned value into the 'header_dict' variable.
                             #
                             if has_key(header_dict, parse_dictionary_header_server_url)
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - A duplicate 'Server URL' declaration was found within the header " ..
                                       "segment of the current chat buffer on line " .. curr_buffer_line_cntr ..
                                       ".  This declaration may be given only once per chat document; to resolve " ..
@@ -697,6 +765,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             trimmed_value = substitute(trimmed_value, '\v\s+$', '', '')
 
                             if trimmed_value == ''
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - The 'Server URL' declaration found within the header segment " ..
                                       "of the current chat buffer (line '" .. curr_buffer_line_cntr .. "') had " ..
                                       "an empty value.  Please supply a valid, non-empty value for this declaration " ..
@@ -704,6 +776,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             endif
 
                             header_dict[parse_dictionary_header_server_url] = trimmed_value
+
+                            if IsDebugEnabled()
+                                add(debug_trace_list,
+                                    "Processed 'Server URL' chat option (line = " .. curr_buffer_line_cntr  ..
+                                    ", value = '" .. trimmed_value .. "')")
+                            endif
 
                         elseif curr_buff_line =~# '\v^\s*Model ID\:.*$'
                             # In this case we've found a model ID declaration; process it by taking the following
@@ -725,6 +803,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #  5). Add the extracted and cleaned value into the 'header_dict' variable.
                             #
                             if has_key(header_dict, parse_dictionary_header_model_id)
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - A duplicate 'Model ID' declaration was found within the header " ..
                                       "segment of the current chat buffer on line " .. curr_buffer_line_cntr ..
                                       ".  This declaration may be given only once per chat document; to resolve " ..
@@ -735,6 +817,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             trimmed_value = substitute(trimmed_value, '\v\s+$', '', '')
 
                             if trimmed_value == ''
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - The 'Model ID' declaration found within the header segment " ..
                                       "of the current chat buffer (line '" .. curr_buffer_line_cntr .. "') had " ..
                                       "an empty value.  Please supply a valid, non-empty value for this declaration " ..
@@ -742,6 +828,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             endif
 
                             header_dict[parse_dictionary_header_model_id] = trimmed_value
+
+                            if IsDebugEnabled()
+                                add(debug_trace_list,
+                                    "Processed 'Model ID' chat option (line = " .. curr_buffer_line_cntr ..
+                                    ", value = '" .. trimmed_value .. "')")
+                            endif
 
                         elseif curr_buff_line =~# '\v^\s*Use Auth Token\:.*$'
                             # In this case we've found a "use auth" declaration; process it by taking the following
@@ -764,6 +856,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #  5). Add the extracted and cleaned value into the 'header_dict' variable
                             #
                             if has_key(header_dict, parse_dictionary_header_use_auth)
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - A duplicate 'Use Auth Token' declaration was found within the " ..
                                       "header segment of the current chat buffer on line " .. curr_buffer_line_cntr ..
                                       ".  This declaration may be given only once per chat document; to resolve " ..
@@ -784,6 +880,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                 header_dict[parse_dictionary_header_use_auth] = "false"
 
                             else
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - A 'Use Auth Token' declaration was found within the header " ..
                                       "segment of the current chat buffer that had an invalid value.  Such " ..
                                       "declarations must only hold values that are equal to the string 'true' or " ..
@@ -791,6 +891,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                       "declaration on line " .. curr_buffer_line_cntr .. " was found to have " ..
                                       "the value: '" .. trimmed_value .. "'.  Please correct this declaration to " ..
                                       "use a valid value as listed above to resolve the fault."
+                            endif
+
+                            if IsDebugEnabled()
+                                add(debug_trace_list,
+                                    "Processed 'Use Auth Token' chat option (line = " .. curr_buffer_line_cntr ..
+                                    ", value = '" .. header_dict[parse_dictionary_header_use_auth] .. "')")
                             endif
 
                         elseif curr_buff_line =~# '\v^\s*Show Reasoning\:.*$'
@@ -819,6 +925,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #      once a chat request is made.
                             #
                             if has_key(header_dict, parse_dictionary_header_show_thinking)
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - A duplicate 'Show Reasoning' declaration was found within the " ..
                                       "header segment of the current chat buffer on line " .. curr_buffer_line_cntr ..
                                       ".  This declaration may be given only once per chat document; to resolve " ..
@@ -829,6 +939,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             trimmed_value = substitute(trimmed_value, '\v\s+$', '', '')
 
                             if trimmed_value == ''
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - The 'Show Reasoning' declaration found within the header segment " ..
                                       "of the current chat buffer (line '" .. curr_buffer_line_cntr .. "') had " ..
                                       "an empty value.  Please supply a valid, non-empty value for this " ..
@@ -836,6 +950,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             endif
 
                             header_dict[parse_dictionary_header_show_thinking] = trimmed_value
+
+                            if IsDebugEnabled()
+                                add(debug_trace_list,
+                                    "Processed 'Show Reasoning' chat option (line = " .. curr_buffer_line_cntr ..
+                                    ", value = '" .. trimmed_value .. "')")
+                            endif
 
                         elseif curr_buff_line =~# '\v^\s*Auth Token\:.*$'
                             # In this case we've found an auth token declaration; processing it by taking the following
@@ -867,6 +987,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #      Again, for now at least, we'll let it slide and return back later if needed.
                             #
                             if has_key(header_dict, parse_dictionary_header_auth_key)
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - A duplicate 'Auth Token' declaration was found within the header " ..
                                       "segment of the current chat buffer on line " .. curr_buffer_line_cntr ..
                                       ".  This declaration may be given only once per chat document; to resolve " ..
@@ -878,6 +1002,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                             if trimmed_value != ''
                                 header_dict[parse_dictionary_header_auth_key] = trimmed_value
+                            endif
+
+                            if IsDebugEnabled()
+                                add(debug_trace_list,
+                                    "Processed 'Auth Token' chat option (line = " .. curr_buffer_line_cntr ..
+                                    ", value = '" .. trimmed_value .. "')")
                             endif
 
                         elseif curr_buff_line =~# '\v^\s*System Prompt\:.*$'
@@ -902,6 +1032,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #      are now within the context of processing the system prompt content.
                             #
                             if has_key(header_dict, parse_dictionary_header_system_prompt)
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - A duplicate 'System Prompt:' declaration was found within the " ..
                                       "header segment of the current chat buffer on line " .. curr_buffer_line_cntr ..
                                       ".  This declaration may be given only once per chat document; to resovle " ..
@@ -914,6 +1048,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             add(curr_text_block, trimmed_value)
 
                             inside_system_msg = true
+
+                            if IsDebugEnabled()
+                                add(debug_trace_list,
+                                    "Entering processing mode for system prompt chat option (line = " ..
+                                    curr_buffer_line_cntr .. ")")
+                            endif
 
                         elseif curr_buff_line =~# '\v^\s*Max Context Messages\:.*$'
                             # In this case we've encountered a max context size declaration within the header.  Process
@@ -935,6 +1075,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #      verifications.
                             #
                             if has_key(header_dict, parse_dictionary_header_max_context)
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - A duplicate 'Max Context Messages' declaration was found within " ..
                                       "the header segment of the current chat buffer on line " ..
                                       curr_buffer_line_cntr .. ".  This declaration may only be given once per chat " ..
@@ -952,6 +1096,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                 # empty, (2) there was an error parsing the input or (3) the number given really was
                                 # zero.  This means the error case is not cleanly distinguished for us and we must
                                 # explicitly check to see if the input was actually "0" to resolve the ambiguity.
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
                                 throw "[ERROR] - The value found for the 'Max Context Messages' declaration on " ..
                                       "line " .. curr_buffer_line_cntr .. " could not be parsed to a number.  " ..
                                       "This option must always be given an integer as its value which indicates " ..
@@ -962,6 +1110,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             endif
 
                             header_dict[parse_dictionary_header_max_context] = max_context_size
+
+                            if IsDebugEnabled()
+                                add(debug_trace_list,
+                                    "Processed 'Max Context Messages' chat option (line = " .. curr_buffer_line_cntr ..
+                                    ", value = '" .. max_context_size .. "')")
+                            endif
 
                         elseif curr_buff_line =~# '\v^\s*Option\:.*$'
                             # In this case we've encountered an option declaration.  Call out to a utility function to
@@ -979,6 +1133,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                 # 'option_name'; if such a key already exists we will throw an exception as defining
                                 # duplicate options is not supported.
                                 if has_key(header_dict[parse_dictionary_header_options_dict], option_name)
+                                    if IsDebugEnabled()
+                                        WriteToDebug(join(debug_trace_list, "\n"))
+                                    endif
+
                                     throw "[ERROR] - More than one option declaration having name '" .. option_name ..
                                           "' was found within the header section of the current chat buffer; the " ..
                                           "declaration for a particular option may only be defined, at most, once. " ..
@@ -997,9 +1155,19 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                 header_dict[parse_dictionary_header_options_dict] = { [option_name]: option_value }
                             endif
 
+                            if IsDebugEnabled()
+                                add(debug_trace_list,
+                                    "Processed 'Option' chat option (line = " .. curr_buffer_line_cntr ..
+                                    ", name = '" .. option_name .. "', value = '" .. option_value .. "')")
+                            endif
+
                         else
                             # If the logic comes here than we got something unexpected in the header.  Throw an
                             # exception since it is unclear what text we've encountered.
+                            if IsDebugEnabled()
+                                WriteToDebug(join(debug_trace_list, "\n"))
+                            endif
+
                             throw "[ERROR] - Unexpected text was encountered at line " .. curr_buffer_line_cntr ..
                                   " within the header portion of the current chat buffer.  Such text does not " ..
                                   "appear to be part of any recognized declaration and is not held by a recognized " ..
@@ -1007,6 +1175,8 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                   "supported header structure to resolve this fault."
                         endif
 
+                    elseif IsDebugEnabled()
+                        add(debug_trace_list, "Ignoring chat header line " .. curr_buffer_line_cntr)
                     endif
 
                 endif
@@ -1071,6 +1241,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                     inside_user_msg = false
 
+                    if IsDebugEnabled()
+                        add(debug_trace_list,
+                            "Found end token for user message (line = " .. curr_buffer_line_cntr .. "); setting " ..
+                            "'inside_user_msg' state variable to '" .. inside_user_msg .. "'")
+                    endif
+
                 else
                     # In this case we haven't found the end of the user message block yet so we assume that we've just
                     # found some line that belongs to the block.  Check to see now if the line matches to a string
@@ -1110,6 +1286,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                         var resource_ref = substitute(front_trimmed_resource_ref, '\v\]\s*\n*$', "", "")
 
                         if resource_ref !~? '\v^[fc]\:.*'
+                            if IsDebugEnabled()
+                                WriteToDebug(join(debug_trace_list, "\n"))
+                            endif
+
                             throw "[ERROR] - A resource reference was encountered on line " ..
                                   curr_buffer_line_cntr .. " whose format was invalid.  Any provided resource " ..
                                   "reference must be given in the format '[s:ID]' (for a file) or [c:ID] (for " ..
@@ -1123,6 +1303,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             add(curr_chat_interaction_dict[parse_dictionary_user_resources_key], resource_ref)
                         else
                             curr_chat_interaction_dict[parse_dictionary_user_resources_key] = [resource_ref]
+                        endif
+
+                        if IsDebugEnabled()
+                            add(debug_trace_list,
+                                "Processed resource reference from user message (line " .. curr_buffer_line_cntr ..
+                                ", value = '" .. resource_ref .. "')")
                         endif
 
                     else
@@ -1212,6 +1398,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                         # In this case we found the start and end tokens for an assistant message but no actual message
                         # content was present.  Throw an exception indicating that we assume this to mean there may be
                         # missing data within the chat buffer.
+                        if IsDebugEnabled()
+                            WriteToDebug(join(debug_trace_list, "\n"))
+                        endif
+
                         throw "[ERROR] - The chat interaction ending on line " .. curr_buffer_line_cntr ..
                               " was found to be missing the content of the assistant message (although the start " ..
                               "and end tokens for such message were found by the parsing process).  All chats held " ..
@@ -1243,6 +1433,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     curr_text_block = []
                     curr_chat_interaction_dict = {}
                     inside_llm_msg = false
+
+                    if IsDebugEnabled()
+                        add(debug_trace_list,
+                            "Found end token for assistant message (line = " .. curr_buffer_line_cntr ..
+                            "); setting 'inside_llm_msg' state variable to '" .. inside_llm_msg .. "'")
+                    endif
 
                 else
                     # If the logic comes here than we have not yet found the ending token for the assistant message;
@@ -1305,7 +1501,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     # In this case we've found an empty or whitespace only line; simply set 'ignore_line' to 'true' so
                     # we skip any further processing.
                     ignore_line = true
-                elseif curr_buff_line =~# '\v\s*[-]+\s*'
+                elseif curr_buff_line =~# '\v^\s*[-]+\s*'
                     # In this case the line was made up of '-' characters with possibly some leading and trailing
                     # whitespace; we assume this to be a division bar between chat interactions so set the 'ignore_line'
                     # variable to 'true' to ignore it.
@@ -1341,6 +1537,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             # In this case the key already existed so it seems we have two user messages back-to-back
                             # without any LLM message in-between.  We currently don't support sending messages when an
                             # interaction gap has been found so throw an exception to abort the parse.
+                            if IsDebugEnabled()
+                                WriteToDebug(join(debug_trace_list, "\n"))
+                            endif
+
                             throw "[ERROR] - A chat interaction was found within the document on line " ..
                                   curr_buffer_line_cntr .. " where two user messages occurred in sequence WITHOUT " ..
                                   "any assistant message being present.  Message interactions must always occur in " ..
@@ -1358,6 +1558,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                         endif
 
                         inside_user_msg = true
+
+                        if IsDebugEnabled()
+                            add(debug_trace_list,
+                                "Found start token for user message (line = " .. curr_buffer_line_cntr ..
+                                "); setting 'inside_user_msg' state variable to '" .. inside_user_msg .. "'")
+                        endif
 
                     elseif curr_buff_line =~# '\v^\=\>\>(.)*'
                         # If the logic comes here than we've found the start to an "assistant" message and need to take
@@ -1381,6 +1587,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             # user/assisant dialog for a single chat interaction but no user message was found.  The
                             # assistant seems to have responded but we don't know to what.  Throw an exception to abort
                             # the parse and provide a message that indicates the nature of the fault to the user.
+                            if IsDebugEnabled()
+                                WriteToDebug(join(debug_trace_list, "\n"))
+                            endif
+
                             throw "[ERROR] - The chat interaction on line " .. curr_buffer_line_cntr ..
                                   " was found to be missing a user message; all chat interactions must be complete " ..
                                   "(i.e., contain BOTH user and assistant messages that are non-empty) except for " ..
@@ -1398,10 +1608,20 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                         inside_llm_msg = true
 
+                        if IsDebugEnabled()
+                            add(debug_trace_list,
+                                "Found start token for assistant message (line = '" .. curr_buffer_line_cntr ..
+                                "); setting 'inside_llm_msg' state variable to '" .. inside_llm_msg .. "'")
+                        endif
+
                     else
                         # In this case we assume that we've got an error condition as we've encountered an unexpected
                         # text value within the body of the chat document.  Throw an exception to abort the parse and
                         # provide an error message that details the nature of the fault to the user.
+                        if IsDebugEnabled()
+                            WriteToDebug(join(debug_trace_list, "\n"))
+                        endif
+
                         throw "[ERROR] - Unexpected text was found in the chat buffer at line " ..
                               curr_buffer_line_cntr .. ".  Any text appearing within the body of a chat log " ..
                               "document must be (1) a comment, (2) a separator line, or (3) be part of a chat " ..
@@ -1413,6 +1633,9 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                               " taken."
                     endif
 
+                elseif IsDebugEnabled()
+                    add(debug_trace_list,
+                        "Ignoring chat body line " .. curr_buffer_line_cntr)
                 endif
 
             endif
@@ -1424,6 +1647,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
         curr_buffer_line_cntr = curr_buffer_line_cntr + 1
 
     endwhile
+
+    if IsDebugEnabled()
+        add(debug_trace_list, "Document end reached.")
+    endif
 
 
     # Check to see if any of the parsing states were left unresolved now that we've finished processing the content of
@@ -1448,6 +1675,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
         # In this case we never found the start to the chat body which we will consider to be an error condition.
         # Throw an exception to abort the parse and attach a message to the user explaining the fault and how to
         # correct it.
+        if IsDebugEnabled()
+            WriteToDebug(join(debug_trace_list, "\n"))
+        endif
+
         throw "[ERROR] - Parsing of the current chat buffer completed without ever finding the body section; this " ..
               "generally means that the division bar required to terminate the header section of the chat content " ..
               "is missing.  Please correct this issue by adding the sequence '* ENDSETUP *' to its own line " ..
@@ -1567,6 +1798,11 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
         endif
 
+        if IsDebugEnabled()
+            add(debug_trace_list,
+                "Assuming implicit end to open user message as document end was reached.")
+        endif
+
     endif
 
 
@@ -1578,6 +1814,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
         # truncated this could have an unwanted impact on the chat history.  It is better to call this out and have the
         # user review than try to sweep it under the rug unless some other means is found to ensure that such message
         # is in fact fully complete.
+        if IsDebugEnabled()
+            WriteToDebug(join(debug_trace_list, "\n"))
+        endif
+
         throw "[ERROR] - The last assistant response message found at the bottom of the chat buffer is missing its " ..
               "closing chat marker and it is unclear if such information is in fact complete or truncated.  Please " ..
               "fix this issue by adding the closing '<<=' to the message and verify that the content for the " ..

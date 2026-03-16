@@ -733,6 +733,155 @@ function s:TestParseChatBufferToBlocksWithMaxDoc()
 endfunction
 
 
+" This test will attempt to invoke function ParseChatBufferToBlocks() to parse the content of a new chat buffer holding
+" a known good chat document while debug mode is enabled.  If working as expected the parse should succeed and NO debug
+" information should be output (debug data should ONLY be written out if the parse fails).
+function s:TestParseChatBufferToBlocksWithGoodDocAndDebugModeEnabled()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define a "maximal" chat document (i.e., a document containing at least one example of all allowed content
+    " structures).
+    let l:max_chat_doc =
+          \ "# A comment line in the header" ..
+        \ "\n# followed by another commentline" ..
+        \ "\nServer Type: Ollama" ..
+        \ "\nServer URL: https://foo.com:45678/some/api/path" ..
+        \ "\nModel ID: Some Model" ..
+        \ "\nOption: a=b" ..
+        \ "\nOption: name with spaces = value with spaces" ..
+        \ "\n#Option: w=y" ..
+        \ "\nUse Auth Token: True" ..
+        \ "\nAuth Token: 3jdu93nfk3h" ..
+        \ "\nShow Reasoning: medium" ..
+        \ "\nMax Context Messages: 3" ..
+        \ "\n" ..
+        \ "\nSystem Prompt:   You are a helpful, knowledgable, and respectful" ..
+        \ "\nassistant that will respond to any asked questions to the best" ..
+        \ "\nof your ability.   " ..
+        \ "\n" ..
+        \ "\n" ..
+        \ "\n********************** ENDSETUP *************" ..
+        \ "\n" ..
+        \ "\n     # Floating comment (indented rather than left aligned)" ..
+        \ "\n" ..
+        \ "\n# Immediately following message style" ..
+        \ "\n>>>Hello how are you today?     " ..
+        \ "\n<<<" ..
+        \ "\n" ..
+        \ "\n=>>I am an AI so I don't have any feelings." ..
+        \ "\nHow can I help you today?" ..
+        \ "\n<<=" ..
+        \ "\n" ..
+        \ "\n----------------------" ..
+        \ "\n" ..
+        \ "\n#Next line message style - Also contains leading and trailing whitespace" ..
+        \ "\n>>>" ..
+        \ "\n     Yes, I would like to know that the secret to life happens" ..
+        \ "\nto be.  Can you give me some insight?    " ..
+        \ "\n<<<" ..
+        \ "\n" ..
+        \ "\n#Assistant response with leading and trailing whitespace" ..
+        \ "\n=>>" ..
+        \ "\n     That is a great question!  Unfortunately I don't have an answer" ..
+        \ "\nto give you; life seems to be what you make of it.    " ..
+        \ "\n<<=" ..
+        \ "\n" ..
+        \ "\n----------------------" ..
+        \ "\n" ..
+        \ "\n#Unfinished chat interaction (1) resources given and (2) with no assistant response." ..
+        \ "\n>>>    I'm told this paper might know; can you read it" ..
+        \ "\nand let me know what you think?   " ..
+        \ "\n[f:document_1]" ..
+        \ "\n[f:https://some.domain:4568/knowledge/collection/id]   " ..
+        \ "\n     [c:foo]   "
+
+
+    " Open a new buffer then write the content of variable "l:max_chat_doc" to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore such line so we should not need to
+    " exert any special effort here cleaning it up).
+    new
+    silent! put! = l:max_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function to parse the content of the new buffer and return back to us a parse
+    " dictionary containing the resulting data.  Note that we expect focus in the editor has already shifted to the new
+    " buffer when the 'new' command was run earlier.
+    let l:actual_parse_dict = s:util.ParseChatBufferToBlocks()
+
+    " Now define an expected parse dictionary and show that the 'l:actual_parse_dict' returned from parsing the buffer
+    " content is identical to it.
+    let l:expected_parse_dict = {
+                              \   "header":
+                              \     {
+                              \       "server type": "Ollama",
+                              \       "server url": "https://foo.com:45678/some/api/path",
+                              \       "model id": "Some Model",
+                              \       "use auth": "true",
+                              \       "auth key": "3jdu93nfk3h",
+                              \       "show thinking": "medium",
+                              \       "max context": 3,
+                              \       "system prompt": "You are a helpful, knowledgable, and respectful " ..
+                              \                        "assistant that will respond to any asked questions to the " ..
+                              \                        "best of your ability.",
+                              \       "options":
+                              \          {
+                              \            "a": "b",
+                              \            "name with spaces": "value with spaces"
+                              \          }
+                              \     },
+                              \   "messages" :
+                              \     [
+                              \       {
+                              \         "user": "Hello how are you today?",
+                              \         "assistant": "I am an AI so I don't have any feelings. " ..
+                              \                      "How can I help you today?"
+                              \       },
+                              \       {
+                              \         "user": "Yes, I would like to know that the secret to life happens " ..
+                              \                 "to be.  Can you give me some insight?",
+                              \         "assistant": "That is a great question!  Unfortunately I don't have an " ..
+                              \                      "answer to give you; life seems to be what you make of it."
+                              \       },
+                              \       {
+                              \         "user": "I'm told this paper might know; can you read it and let me know " ..
+                              \                 "what you think?",
+                              \         "user_resources":
+                              \           [
+                              \             "f:document_1",
+                              \             "f:https://some.domain:4568/knowledge/collection/id",
+                              \             "c:foo"
+                              \           ]
+                              \       }
+                              \     ],
+                              \   "flags":
+                              \     {
+                              \       "no-user-message-close": ""
+                              \     }
+                              \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:expected_parse_dict, l:actual_parse_dict)
+
+    " Assert that the debug log is NOT readable to Vim (this essentially asserts that no such log exists on disk).
+    AssertTxt(!filereadable(l:debug_target),
+            \ "Did not expect to find any debug output at path '" .. l:debug_target .. "' but instead found a " ..
+            \ "readable file.")
+
+    " Finally, cleanup by performing the following tasks:
+    "
+    "   1). Forcefully delete the new buffer without saving its content.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test will attempt to invoke function ParseChatBufferToBlocks() to parse the content of a new chat buffer that has
 " been initialized via template (for example the initialization performed when an empty chat is created via the commands
 " in this plugin).  If the template and function are working as expected than the parse should be successful and should
@@ -1102,6 +1251,66 @@ function s:TestParseChatBufferToBlocksWithMissingServerType()
 endfunction
 
 
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed is missing a server type declaration in its header AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithMissingServerTypeAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with no server type declaration.
+    let l:bad_chat_doc =
+      \   "Server URL: https://localhost" ..
+      \ "\nModel ID: Some model"  ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section lacked a " ..
+                           \ "server type declaration; however, no exception occurred.")
+
+    catch /\c[error].*no 'server type:' declaration found.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test was
+        " successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
 " buffer content being processed is missing a server URL declaration in its header.
 function s:TestParseChatBufferToBlocksWithMissingServerURL()
@@ -1141,6 +1350,66 @@ function s:TestParseChatBufferToBlocksWithMissingServerURL()
 endfunction
 
 
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed is missing a server URL declaration in its header AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithMissingServerURLAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with no server URL declaration.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nModel ID: Some model"  ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section lacked a " ..
+                           \ "server URL declaration; however, no exception occurred.")
+
+    catch /\c[error].*no 'server url:' declaration found.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test was
+        " successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
 " buffer content being processed is missing a model ID declaration in its header.
 function s:TestParseChatBufferToBlocksWithMissingModelID()
@@ -1176,6 +1445,66 @@ function s:TestParseChatBufferToBlocksWithMissingModelID()
 
     " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
     bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed is missing a model ID declaration in its header AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithMissingModelIDAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with no model ID declaration.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section lacked a model " ..
+                           \ "ID declaration; however, no exception occurred.")
+
+    catch /\c[error].*no 'model id:' declaration found.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test was
+        " successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
 
 endfunction
 
@@ -1221,6 +1550,69 @@ function s:TestParseChatBufferToBlocksWithDuplicateServerTypeDecl()
 endfunction
 
 
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains duplicate server type declarations in its header AND debug mode has
+" been enabled.
+function s:TestParseChatBufferToBlocksWithDuplicateServerTypeDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with duplicate server type declarations.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nServer Type: Some Type" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "duplicate server type declarations; however, no exception occurred.")
+
+    catch /\c[error].*duplicate 'server type'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
 " buffer content being processed contains a server type declaration whose associated value is empty.
 function s:TestParseChatBufferToBlocksWithEmptyServerTypeDecl()
@@ -1257,6 +1649,68 @@ function s:TestParseChatBufferToBlocksWithEmptyServerTypeDecl()
 
     " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
     bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a server type declaration whose associated value is empty AND debug
+" mode has been enabled.
+function s:TestParseChatBufferToBlocksWithEmptyServerTypeDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with an empty server type declaration.
+    let l:bad_chat_doc =
+      \   "Server Type:" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained an " ..
+                           \ "empty server type declaration; however, no exception occurred.")
+
+    catch /\c[error].*'server type'.*an empty value.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
 
 endfunction
 
@@ -1303,6 +1757,70 @@ function s:TestParseChatBufferToBlocksWithDuplicateServerURLDecl()
 endfunction
 
 
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a duplicate server URL declaration in its header AND debug mode is
+" enabled.
+function s:TestParseChatBufferToBlocksWithDuplicateServerURLDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with duplicate server URL declarations.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nServer URL: https://foo.bar.com/bs" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function " ..
+                           \ "LLMChat#send_chat#ParseChatBufferToBlocks() when it was invoked to parse the content " ..
+                           \ "of a chat buffer whose header section contained duplicate server URL declarations; " ..
+                           \ "however, no exception occurred.")
+
+    catch /\c[error].*duplicate 'server url'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test was
+        " successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
 " buffer content being processed contains a server URL declaration in its header whose value is empty.
 function s:TestParseChatBufferToBlocksWithEmptyServerURLDecl()
@@ -1339,6 +1857,69 @@ function s:TestParseChatBufferToBlocksWithEmptyServerURLDecl()
 
     " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
     bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a server URL declaration in its header whose value is empty AND debug
+" mode is enabled.
+function s:TestParseChatBufferToBlocksWithEmptyServerURLDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with an empty server url declaration.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL:"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained an " ..
+                           \ "empty server URL declaration; however, no exception occurred.")
+
+    catch /\c[error].*'server url'.*an empty value.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
 
 endfunction
 
@@ -1384,6 +1965,69 @@ function s:TestParseChatBufferToBlocksWithDuplicateModelIDDecl()
 endfunction
 
 
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a duplicate model ID declaration in its header AND debug mode has
+" been enabled.
+function s:TestParseChatBufferToBlocksWithDuplicateModelIDDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with duplicate model ID declarations.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nModel ID: gemeni" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "duplicate model ID declarations; however, no exception occurred.")
+
+    catch /\c[error].*duplicate 'model id'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
 " buffer content being processed has a model ID declaration in its header whose value is empty.
 function s:TestParseChatBufferToBlocksWithEmptyModelIDDecl()
@@ -1420,6 +2064,68 @@ function s:TestParseChatBufferToBlocksWithEmptyModelIDDecl()
 
     " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
     bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug inforamtion,
+" when the buffer content being processed has a model ID declaration in its header whose value is empty AND debug mode
+" is enabled.
+function s:TestParseChatBufferToBlocksWithEmptyModelIDDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with an empty model ID declaration.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID:" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained an " ..
+                           \ "empty model ID declaration; however, no exception occurred.")
+
+    catch /\c[error].*'model id'.*an empty value.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
 
 endfunction
 
@@ -1467,6 +2173,72 @@ function s:TestParseChatBufferToBlocksWithDuplicateUseAuthDecl()
 endfunction
 
 
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed has a duplicate "Use Auth Token" declaration in its header AND debug mode is
+" enabled.
+function s:TestParseChatBufferToBlocksWithDuplicateUseAuthDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with duplicate "Use Auth Token" declarations.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nUse Auth Token: false" ..
+      \ "\nModel ID: Some model" ..
+      \ "\nUse Auth Token: true" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function " ..
+                           \ "LLMChat#send_chat#ParseChatBufferToBlocks() when it was invoked to parse the content " ..
+                           \ "of a chat buffer whose header section contained duplicate auth use declarations; " ..
+                           \ "however, no exception occurred.")
+
+    catch /\c[error].*duplicate 'use auth token'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
 " buffer content being processed has a "Use Auth Token" declaration that holds an invalid value.
 function s:TestParseChatBufferToBlocksWithBadUseAuthDecl()
@@ -1504,6 +2276,69 @@ function s:TestParseChatBufferToBlocksWithBadUseAuthDecl()
 
     " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
     bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed has a "Use Auth Token" declaration that holds and invalid value AND debug mode
+" is enabled.
+function s:TestParseChatBufferToBlocksWithBadUseAuthDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with a 'Use Auth Token' declaration whose value is bad.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nUse Auth Token: Mary had a little lamb" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained an " ..
+                           \ "auth use declaration with an invalid value; however, no exception occurred.")
+
+    catch /\c[error].*'use auth token'.*invalid value.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
 
 endfunction
 
@@ -1546,6 +2381,70 @@ function s:TestParseChatBufferToBlocksWithDuplicateAuthTokenDecl()
 
     " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
     bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a duplciate "Auth Token" declaration in its header AND debug mode is
+" enabled.
+function s:TestParseChatBufferToBlocksWithDuplicateAuthTokenDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with duplicate auth token declarations.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nAuth Token: First Token" ..
+      \ "\nAuth Token: Second Token" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "duplicate auth token declarations; however, no exception occurred.")
+
+    catch /\c[error].*duplicate 'auth token'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
 
 endfunction
 
@@ -1594,6 +2493,72 @@ function s:TestParseChatBufferToBlocksWithDuplicateSystemPromptDecl()
 endfunction
 
 
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a duplicate system prompt declaration in its header AND debug mode is
+" enabled.
+function s:TestParseChatBufferToBlocksWithDuplicateSystemPromptDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with duplicate system prompt declarations.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nSystem Prompt: You are a helpful assistant" ..
+      \ "\n" ..
+      \ "\nSystem Prompt: You are a bane to all you meet." ..
+      \ "\n" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "duplicate system prompt declarations; however, no exception occurred.")
+
+    catch /\c[error].*duplicate 'system prompt:'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
 " buffer content being processed contains a duplicate max context messages declaration in its header.
 function s:TestParseChatBufferToBlocksWithDuplicateMaxContextMessagesDecl()
@@ -1636,6 +2601,70 @@ function s:TestParseChatBufferToBlocksWithDuplicateMaxContextMessagesDecl()
 endfunction
 
 
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a duplicate max context messages declaration in its header AND debug
+" mode is enabled.
+function s:TestParseChatBufferToBlocksWithDuplicateMaxContextMessagesDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with duplicate max context messsages declarations.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nMax Context Messages: 0" ..
+      \ "\nModel ID: Some model" ..
+      \ "\nMax Context Messages: 2" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "duplicate max context size declarations; however, no exception occurred.")
+
+    catch /\c[error].*duplicate 'max context messages'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
 " buffer content being processed contains a max context message declaration whose value is not parseable to a number.
 function s:TestParseChatBufferToBlocksWithBadMaxContextMessagesValue()
@@ -1673,6 +2702,69 @@ function s:TestParseChatBufferToBlocksWithBadMaxContextMessagesValue()
 
     " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
     bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a max context message declaration whose value is not parseable to
+" a number AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithBadMaxContextMessagesValueAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with a bad max context messsages declaration.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nMax Context Messages: abc" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained a " ..
+                           \ "max context size declaration with a bad value; however, no exception occurred.")
+
+    catch /\c[error].*'max context messages'.*could not be parsed.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
 
 endfunction
 
@@ -1721,6 +2813,71 @@ function s:TestParseChatBufferToBlocksWithDuplicateOptionDecl()
 endfunction
 
 
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a duplicate option declaration in its header (i.e., an option
+" declaration that uses the same "name" segment in its value as another option) AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithDuplicateOptionDeclAndEndabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with duplicate option declarations.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nOption: abc=123" ..
+      \ "\nOption: xyz=345" ..
+      \ "\nOption: abc=ABC" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "duplicate option declarations; however, no exception occurred.")
+
+    catch /\c[error].*more than one option.*name 'abc'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
 " buffer content being processed contains a duplicate show reasoning declaration in its header.
 function s:TestParseChatBufferToBlocksWithDuplicateShowReasoningDecl()
@@ -1763,6 +2920,70 @@ function s:TestParseChatBufferToBlocksWithDuplicateShowReasoningDecl()
 endfunction
 
 
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a duplicate show reasoning declaration in its header AND debug mode
+" is enabled.
+function s:TestParseChatBufferToBlocksWithDuplicateShowReasoningDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with duplicate show reasoning declarations.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nShow Reasoning: true" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nShow Reasoning: true" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "duplicate show reasoning declarations; however, no exception occurred.")
+
+    catch /\c[error].*duplicate 'show reasoning'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
 " buffer content being processed has a "show reasoning" declaration in its header whose value is empty.
 function s:TestParseChatBufferToBlocksWithEmptyShowReasoningDecl()
@@ -1800,6 +3021,69 @@ function s:TestParseChatBufferToBlocksWithEmptyShowReasoningDecl()
 
     " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
     bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed has a "show reasoning" declaration in its header whose value is empty AND
+" debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithEmptyShowReasoningDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with a show reasoning declaration whose value is empty.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nShow Reasoning:    " ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "a show reasoning declaration with an empty value; however, no exception occurred.")
+
+    catch /\c[error].*show reasoning.*empty value.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
 
 endfunction
 
@@ -1848,6 +3132,72 @@ function s:TestParseChatBufferToBlocksWithInvalidResourceReferences()
 endfunction
 
 
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a user message with invalid resource references AND debug mode is
+" enabled.
+function s:TestParseChatBufferToBlocksWithInvalidResourceReferencesAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat document whose content holds an improperly formatted resource reference within a user
+    " message.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\n* ENDSETUP *" ..
+      \ "\n>>>Some user message" ..
+      \ "\n[Bad Resource Ref]"
+
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer that contained an improperly " ..
+                           \ "defined resource reference; however, no exception occurred.")
+
+    catch /\c[error].*resource reference.*format was invalid.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
 " buffer content being processed contains "unexpected text" in its header (i.e., text that is not associated with any
 " supported grammatical header structure such as a declaration, comment, etc).
@@ -1887,6 +3237,70 @@ function s:TestParseChatBufferToBlocksWithUnexpectedHeaderContent()
 
     " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
     bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains "unexpected text" in its header (i.e.., text that is not associated
+" with any supported grammatical header structure such as a declaration, comment, etc) AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithUnexpectedHeaderContentAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define a chat log document that contains a header with unexpected text (i.e., text that is outside the context of
+    " any supported syntactic structure).
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nJust some random text stuffed in here :-)" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "unexpected text data; however, no exception occurred.")
+
+    catch /\c[error].*unexpected text.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
 
 endfunction
 
@@ -1937,6 +3351,73 @@ function s:TestParseChatBufferToBlocksWithEmptyAssistantMessageFault()
 endfunction
 
 
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains an empty assistant message AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithEmptyAssistantMessageFaultAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains an empty assistant message.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: https://localhost" ..
+      \ "\nModel ID: Some Model" ..
+      \ "\n* ENDSETUP *" ..
+      \ "\n>>>User message 1" ..
+      \ "\n<<<" ..
+      \ "\n" ..
+      \ "\n#Empty Assistant Message - This shouldn't happen so we consider it an error condition." ..
+      \ "\n=>>" ..
+      \ "\n<<="
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer with an empty assistant message; " ..
+                           \ "however, no exception occurred.")
+
+    catch /\c[error].*missing the content of the assistant message.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that an exception is thrown from function ParseChatBufferToBlocks() when the buffer content being
 " processed contains two back-to-back user messages (i.e., the expected assistant messsage between such chat messages
 " does not exist).
@@ -1979,6 +3460,73 @@ function s:TestParseChatBufferToBlocksWithMissingAssistantMessageFault()
 
     " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
     bd!
+
+endfunction
+
+
+" This test asserts that an exception is thrown from function ParseChatBufferToBlocks(), as well as an output of debug
+" information, when the buffer content being processed contains two back-to-back user messages (i.e., the expected
+" assistant message between such chat messages does not exist) AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithMissingAssistantMessageFaultAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a missing assistant message.
+     let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: https://localhost" ..
+      \ "\nModel ID: Some Model" ..
+      \ "\n* ENDSETUP *" ..
+      \ "\n>>>User message 1" ..
+      \ "\n<<<" ..
+      \ "\n" ..
+      \ "\n>>>User message 2" ..
+      \ "\n<<<"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer with a missing assistant message; " ..
+                           \ "however, no exception occurred.")
+
+    catch /\c[error].*without any assistant message being present.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
 
 endfunction
 
@@ -2084,6 +3632,144 @@ function s:TestParseChatBufferToBlocksWithMissingUserMessageFault()
 endfunction
 
 
+" This test asserts that an exception is thrown from function ParseChatBufferToBlocks(), as well as an output of debug
+" information, when the buffer content being processed contains an interaction block that is missing a user message AND
+" debug mode is enabled.  Note that the following two cases will be handled during the execution of the test:
+"
+"   1). The first interaction in the file is missing the user message.
+"   2). An interaction beyond the first is missing the user message.
+"
+function s:TestParseChatBufferToBlocksWithMissingUserMessageFaultAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " -------------------------------------------------------------------------
+    " --- Condition #1 - First user message in the chat document is missing ---
+    " -------------------------------------------------------------------------
+
+    " Define an invalid chat log document that contains only an assistant message (the initial user message is missing).
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: https://localhost" ..
+      \ "\nModel ID: Some Model" ..
+      \ "\n* ENDSETUP *" ..
+      \ "\n" ..
+      \ "\n=>>That is a great question!  In order to break out of a for loop you can use the 'break' instruction." ..
+      \ "\n<<="
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose initial user message was " ..
+                           \ "missing; however, no exception occurred.")
+
+    catch /\c[error].*missing a user message.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Remove the 'l:debug_target' from disk to clear debug data that was output during the first part of testing.
+    "
+    " NOTE: We do NOT unset the 'g:llmchat_debug_mode_target' variable at this time because the test is not yet complete
+    "       and we still need debug mode enabled for the next part of testing.
+    bd!
+    call delete(l:debug_target)
+
+
+    " --------------------------------------------------------------------------------------------
+    " --- Condition #2 - The user message is missing from an interaction that is NOT the first ---
+    " --------------------------------------------------------------------------------------------
+
+    " Define a chat log document that contains a missing user message somewhere within the messages content.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: https://localhost" ..
+      \ "\nModel ID: Some Model" ..
+      \ "\n* ENDSETUP *" ..
+      \ "\n" ..
+      \ "\n>>>User message 1" ..
+      \ "\n<<<" ..
+      \ "\n" ..
+      \ "\n=>>Assistant answer 1" ..
+      \ "\n<<=" ..
+      \ "\n" ..
+      \ "\n=>>Assistant answer 2" ..
+      \ "\n<<="
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        let l:test_fail_message =
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose initial user message was " ..
+                           \ "missing; however, no exception occurred.")
+
+    catch /\c[error].*missing a user message.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that an expected exception is thrown from function ParseChatBufferToBlocks() when the buffer content
 " being processed contains unexpected text within the body section of the chat log document (for example arbitrary text
 " that is outside the context of a user or assistant message and which is NOT a separator).
@@ -2134,6 +3820,78 @@ function s:TestParseChatBufferToBlocksWithUnexpectedTextContent()
 endfunction
 
 
+" This test asserts that an expected exception is thrown from function ParseChatBufferToBlocks, and debug information is
+" output, when the buffer content being processed contains unexpected text within the body section of the chat log
+" document (for example arbitrary text that is outside the context of a user or assistant message and which is NOT a
+" separator) and debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithUnexpectedTextContentAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains unexpected text between the user and assistant messages.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: https://localhost" ..
+      \ "\nModel ID: Some Model" ..
+      \ "\n* ENDSETUP *" ..
+      \ "\n" ..
+      \ "\n>>User message 1" ..
+      \ "\n<<<" ..
+      \ "\n" ..
+      \ "\n-- Unexpected text" ..
+      \ "\n=>>Assistant response 1" ..
+      \ "\n<<="
+
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose body contained unexpected " ..
+                           \ "text (i.e., text that was NOT a comment or separator and which occurred outside the " ..
+                           \ "context of a chat message); however, no exception occurred.")
+
+    catch /\c[error].*unexpected text.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
 " This test asserts that an expected exception is thrown from function ParseChatBufferToBlocks() when the buffer content
 " being processed lacks the ending separator for the header (this means that the parse will never exit the header
 " section during execution).
@@ -2171,6 +3929,73 @@ function s:TestParseChatBufferToBlocksWithMissingHeaderSep()
 
     " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
     bd!
+
+endfunction
+
+
+" This test asserts that an expected exception is thrown from function ParseChatBufferToBlocks(), and debug information
+" is output, when the buffer content being processed lacks the ending separator for the header (this means that the
+" parse will never exit the header section during execution) AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithMissingHeaderSepAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that lacks the separator between the header and body portions of the content.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: https://localhost" ..
+      \ "\nModel ID: Some Model" ..
+      \ "\n"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer that lacked the required separator " ..
+                           \ "at the end of the document header section; however, no exception occurred.")
+
+    catch /\c[error].* endsetup .*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
 
 endfunction
 
@@ -2217,6 +4042,74 @@ function s:TestParseChatBufferToBlocksWithMissingAssistantMessageClosingDelimite
 
     " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
     bd!
+
+endfunction
+
+
+" This test asserts that an expected exception is thrown from function ParseChatBufferToBlocks(), as well as an output
+" of debug information, when the last message in the buffer being processed is an assistant message, such message is
+" missing its closing delimiter, AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithMissingAssistantMessageClosingDelimiterAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document in which the last message is an assistant response which lacks its closing
+    " delimiter.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: https://localhost" ..
+      \ "\nModel ID: Some Model" ..
+      \ "\n***** ENDSETUP *****" ..
+      \ "\n" ..
+      \ "\n>>>User message 1" ..
+      \ "\n<<<" ..
+      \ "\n" ..
+      \ "\n=>>Assistant response 1"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose last assistant response " ..
+                           \ "lacked its closing delimiter; however, no exception occurred.")
+
+    catch /\c[error].*.*st assistant response.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
 
 endfunction
 
