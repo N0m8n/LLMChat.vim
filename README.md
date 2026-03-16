@@ -100,6 +100,11 @@ This plugin is provided for general use under the terms of the GNU Public Licens
 Releases are made by tagging the repository with one of the versions listed below.  To install a specific release you
 will need to checkout the tag associated with the release you would like to use after cloning the repository locally.
 
+  - **v0.4.1** - Corrected a minor parsing bug which would cause lines containing a '-' character to be ignored; this
+                 resulted in parsing faults when such line also held a critical token such as message start/end.
+                 Added trace statements for parser state transitions to the debug output which will be seen ONLY when
+                 a parsing fault occurs AND debug mode is enabled; this should make it easier to isolate any new parser
+                 bugs in the future.
   - **v0.4.0** - Added support for retrieving and displaying a list of available LLM models found on the remote server.
                  For more details see ":help LLMChat_ListingModels" in Vim after installing the plugin release.
   - **v0.3.0** - Added support for folding to chat log documents.
@@ -136,5 +141,5 @@ The following issues are known to exist in the plugin and have yet to be resolve
 <br>
 <br>
 <img width="887" height="859" alt="ListModels-Details" src="https://github.com/user-attachments/assets/774b7b63-94fe-4d52-adaa-4ea9c8fb0f23" />
-
+<br>
 
