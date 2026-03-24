@@ -100,6 +100,8 @@ This plugin is provided for general use under the terms of the GNU Public Licens
 Releases are made by tagging the repository with one of the versions listed below.  To install a specific release you
 will need to checkout the tag associated with the release you would like to use after cloning the repository locally.
 
+  - **v0.4.2** - Reworked the folding feature to account for ambiguity introduced when recognized syntax features,
+  -              such as lines that begin with '#', are included inside user/assistant messages.
   - **v0.4.1** - Corrected a minor parsing bug which would cause lines containing a '-' character to be ignored; this
                  resulted in parsing faults when such line also held a critical token such as message start/end.
                  Added trace statements for parser state transitions to the debug output which will be seen ONLY when

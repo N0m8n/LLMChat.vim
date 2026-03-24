@@ -327,6 +327,16 @@ within such area to then fold and unfold text:
   3). The fold for the assistant message will always end on the line above
       the '<<=' delimiter.
 
+Hint: If you have difficulty finding the generated folds you can enable the
+      'foldcolumns' option using the command below and this will mark where
+      folds have been placed in the buffer:
+
+        :set foldcolumn=2
+
+      To disable this option again you can use:
+
+        :set foldcolumn=0
+
 See the global variables documented in file 'plugin/LLMChat.vim' for details
 on additional customizations that can be setup with regard to the plugin
 folding feature.
