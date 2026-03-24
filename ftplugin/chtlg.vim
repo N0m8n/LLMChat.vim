@@ -14,6 +14,6 @@ call LLMChat#new_chat#InitializeChatBuffer()
 if g:llmchat_use_chat_folding
 
     setlocal foldmethod=expr
-    setlocal foldexpr=LLMChatFolding(v:lnum)
+    setlocal foldexpr=LLMChat#folding#GetFoldLevel(v:lnum)
 
 endif
