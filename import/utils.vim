@@ -535,6 +535,13 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     #      since it results in more failures than perhaps it really must.  For now we'll let the empty
                     #      value pass and if it causes trouble we can come back and add validation for it.
                     #
+                    #      NOTE: Since escape sequences for special values are now being allowed in the system prompt
+                    #            we have a situation where the injection of spaces to join system prompt lines together
+                    #            may introduce unnecessary whitespace.  To clean this up some we will take the following
+                    #            actions after joining:
+                    #
+                    #            A). Remove any space that immediately proceeds a newline sequence.
+                    #
                     #  2). Reset the 'curr_text_block' to an empty list so it is ready for collecting the next text
                     #      block during parsing.
                     #
@@ -545,6 +552,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                     var trimmed_prompt = substitute(raw_system_prompt, '\v^\s+', '', '')
                     trimmed_prompt = substitute(trimmed_prompt, '\v\s+$', '', '')
+                    trimmed_prompt = substitute(trimmed_prompt, '\v \n', "\n", 'g')
 
                     if trimmed_prompt != ''
                         header_dict[parse_dictionary_header_system_prompt] = trimmed_prompt
@@ -567,13 +575,47 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     endif
 
                 else
-                     # In this case we have encountered a non-empty line which we assume to be part of the system
-                     # message.  Trim any leading or trailing whitespace from the line then add the result as a new
-                     # entry into variable 'curr_text_block'.
+                    # In this case we have encountered a non-empty line which we assume to be part of the system
+                    # message.  Begin the processing for such line by trimming off any leading or trailing whitespace
+                    # characters.
                     var trimmed_message = substitute(curr_buff_line, '\v^\s+', '', '')
                     trimmed_message = substitute(trimmed_message, '\v\s+$', '', '')
 
-                    add(curr_text_block, trimmed_message)
+
+                    # Special Case: If the 'trimmed_message' results in a string of the form '[d:...]' than we will
+                    #               assume we have found a dynamic embedding token.  For such case we will extract the
+                    # "token value" (i.e., the portion of the token that follows the 'd:' value prefix within the
+                    # token brackets) and use this to resolve the dynamic content to be inserted.  Once such content
+                    # is resolved we will add that content into the text block being built rather than the original
+                    # 'trimmed_message'.
+                    #
+                    # If the 'trimmed_message' does NOT match to a dynamic embedding token than we will (1) expand any
+                    # escapes found within the message line then (2) append the line to the text block being built.
+                    if trimmed_message =~# '\v^\[d\:.*\]$'
+                        var content_tag = trimmed_message[3 : -2]
+
+                        # NOTE: When the system prompt is created from the 'curr_text_block' all lines in the block
+                        #       will be joined together using ' ' characters and this is not the behavior we want for
+                        #       our embedding.  Instead what we want is for each line in the embedding to appear on
+                        #       its own line so that whitespace is preserved.  To force this to happen we will inject
+                        #       explicit line separators to the start of each line within the block of resolved content.
+                        #       Why not just append these to the end of each line?  The issue has to do with the fact
+                        #       that spaces will be inserted during a join of the lines and logic exists to clip these
+                        #       back out when they immediately proceed a line separator.  By injecting the separators
+                        #       at the start of the line we can ensure that this logic will cleanup space injected
+                        #       during the join.
+                        #
+                        var embedding_lines = ProcessDynamicEmbedding(content_tag)
+                        for line_cntr in range(0, len(embedding_lines) - 1, 1)
+                            embedding_lines[line_cntr] = "\n" .. embedding_lines[line_cntr]
+                        endfor
+
+                        extend(curr_text_block, embedding_lines)
+                    else
+                        var unescaped_message = UnescapeSpecialSequences(trimmed_message)
+                        add(curr_text_block, unescaped_message)
+
+                    endif
 
                 endif
 
@@ -1024,12 +1066,35 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #
                             #  3). Remove any trailing whitespace from the end of the remaining value.
                             #
-                            #  4). Add the trimmed value into the list held by variable 'curr_text_block'.  System
-                            #      prompts may span multiple lines so we'll need to continue collecting text until we
-                            #      find the next empty line that follows this prompt.
+                            #  4). Determine if the prompt value that remains is a dynamic embedding token or not.
+                            #      If this is such a token than take the following steps; if not than jump to step
+                            #      5.
                             #
-                            #  5). Set variable 'inside_system_msg' to 'true' so that the parsing logic understands we
-                            #      are now within the context of processing the system prompt content.
+                            #        A). Call a utility method to retrieve the text for the token based on its
+                            #            content tag.
+                            #
+                            #        B). Prefix each line in the resolved content text, except the first, with a
+                            #            line separator.  The issue here is that we don't want to introduce whitespace
+                            #            when the lines are joined later (which is done with space characters).  There
+                            #            is already logic following the join to normalize a space followed by a newline
+                            #            sequence to just the newline so that is what we are taking advantage of.  We
+                            #            don't prefix the first line because we don't want to introduce an arbitrary
+                            #            newline into the message.
+                            #
+                            #        C). Append the final result to the list held by variable 'curr_text_block'.
+                            #
+                            #  5). If the remaining prompt value was NOT a dynamic embedding token than take the
+                            #      following steps:
+                            #
+                            #      A). Call a utility method to unescape any special sequences held by the trimmed
+                            #          value.
+                            #
+                            #      B). Add the unescaped value into the list held by variable 'curr_text_block'.
+                            #
+                            #  6). System prompts may span multiple lines so we'll need to continue collecting text
+                            #      until we find the next empty line that follows this prompt.  Set variable
+                            #      'inside_system_msg' to 'true' so that the parsing logic understands we are now within
+                            #      the context of processing the system prompt content and begins such collection.
                             #
                             if has_key(header_dict, parse_dictionary_header_system_prompt)
                                 if IsDebugEnabled()
@@ -1045,7 +1110,33 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             var trimmed_value = substitute(curr_buff_line, '\v\s*System Prompt\:\s*', '', '')
                             trimmed_value = substitute(trimmed_value, '\v\s+$', '', '')
 
-                            add(curr_text_block, trimmed_value)
+                            if trimmed_value =~# '\v^\[d\:.*\]$'
+                                var content_tag = trimmed_value[3 : -2]
+
+                                # NOTE: When the system prompt is created from the 'curr_text_block' all lines in the
+                                #       block will be joined together using ' ' characters and this is not the behavior
+                                #       we want for our embedding.  Instead what we want is for each line in the
+                                #       embedding to appear on its own line so that whitespace is preserved.  To force
+                                #       this to happen we will inject explicit line separators to the start of each line
+                                #       except the first within the block of resolved content.  Why not just append
+                                #       these to the end of each line?  The issue has to do with the fact that spaces
+                                #       will be inserted during a join of the lines and logic exists to clip these back
+                                #       out when they immediately proceed a line separator.  By injecting the separators
+                                #       at the start of the line we can ensure that this logic will cleanup space
+                                #       injected during the join.  We don't inject this into the first line because we
+                                #       don't want to shift the first line of the embedding down arbitrarily.
+                                #
+                                var embedding_lines = ProcessDynamicEmbedding(content_tag)
+                                for line_cntr in range(1, len(embedding_lines) - 1, 1)
+                                    embedding_lines[line_cntr] = "\n" .. embedding_lines[line_cntr]
+                                endfor
+
+                                extend(curr_text_block, embedding_lines)
+                            else
+                                var unescaped_message = UnescapeSpecialSequences(trimmed_value)
+                                add(curr_text_block, unescaped_message)
+
+                            endif
 
                             inside_system_msg = true
 
@@ -1202,9 +1293,9 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     #      following:
                     #
                     #      A). Join all elements in the 'curr_text_block' back into a single string value (using
-                    #          a single space as the separator) then trim off any leading or training whitespace
-                    #          sequences and finally call a utility function to unescape any special sequences found
-                    #          within the joined text.
+                    #          a single newline as the separator) then trim off any leading whitespace found in the
+                    #          joined value.  Note that trailing whitespace is assumed to have been trimmed when each
+                    #          line was added to the 'curr_text_block' so no further such trimming is attempted here.
                     #
                     #      B). Add a new mapping between the key held by variable 'parse_dictionary_user_msg_key' and
                     #          the string value obtained during step 'A' into the 'curr_chat_interaction_dict'.  Note
@@ -1225,14 +1316,9 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     #       'parse_dictionary' that will be returned by this function.
                     #
                     if !empty(curr_text_block)
-                        var joined_user_message_text = join(curr_text_block, " ")
+                        var joined_user_message_text = join(curr_text_block, "\n")
 
-                        joined_user_message_text = substitute(joined_user_message_text, '\v^\s+', '', '')
-                        joined_user_message_text = substitute(joined_user_message_text, '\v\s+\n*$', '', '')
-                        joined_user_message_text = substitute(joined_user_message_text, '\v\s+\n\n', '\n\n', 'g')
-                        joined_user_message_text = substitute(joined_user_message_text, '\v\n\n\s', '\n\n', 'g')
-
-                        var user_message_text = UnescapeSpecialSequences(joined_user_message_text)
+                        var user_message_text = substitute(joined_user_message_text, '\v^\s+', '', '')
 
                         curr_chat_interaction_dict[parse_dictionary_user_msg_key] = user_message_text
 
@@ -1250,99 +1336,107 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                 else
                     # In this case we haven't found the end of the user message block yet so we assume that we've just
                     # found some line that belongs to the block.  Check to see now if the line matches to a string
-                    # having the general form '[f:id]' or '[k:id]'; if so than we assume that we've found a resource
-                    # reference associated with the chat message.  If the line does not match to either of these forms
-                    # we will assume that we've just got a regular text line that is part of the user message.
+                    # having one of the following general forms:
+                    #
+                    #   1). '[f:id]' or '[k:id]' - In this case we assume that we've found an Open WebUI resource
+                    #                              reference to either a file (f) or knowledge collection (k) within
+                    #                              the chat message.
+                    #
+                    #   2). '[d:id]' - In this case we assume that we've found a dynamic embedding reference within
+                    #                  the chat message.  This is a token that references either (1) an available
+                    #                  buffer within Vim or (2) a file path and which should be replaced during parsing
+                    #                  with the content of the referenced resource.
+                    #
+                    # If the line does not match to any of these forms we will assume that we've just got a regular text
+                    # line that is part of the user message.
                     #
                     # NOTE: The leading '\v...' in the regular expression is there to let Vim know we want it to use
                     #       "very magic" mode when performing interpretation of the regex.
                     if curr_buff_line =~# '\v^\s*\[.+\]\s*$'
                         # If the logic comes here than we've found a "resource" that is embedded within the chat message
-                        # content.  Resources refer to things like files that have been uploaded, knowledge bases that
-                        # exist on the remote LLM server, etc.  For our purposes here we don't need to worry about what
-                        # type of resource is being referenced; only that a resource was found and we need to embed its
-                        # information into the content being accumulated by dictionary 'curr_chat_interaction_dict'.
-                        # Take the steps below to finish processing this information:
+                        # content.  Resources refer to things like files or entities that are separate from the chat
+                        # document but which should be included or referenced by the discussion.  Take the steps below
+                        # to finish processing this information:
                         #
                         #  1). Remove the wrapping '[' and ']' characters from the resource reference (along with any
                         #      leading or trailing whitespace); these are only used to identify the resource while
                         #      parsing.
                         #
-                        #  2). Validate that the resource begins with the prefix "f:" or "c:" (which specifies the
-                        #      type of resource; "f:" meaning "file" and "c:" meaning "collection").  If the resource
-                        #      does NOT begin with one of the supported prefixes than we will throw an exception.
+                        #  2). Validate that the resource begins with the prefix "d:", "f:", or "c:" (which specifies
+                        #      the type of resource; "d:" meaning "dynamic embedding", "f:" meaning "file", and "c:"
+                        #      meaning "collection").  If the resource does NOT begin with one of the supported
+                        #      prefixes than we will throw an exception.
                         #
-                        #  3). Check to see if a key matching to the value held by variable
-                        #      'parse_dictionary_user_resources_key' exists within the 'curr_chat_interaction_dict'
-                        #      as this will determine how we choose to add the new information.
+                        #  3). For resources with the "f:" or "c:" prefix do the following:
                         #
-                        #  4). If the key aleady existed than append the new resource information to the list that
-                        #      exists below that key.
+                        #      A). Check to see if a key matching to the value held by variable
+                        #          'parse_dictionary_user_resources_key' exists within the 'curr_chat_interaction_dict'
+                        #          as this will determine how we choose to add the new information.
                         #
-                        #  5). If the key did NOT already exist than add the resource information into a new list
-                        #      and set this list into the 'curr_chat_interaction_dict' under the key.
+                        #      B). If the key aleady existed than append the new resource information to the list that
+                        #          exists below that key.
+                        #
+                        #      C). If the key did NOT already exist than add the resource information into a new list
+                        #          and set this list into the 'curr_chat_interaction_dict' under the key.
+                        #
+                        #  4). For resources with the "d:" prefix do the following:
+                        #
+                        #      A). Call a utility function to fully resolve the content of the referenced resource.
+                        #
+                        #      B). Append all returned text lines to the text block being built.
                         #
                         var front_trimmed_resource_ref = substitute(curr_buff_line, '\v^\s*\[', "", "")
                         var resource_ref = substitute(front_trimmed_resource_ref, '\v\]\s*\n*$', "", "")
 
-                        if resource_ref !~? '\v^[fc]\:.*'
+                        var resource_ref_prefix = resource_ref[0 : 0]
+
+                        if resource_ref_prefix ==# 'c' || resource_ref_prefix ==# 'f'
+                            if has_key(curr_chat_interaction_dict, parse_dictionary_user_resources_key)
+                                add(curr_chat_interaction_dict[parse_dictionary_user_resources_key], resource_ref)
+                            else
+                                curr_chat_interaction_dict[parse_dictionary_user_resources_key] = [resource_ref]
+                            endif
+
                             if IsDebugEnabled()
-                                WriteToDebug(join(debug_trace_list, "\n"))
+                                add(debug_trace_list,
+                                    "Processed resource reference from user message (line " .. curr_buffer_line_cntr ..
+                                    ", value = '" .. resource_ref .. "')")
+                            endif
+
+                        elseif resource_ref_prefix ==# 'd'
+                            var content_tag = resource_ref[2 : -1]
+
+                            extend(curr_text_block, ProcessDynamicEmbedding(content_tag))
+
+                            if IsDebugEnabled()
+                                add(debug_trace_list,
+                                    "Processed dynamic embedding reference from user message (line " ..
+                                    curr_buffer_line_cntr ..  ", value = '" .. resource_ref .. "', content tag = '" ..
+                                    content_tag .. "')")
+                            endif
+
+                        else
+                            if IsDebugEnabled()
+                                  WriteToDebug(join(debug_trace_list, "\n"))
                             endif
 
                             throw "[ERROR] - A resource reference was encountered on line " ..
                                   curr_buffer_line_cntr .. " whose format was invalid.  Any provided resource " ..
-                                  "reference must be given in the format '[s:ID]' (for a file) or [c:ID] (for " ..
-                                  "a knowledge collection) in order to be understood by the parsing.  The resource " ..
-                                  "reference that prompted this fault was not found to begin with either an 'f:' or " ..
-                                  "a 'c:' prefix so its type could not be understood.  Please update this reference " ..
-                                  "to use a supported prefix value in order to resolve the fault."
-                        endif
-
-                        if has_key(curr_chat_interaction_dict, parse_dictionary_user_resources_key)
-                            add(curr_chat_interaction_dict[parse_dictionary_user_resources_key], resource_ref)
-                        else
-                            curr_chat_interaction_dict[parse_dictionary_user_resources_key] = [resource_ref]
-                        endif
-
-                        if IsDebugEnabled()
-                            add(debug_trace_list,
-                                "Processed resource reference from user message (line " .. curr_buffer_line_cntr ..
-                                ", value = '" .. resource_ref .. "')")
+                                  "reference must be given in the format '[d:ID]' (for a dynamic embedding), " ..
+                                  "'[s:ID]' (for a file), or [c:ID] (for a knowledge collection) in order to be " ..
+                                  "understood by the parsing.  The resource reference that prompted this fault was " ..
+                                  "not found to begin with any of the supported prefixes (for example 'd:') so its " ..
+                                  "type could not be understood.  Please update this reference to use a supported " ..
+                                  "prefix value in order to resolve the fault."
                         endif
 
                     else
                         # If the logic comes here than we assume that we've just got a line of text that belongs to the
-                        # user message; we now need to see if the special case below applies before adding the line to
-                        # the 'curr_text_block' list:
-                        #
-                        #  1). A Whitespace Only Line - Whitespace lines within chats are typically used as an easy way
-                        #                               to delimit information such as a paragraph or off-setting an
-                        #          an example from the rest of the text for clarity.  Since such formatting *may* be
-                        #          used by an LLM we will go ahead and keep it.  Note that we assume the operative
-                        #          portion of this information to just be the empty line so we will insert two newlines
-                        #          ("\n\n") into the 'curr_text_block' if the 'curr_buff_line' is in fact (1) empty or
-                        #          (2) made up only of whitespace characters.  We don't preserve any original whitespace
-                        #          characters from the line because, at present, we have no use case demonstrating that
-                        #          whitespace characters beyond the newline contribute meaningful information in a chat
-                        #          when found in a whitespace-only line.  Additionally, we want to keep the chat parse
-                        #          as lean as possible so we don't bloat any network requests constructed from it with
-                        #          unnecessary character data.
-                        #
-                        #          Why two newlines rather than just one? ... and why does the empty line fall into this
-                        #          category?  Remember that we already split on newline characters to process the buffer
-                        #          text and this means that newlines are removed to start with.  The empty string "" on
-                        #          a line would be produced by having a newline on either end and the same goes for
-                        #          whitespace only content (i.e., a whitespace only line needs to have a newline at
-                        #          either end to appear by itself in the text).  We want to preserve the idea of
-                        #          "an empty line" and this requires two newlines be present to create; one to move away
-                        #          from the non-empty chat text then the second to leave behind the empty line.
-                        #
-                        if curr_buff_line =~# '\v^\s*$'
-                            add(curr_text_block, "\n\n")
-                        else
-                            add(curr_text_block, curr_buff_line)
-                        endif
+                        # user message.  Trim any trailing whitespace from the line, expand any escaped sequences, then
+                        # add the result to the 'curr_text_block' for later processing.
+                        var trimmed_message_text = substitute(curr_buff_line, '\v\s+$', '', '')
+                        var unescaped_message_text = UnescapeSpecialSequences(trimmed_message_text)
+                        add(curr_text_block, unescaped_message_text)
 
                     endif
 
@@ -1366,8 +1460,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     #      will effectively abort the parse.
                     #
                     #  2). Join all elements in the 'curr_text_block' back into a single string value (using a single
-                    #      space as the element separator) then trim off any leading or trailing whitespace before
-                    #      calling a utility function to unescape all special sequences found within the joined text.
+                    #      newline as the element separator) then trim off any leading whitespace before calling a
+                    #      utility function to unescape all special sequences found within the joined text.  Note that
+                    #      we assume trailing whitespace is removed from each line as the line is being added to the
+                    #      'curr_text_block' so no such trimming is performed here.
                     #
                     #  3). Add a new mapping between the key held by variable 'parse_dictionary_assistant_msg_key'
                     #      and the text block obtained during the previous step into the 'curr_chat_interaction_dict';
@@ -1413,12 +1509,9 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                               "taken beyond this."
                     endif
 
-                    var joined_assist_text = join(curr_text_block, " ")
+                    var joined_assist_text = join(curr_text_block, "\n")
 
                     joined_assist_text = substitute(joined_assist_text, '\v^\s+', '', '')
-                    joined_assist_text = substitute(joined_assist_text, '\v\s+\n*$', '', '')
-                    joined_assist_text = substitute(joined_assist_text, '\v\s+\n\n', '\n\n', 'g')
-                    joined_assist_text = substitute(joined_assist_text, '\v\n\n\s', '\n\n', 'g')
 
                     var assist_msg_text = UnescapeSpecialSequences(joined_assist_text)
 
@@ -1442,37 +1535,9 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                 else
                     # If the logic comes here than we have not yet found the ending token for the assistant message;
-                    # assume that the current buffer line is simply part of the assistant reponse.  We now need to see
-                    # if the special case below applies before appending the current line to the end of list
-                    # 'curr_text_block'.
-                    #
-                    #  1). A Whitespace Only Line - Whitespace lines within chats are typically used as an easy way to
-                    #                               delimit information such as a paragraph or off-setting an an
-                    #          example from the rest of the text for clarity.  Since such formatting *may* be used by
-                    #          an LLM we will go ahead and keep it.  Note that we assume the operative portion of this
-                    #          information to just be the empty line so we will insert two newlines ("\n\n") into the
-                    #          'curr_text_block' if the 'curr_buff_line' is in fact (1) empty or (2) made up only of
-                    #          whitespace characters.  We don't preserve any original whitespace characters from the
-                    #          line because, at present, we have no use case demonstrating that whitespace characters
-                    #          beyond the newline contribute meaningful information in a chat when found in a
-                    #          whitespace-only line.  Additionally, we want to keep the chat parse as lean as possible
-                    #          so we don't bloat any network requests constructed from it with unnecessary character
-                    #          data.
-                    #
-                    #          Why two newlines rather than just one? ... and why does the empty line fall into this
-                    #          category?  Remember that we already split on newline characters to process the buffer
-                    #          text and this means that newlines are removed to start with.  The empty string "" on a
-                    #          line would be produced by having a newline on either end and the same goes for
-                    #          whitespace only content (i.e., a whitespace only line needs to have a newline at either
-                    #          end to appear by itself in the text).  We want to preserve the idea of "an empty line"
-                    #          and this requires two newlines be present to create; one to move away from the non-empty
-                    #          chat text then the second to leave behind the empty line.
-                    #
-                    if curr_buff_line =~# '\v^\s*$'
-                        add(curr_text_block, "\n\n")
-                    else
-                        add(curr_text_block, curr_buff_line)
-                    endif
+                    # assume that the current buffer line is simply part of the assistant response.  Trim any trailing
+                    # whitespace from the line found then add it to the 'curr_text_block' for later processing.                    else
+                    add(curr_text_block, substitute(curr_buff_line, '\v\s+$', '', ''))
 
                 endif
 
@@ -1528,7 +1593,8 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                         #      process.
                         #
                         #  2). Check to see if any text follows the opening ">>>" sequence and, if so, extract that
-                        #      text then add it to the 'curr_text_block' list.
+                        #      text, process it for any special tokens (such as resource references), then add the
+                        #      result to the 'curr_text_block' list.
                         #
                         #  3). Update variable 'inside_user_msg' to have a value of 'true' indicating that we are now
                         #      processing text from within the context of a user chat message.
@@ -1554,7 +1620,99 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                         var trimmed_message_start = substitute(curr_buff_line, '\v^\>\>\>', '', '')
                         if trimmed_message_start != ''
-                            add(curr_text_block, trimmed_message_start)
+                            if trimmed_message_start =~# '\v^\s*\[.+\]\s*$'
+                                # If the logic comes here than we've found a "resource" that is embedded within the
+                                # chat message content.  Resources refer to things like files or entities that are
+                                # separate from the chat document but which should be included into the chat discussion.
+                                # Take the steps below to finish processing the information:
+                                #
+                                #   1). Remove the wrapping '[' and ']' characters from the resource reference (along
+                                #       with any leading or trailing whitespace); these characters are only used to
+                                #       identify the resource during parsing.
+                                #
+                                #   2). Validate that the resource begins with the prefix "d:", "f:", or "c:" (which
+                                #       specifies the type of resource; "d:" meaning "dynamic embedding", "f:" meaning
+                                #       "file", and "c:" meaning collection).  If the resource does NOT begin with one
+                                #       of the supported prefixes than we will throw an exception.
+                                #
+                                #   3). For resources with the "f:" or "c:" prefix do the following:
+                                #
+                                #       A). Check to see if a key matching to the value held by variable
+                                #           'parse_dictionary_user_resources_key' exists within the
+                                #           'curr_chat_interaction_dict' as this will determine how we choose to add the
+                                #           new information.
+                                #
+                                #       B). If the key already existed than append the new resource infomration to the
+                                #           list that exists below that key.
+                                #
+                                #       C). If the key did NOT already exist than add the resource information info a
+                                #           new list and set this list into the 'curr_chat_interaction_dict' under the
+                                #           key.
+                                #
+                                #   4). For resources with the "d:" prefix do the following:
+                                #
+                                #       A). Call a utility function to fully resolve the content of the referenced
+                                #           resource.
+                                #
+                                #       B). Append all returned text lines to the text block being built.
+                                #
+                                var front_trimmed_resource_ref = substitute(trimmed_message_start, '\v^\s*\[', "", "")
+                                var resource_ref = substitute(front_trimmed_resource_ref, '\v\]\s*\n*$', "", "")
+
+                                var resource_ref_prefix = resource_ref[0 : 0]
+
+                                if resource_ref_prefix ==# 'c' || resource_ref_prefix ==# 'f'
+                                    if has_key(curr_chat_interaction_dict, parse_dictionary_user_resources_key)
+                                        add(curr_chat_interaction_dict[parse_dictionary_user_resources_key],
+                                            resource_ref)
+                                    else
+                                        curr_chat_interaction_dict[parse_dictionary_user_resources_key] = [resource_ref]
+                                    endif
+
+                                    if IsDebugEnabled()
+                                        add(debug_trace_list,
+                                            "Processed resource reference from user message (line " ..
+                                            curr_buffer_line_cntr ..  ", value = '" .. resource_ref .. "')")
+                                    endif
+
+                                elseif resource_ref_prefix ==# 'd'
+                                    var content_tag = resource_ref[2 : -1]
+
+                                    extend(curr_text_block, ProcessDynamicEmbedding(content_tag))
+
+                                    if IsDebugEnabled()
+                                        add(debug_trace_list,
+                                            "Processed dynamic embedding reference from user message (line " ..
+                                            curr_buffer_line_cntr ..  ", value = '" .. resource_ref ..
+                                            "', content tag = '" ..  content_tag .. "')")
+                                    endif
+
+                                else
+                                    if IsDebugEnabled()
+                                          WriteToDebug(join(debug_trace_list, "\n"))
+                                    endif
+
+                                    throw "[ERROR] - A resource reference was encountered on line " ..
+                                          curr_buffer_line_cntr .. " whose format was invalid.  Any provided " ..
+                                          "resource reference must be given in the format '[d:ID]' (for a dynamic " ..
+                                          "embedding), '[s:ID]' (for a file), or [c:ID] (for a knowledge " ..
+                                          "collection) in order to be understood by the parsing.  The resource " ..
+                                          "reference that prompted this fault was not found to begin with any of " ..
+                                          "the supported prefixes (for example 'd:') so its type could not be " ..
+                                          "understood.  Please update this reference to use a supported prefix " ..
+                                          "value in order to resolve the fault."
+                                endif
+
+                            else
+                                # If the logic comes here than we assume that we've just got a line of text that belongs
+                                # to the user message.  Trim any trailing whitespace from the line, expand any escaped
+                                # sequences, then add the result to the 'curr_text_block' for later processing.
+                                var trimmed_message_text = substitute(trimmed_message_start, '\v\s+$', '', '')
+                                var unescaped_message_text = UnescapeSpecialSequences(trimmed_message_text)
+                                add(curr_text_block, unescaped_message_text)
+
+                            endif
+
                         endif
 
                         inside_user_msg = true
@@ -1576,8 +1734,8 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                         #      the user then immediately return an empty dictionary to the caller as this effectively
                         #      aborts the parse.
                         #
-                        # 2). Check to see if any text follows the opening "=>>" sequence and, if so, extract that text
-                        #     then add it to the 'curr_text_block' list.
+                        # 2). Check to see if any text follows the opening "=>>" sequence and, if so, extract that text,
+                        #     trim any trailing whitespace from it, then add it to the 'curr_text_block' list.
                         #
                         # 3). Update variable 'inside_llm_msg' to have a value of 'true' indicating that we are now
                         #     processing text from within the context of a user chat message.
@@ -1603,7 +1761,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                         var trimmed_message_start = substitute(curr_buff_line, '\v^\=\>\>', '', '')
                         if trimmed_message_start != ''
-                            add(curr_text_block, trimmed_message_start)
+                            add(curr_text_block, substitute(trimmed_message_start, '\v\s+$', '', ''))
                         endif
 
                         inside_llm_msg = true
@@ -1696,9 +1854,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
         #
         # 1). Check to see if the 'curr_text_block' is non-empty and IF SO proceed forward with the following:
         #
-        #     A). Join all elements in the 'curr_text_block' back into a single string value (using a single space
-        #         character between elements) then trim any leading or trailing whitespace in the joined text before
-        #         calling a utility function to unescape any special sequences.
+        #     A). Join all elements in the 'curr_text_block' back into a single string value (using a single newline
+        #         character between elements) then trim any leading whitespace from the joined text.  Note that we do
+        #         not attempt to trim trailing whitespace here as we assume this was already handled when the line
+        #         was added to the 'curr_text_block'.
         #
         #     B). Add a new mapping between the key held by variable 'parse_dictionary_user_msg_key' and the string
         #         value obtained during step 'A' into the 'curr_chat_interaction_dict'.  Note that we don't check
@@ -1765,14 +1924,9 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
         #   being submitted the logic for sending the chat will assume responsibility for ensuring that the last user
         #   message is non-empty before it tries to do anything.
         if !empty(curr_text_block)
-            var joined_user_message_text = join(curr_text_block, ' ')
+            var joined_user_message_text = join(curr_text_block, "\n")
 
-            joined_user_message_text = substitute(joined_user_message_text, '\v^\s+', '', '')
-            joined_user_message_text = substitute(joined_user_message_text, '\v\s+\n*$', '', '')
-            joined_user_message_text = substitute(joined_user_message_text, '\v\s+\n\n', '\n\n', 'g')
-            joined_user_message_text = substitute(joined_user_message_text, '\v\n\n\s', '\n\n', 'g')
-
-            var user_message_text = UnescapeSpecialSequences(joined_user_message_text)
+            var user_message_text = substitute(joined_user_message_text, '\v^\s+', '', '')
 
             curr_chat_interaction_dict[parse_dictionary_user_msg_key] = user_message_text
 
@@ -2567,6 +2721,56 @@ export def FormatNumberWithThousandsSep(num_to_format: number): string
 
     # Return the formatted number representation back to the caller.
     return formatted_num
+
+enddef
+
+
+# This function will attempt to locate and return back the content held by a dynamic embedding target whose "tag_value"
+# is provided to the function call.  Returned information is always in the form of a list where each line in the list
+# corresponds to a line of retrieved content.
+#
+# Currently the 'tag_value' argument supplied will be interpreted in the following ways:
+#
+#   @xxx - In this form the leading '@' symbol identifies the "target" as an existing buffer and the 'xxx' portion
+#          should be the numerical ID of that buffer.  For instance providing '@10' would cause the function execution
+#          to retrieve all content currently held by buffer 10 and return this as a list.
+#
+#   xxx - Any value that was not matched by a special case already mentioned will be assumed to be a file path.  In
+#         such case the full content of the file at the specified path will be retrieved and will be returned as a
+#         list.
+#
+# Arguments:
+#   tag_value - The value held by the dynamic embedding tag that should be used by this function to find the content
+#               to be used in place of such tag.  See the discussion in the main description of this function for
+#               further details on how this value will be interpreted.
+#
+# Returns: A list object that contains all lines of content from the resolved "embedding target" as individual entries.
+#          Note that the order of the list is always in the natural ordering of the target (so element 0 holds the
+#          first line of the buffer, file, etc, and element N holds the last line).
+#
+# Throws: Throws an exception if any of the following conditions are encountered:
+#
+#         1). The 'tag_value' given represents a file path but no such file could be found by the function execution.
+#
+export def ProcessDynamicEmbedding(tag_value: string): list<any>
+    # Check to see if the 'tag_value' given matches to the pattern used for buffers; if so we will assume that the
+    # current content held by the referenced buffer should be taken and returned.  If not than we will assume the
+    # 'tag_value' is a file path and we will load then return the full content of the referenced file.
+    var dynamic_content = [ ]
+    if tag_value =~# '\v\@[0-9]+'
+        var buf_num = str2nr(tag_value[1 :])
+        dynamic_content = getbufline(buf_num, 1, '$')
+    else
+        if ! filereadable(tag_value)
+            throw "[ERROR] - The dynamic content resource referenced at system path '" .. tag_value .. "' either " ..
+                \ "does not exist or Vim has no permission to read content from it."
+        endif
+
+        dynamic_content = readfile(tag_value)
+    endif
+
+    # Return the 'dynamic_content' value resolved for the given 'tag_value' back to the caller.
+    return dynamic_content
 
 enddef
 

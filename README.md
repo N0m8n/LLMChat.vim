@@ -15,8 +15,10 @@ Currently the plugin supports all of the following features:
     other text file.
   - Supports chat interactions with LLMs hosted via Ollama or through Open WebUI.
   - Has syntax highlighting for chat logs
-  - Can query for and display the set of LLM models available from a remote server.
+  - Can query for and display the set of LLM models available for use on a remote server.
   - Supports the output of reasoning (i.e., "thinking") responses produced by some LLM models.
+  - Supports the dynamic embedding of external content (either from buffer or from file) into the chat context during
+    chat submission.
   - Makes use of the asynchronous job framework in Vim for chat submissions so that the editor is usable while waiting
     on a response.
   - Supports the use of authentication for interacting with LLMs on secured servers.
@@ -101,7 +103,7 @@ Releases are made by tagging the repository with one of the versions listed belo
 will need to checkout the tag associated with the release you would like to use after cloning the repository locally.
 
   - **v0.4.2** - Reworked the folding feature to account for ambiguity introduced when recognized syntax features,
-  -              such as lines that begin with '#', are included inside user/assistant messages.
+                 such as lines that begin with '#', are included inside user/assistant messages.
   - **v0.4.1** - Corrected a minor parsing bug which would cause lines containing a '-' character to be ignored; this
                  resulted in parsing faults when such line also held a critical token such as message start/end.
                  Added trace statements for parser state transitions to the debug output which will be seen ONLY when
@@ -133,9 +135,6 @@ The following issues are known to exist in the plugin and have yet to be resolve
     than the next line will incorrectly be started with a '>>>'.  You must then remove this opening sequence to continue
     typing your message (note that starting messages on the line after the '>>>' works around this problem).  It is
     unclear exactly what causes this and the issue remains under investigation.
-  - Folds are not being reliably added in some cases due to non-alphanumeric characters being embedded in many chat
-    responses that are confusing the current logic.  A temporary workaround is to request that your LLM only respond
-    using alphanumeric ASCII characters and should avoid things like markdown formatting in responses.
 
 ## Additional Screenshots
 ### Showing Remote Model Listing

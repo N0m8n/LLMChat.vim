@@ -20,16 +20,23 @@ CONTENTS                                                      *LLMChat_Contents*
   Overview..............................................|LLMChat_Overview|
   Plugin Requirements...................................|LLMChat_Requirements|
   Installation..........................................|LLMChat_Installation|
+
   Usage Quick Start.....................................|LLMChat_QuickStart|
   Chat Log Format.......................................|LLMChat_ChatLogFormat|
   Text Escape Sequences.................................|LLMChat_TextEscapes|
+  Resource References...................................|LLMChat_ResourceRefs|
+    Dynamic Embeddings..................................|LLMChat_DynEmbedding|
+
   Custom Folding........................................|LLMChat_CustomFolding|
   Chat Options..........................................|LLMChat_ChatOptions|
   Authentication........................................|LLMChat_Authentication|
+
   Listing Remote Models.................................|LLMChat_ListingModels|
+
   Plugin Commands.......................................|LLMChat_Commands|
   Plugin Key Mappings...................................|LLMChat_KeyMappings|
   Custom Configurations.................................|LLMChat_Configuration|
+
   Debugging.............................................|LLMChat_Debugging|
   Limitations...........................................|LLMChat_Limitations|
 
@@ -293,6 +300,81 @@ Sequence  | Meaning
 
 
 ===============================================================================
+                                                          *LLMChat_ResourceRefs*
+Resource References
+-------------------
+
+A "resource reference" is a token of the form "[...]" that is used to reference
+content from the chat log document.  Each such reference will have an
+"identifier" (used to specify what type of reference is being used) and a "tag"
+that locates the resource.  The full form of the reference token is therefore:
+
+  [identifier:tag]
+
+To distinguish resource reference tokens from other content it is REQUIRED that
+such tokens be on their own line within the document and may only be preceeded
+(or followed) by whitespace characters.
+
+Below is a listing of the currently supported resource references (by type) and
+a description of where such references may appear:
+
+
+    Dynamic Embeddings                                    *LLMChat_DynEmbedding*
+    ------------------
+A "dynamic embedding" is a reference to either (1) an existing buffer in the
+current Vim session or (2) an existing file on disk.  In either case the
+embedding tag should be replaced with the content of the referenced resource
+when a chat message is sent to the remote LLM.  This behavior means that
+
+  1). The chat does not need to be cluttered with manually pasted copies of
+      files or content (as would have previously been the case).
+
+  2). Since the replacement of the token is dynamic on buffer parse (as will
+      occur when a chat is sent) it means that the current copy of the
+      referenced resource will be included into the chat at the time of parse.
+
+One downside to dynamic embeddings is that they never alter the chat document
+directly so the content for the referenced resource cannot be seen (and is
+never captured) into the chat.  This can be an issue when moving chat logs
+between systems, or archiving them, as it will result in missing information.
+
+Dynamic embeddings may be defined in (1) a system prompt or (2) within a
+user message and MUST appear on their own line (as is currently required for
+any resource reference).  They are identified by using a "d" in the ID portion
+of the reference token and may take one of the following forms (note that the
+order of forms shown also corresponds to matching priority in the processing):
+
+  [d:@xxx] - In this form the leading '@' in the "tag" portion of the token
+             identifies the dynamic embedding as referencing a buffer that is
+             assumed to exist within the current Vim session.  The 'xxx' portion
+             of the tag value shown is the numerical ID assigned to the buffer
+             as would be displayed by the ":ls" command in Vim and the content
+             of such buffer is what will replace the tag at parse time.
+
+             As a concrete example of this form, the token [d:@10] would refer
+             to the content being held by buffer #10.
+
+  [d:xxx] - This is the final form for the embedding token and such form is
+            assumed when no other more specialized tag match was made.  For
+            such case the "xxx" portion of the tag is assumed to be a file path
+            and the content of the referenced file will become the replacement
+            for the embedding token at parse time.
+
+            Note that if Vim cannot find or read the file at the specified path
+            than an exception will be thrown.
+
+Regardless of the form used, or whether the dynamic embedding was specified
+within a system prompt or user message, the following rules will still always
+apply:
+
+  1). Embedding tokens are expanded verbatim and this includes the preservation
+      of newline sequences.
+
+  2). Special escapes (as discussed in section |LLMChat_TextEscapes|) are
+      NEVER processed or expanded.
+
+
+===============================================================================
                                                          *LLMChat_CustomFolding*
 Custom Folding
 --------------
@@ -451,6 +533,14 @@ System Prompt - This option provides the system prompt that the remote LLM
                 model should use when engaging with the chat request.  System
     prompts are typically text messages used to set the tone and expectations
     for the chat so that these are known by the LLM model upfront.
+
+    Note that during processing line separators are removed from system prompts
+    and are replaced with spaces.  Since the expansion of escape characters
+    is now supported (see section |LLMChat_TextEscapes|) it is possible to
+    "force" a line separator by explicitly specifying "\n" in the prompt.
+
+    Additionally *some* resource references are allowed for use within the
+    system prompt; see section |LLMChat_ResourceRefs| for more details.
 
 Use Auth Token - This option specifies whether or not authentication is
                  required when sending requests to the LLM server.  When set to

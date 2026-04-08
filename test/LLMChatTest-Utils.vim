@@ -122,6 +122,7 @@ endfunction
 
 " =========================================== End Test Utilities =============================================
 
+
 "
 " =========================================  Start Standalone Tests  =========================================
 "
@@ -639,14 +640,14 @@ function s:TestParseChatBufferToBlocksWithMaxDoc()
         \ "\n" ..
         \ "\n#Next line message style - Also contains leading and trailing whitespace" ..
         \ "\n>>>" ..
-        \ "\n     Yes, I would like to know that the secret to life happens" ..
+        \ "\n     Yes, I would like to know what the secret to life happens      " ..
         \ "\nto be.  Can you give me some insight?    " ..
         \ "\n<<<" ..
         \ "\n" ..
         \ "\n#Assistant response with leading and trailing whitespace" ..
         \ "\n=>>" ..
-        \ "\n     That is a great question!  Unfortunately I don't have an answer" ..
-        \ "\nto give you; life seems to be what you make of it.    " ..
+        \ "\n     That is a great question!  Unfortunately I don't have an    " ..
+        \ "\nanswer to give you; life seems to be what you make of it.    " ..
         \ "\n<<=" ..
         \ "\n" ..
         \ "\n----------------------" ..
@@ -696,18 +697,18 @@ function s:TestParseChatBufferToBlocksWithMaxDoc()
                               \     [
                               \       {
                               \         "user": "Hello how are you today?",
-                              \         "assistant": "I am an AI so I don't have any feelings. " ..
-                              \                      "How can I help you today?"
+                              \         "assistant": "I am an AI so I don't have any feelings." ..
+                              \                    "\nHow can I help you today?"
                               \       },
                               \       {
-                              \         "user": "Yes, I would like to know that the secret to life happens " ..
+                              \         "user": "Yes, I would like to know what the secret to life happens\n" ..
                               \                 "to be.  Can you give me some insight?",
-                              \         "assistant": "That is a great question!  Unfortunately I don't have an " ..
+                              \         "assistant": "That is a great question!  Unfortunately I don't have an\n" ..
                               \                      "answer to give you; life seems to be what you make of it."
                               \       },
                               \       {
-                              \         "user": "I'm told this paper might know; can you read it and let me know " ..
-                              \                 "what you think?",
+                              \         "user": "I'm told this paper might know; can you read it\n" ..
+                              \                 "and let me know what you think?",
                               \         "user_resources":
                               \           [
                               \             "f:document_1",
@@ -779,14 +780,14 @@ function s:TestParseChatBufferToBlocksWithGoodDocAndDebugModeEnabled()
         \ "\n" ..
         \ "\n#Next line message style - Also contains leading and trailing whitespace" ..
         \ "\n>>>" ..
-        \ "\n     Yes, I would like to know that the secret to life happens" ..
+        \ "\n     Yes, I would like to know what the secret to life happens" ..
         \ "\nto be.  Can you give me some insight?    " ..
         \ "\n<<<" ..
         \ "\n" ..
         \ "\n#Assistant response with leading and trailing whitespace" ..
         \ "\n=>>" ..
-        \ "\n     That is a great question!  Unfortunately I don't have an answer" ..
-        \ "\nto give you; life seems to be what you make of it.    " ..
+        \ "\n     That is a great question!  Unfortunately I don't have an" ..
+        \ "\nanswer to give you; life seems to be what you make of it.    " ..
         \ "\n<<=" ..
         \ "\n" ..
         \ "\n----------------------" ..
@@ -836,18 +837,18 @@ function s:TestParseChatBufferToBlocksWithGoodDocAndDebugModeEnabled()
                               \     [
                               \       {
                               \         "user": "Hello how are you today?",
-                              \         "assistant": "I am an AI so I don't have any feelings. " ..
+                              \         "assistant": "I am an AI so I don't have any feelings.\n" ..
                               \                      "How can I help you today?"
                               \       },
                               \       {
-                              \         "user": "Yes, I would like to know that the secret to life happens " ..
+                              \         "user": "Yes, I would like to know what the secret to life happens\n" ..
                               \                 "to be.  Can you give me some insight?",
-                              \         "assistant": "That is a great question!  Unfortunately I don't have an " ..
+                              \         "assistant": "That is a great question!  Unfortunately I don't have an\n" ..
                               \                      "answer to give you; life seems to be what you make of it."
                               \       },
                               \       {
-                              \         "user": "I'm told this paper might know; can you read it and let me know " ..
-                              \                 "what you think?",
+                              \         "user": "I'm told this paper might know; can you read it\n" ..
+                              \                 "and let me know what you think?",
                               \         "user_resources":
                               \           [
                               \             "f:document_1",
@@ -978,7 +979,7 @@ function s:TestParseChatBufferToBlocksWhitespaceHandling()
     new
     silent! put! = l:example_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function to parse the content of the new buffer and return back to us a parse
+    " Invoke the ParseChatBufferToBlocks() function to parse the content of the new buffer and return back to us a parse
     " dictionary containing the resulting data.  Note that we expect focus in the editor has already shifted to the new
     " buffer when the 'new' command was run earlier.
     let l:actual_parse_dict = s:util.ParseChatBufferToBlocks()
@@ -1011,12 +1012,12 @@ function s:TestParseChatBufferToBlocksWhitespaceHandling()
                               \                      "\nempty lines"
                               \       },
                               \       {
-                              \         "user": "A user message containing   " ..
-                              \                 "      embedded whitespace sequences" ..
+                              \         "user": "A user message containing" ..
+                              \                 "\n    embedded whitespace sequences" ..
                               \                 "\n" ..
                               \                 "\n        And some inset text.",
-                              \         "assistant": "An assistant message containing     " ..
-                              \                      "      embedded whitespace sequences" ..
+                              \         "assistant": "An assistant message containing" ..
+                              \                      "\n     embedded whitespace sequences" ..
                               \                      "\n" ..
                               \                      "\n        And some inset text."
                               \       },
@@ -1076,7 +1077,7 @@ function s:TestParseChatBufferToBlocksWithHeaderOnlyParse()
     new
     silent! put! = l:example_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function to parse the content of the new buffer using the "header_only_parse"
+    " Invoke the ParseChatBufferToBlocks() function to parse the content of the new buffer using the "header_only_parse"
     " mode.  Note that we expect focus in the editor to already be on our test buffer as this should have occurred when
     " the 'new' command was run.
     let l:actual_parse_dict = s:util.ParseChatBufferToBlocks(1)
@@ -1126,17 +1127,18 @@ function s:TestParseChatBufferToBlocksWithSpecialEscapes()
       \ "\n\\=>>" ..
       \ "\n\\<<=" ..
       \ "\n\\n" ..
-      \ "\nThis should not cause any trouble for the parsing and such sequences" ..
-      \ "\nshould be properly unescaped by the parsing logic." ..
+      \ "\nThis should not cause any trouble for the parsing and such " ..
+      \ "\nsequences should be properly unescaped by the parsing logic." ..
       \ "\n<<<" ..
-      \ "\n=>>An assistant message that contains the following escaped sequences:" ..
+      \ "\n=>>An assistant message that contains the following escaped " ..
+      \ "\nsequences:" ..
       \ "\n\\>>>" ..
       \ "\n\\<<<" ..
       \ "\n\\=>>" ..
       \ "\n\\<<=" ..
       \ "\n\\n" ..
-      \ "\nThis should not cause any trouble for the parsing and such sequences" ..
-      \ "\nshould be properly unescaped by the parsing logic." ..
+      \ "\nThis should not cause any trouble for the parsing and such   " ..
+      \ "\nsequences should be properly unescaped by the parsing logic." ..
       \ "\n<<=" ..
       \ "\n>>>User message showing *escaped* escape sequences:" ..
       \ "\n\\\\>>>" ..
@@ -1144,8 +1146,8 @@ function s:TestParseChatBufferToBlocksWithSpecialEscapes()
       \ "\n\\\\=>>" ..
       \ "\n\\\\<<=" ..
       \ "\n\\\\n" ..
-      \ "\nAgain, should cause no problem for the parsing and should be unescaped" ..
-      \ "\nto the escape sequences." ..
+      \ "\nAgain, should cause no problem for the parsing and should be" ..
+      \ "\nunescaped to the escape sequences." ..
       \ "\n<<<" ..
       \ "\n=>>Assistant message showing *escaped* escape sequences:" ..
       \ "\n\\\\>>>" ..
@@ -1153,8 +1155,8 @@ function s:TestParseChatBufferToBlocksWithSpecialEscapes()
       \ "\n\\\\=>>" ..
       \ "\n\\\\<<=" ..
       \ "\n\\\\n" ..
-      \ "\nAgain, should cause no problem for the parsing and should be unescaped" ..
-      \ "\nto the escape sequences"..
+      \ "\nAgain, should cause no problem for the parsing and should be " ..
+      \ "\nunescaped to the escape sequences"..
       \ "\n<<="
 
     " Open a new buffer then write the content of variable 'l:example_chat_doc' to it.  Note that we will use the 'put!'
@@ -1164,7 +1166,7 @@ function s:TestParseChatBufferToBlocksWithSpecialEscapes()
     new
     silent! put! = l:example_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function to parse the content of the new buffer and return back to us a parse
+    " Invoke the ParseChatBufferToBlocks() function to parse the content of the new buffer and return back to us a parse
     " dictionary containing the resulting data.  Note that we expect focus in the editor has already shifted to the new
     " buffer when the 'new' command was run earlier.
     let l:actual_parse_dict = s:util.ParseChatBufferToBlocks()
@@ -1181,22 +1183,43 @@ function s:TestParseChatBufferToBlocksWithSpecialEscapes()
                               \   "messages":
                               \     [
                               \       {
-                              \         "user": "A user message that contains the following escaped sequences: " ..
-                              \                 ">>> <<< =>> <<= \n This should not cause any trouble for the " ..
-                              \                 "parsing and such sequences should be properly unescaped by the " ..
-                              \                 "parsing logic.",
-                              \         "assistant" : "An assistant message that contains the following escaped " ..
-                              \                       "sequences: >>> <<< =>> <<= \n This should not cause any " ..
-                              \                       "trouble for the parsing and such sequences should be " ..
-                              \                       "properly unescaped by the parsing logic."
+                              \         "user": "A user message that contains the following escaped sequences:" ..
+                              \               "\n>>>" ..
+                              \               "\n<<<" ..
+                              \               "\n=>>" ..
+                              \               "\n<<=" ..
+                              \               "\n" ..
+                              \               "\n" ..
+                              \               "\nThis should not cause any trouble for the parsing and such" ..
+                              \               "\nsequences should be properly unescaped by the parsing logic.",
+                              \         "assistant" : "An assistant message that contains the following escaped" ..
+                              \                     "\nsequences:" ..
+                              \                     "\n>>>" ..
+                              \                     "\n<<<" ..
+                              \                     "\n=>>" ..
+                              \                     "\n<<=" ..
+                              \                     "\n" ..
+                              \                     "\n" ..
+                              \                     "\nThis should not cause any trouble for the parsing and such" ..
+                              \                     "\nsequences should be properly unescaped by the parsing logic."
                               \       },
                               \       {
-                              \         "user": "User message showing *escaped* escape sequences: \\>>> \\<<< \\=>> " ..
-                              \                 "\\<<= \\\n Again, should cause no problem for the parsing and " ..
-                              \                 "should be unescaped to the escape sequences.",
-                              \         "assistant": "Assistant message showing *escaped* escape sequences: \\>>> " ..
-                              \                      "\\<<< \\=>> \\<<= \\\n Again, should cause no problem for the " ..
-                              \                      "parsing and should be unescaped to the escape sequences"
+                              \         "user": "User message showing *escaped* escape sequences:" ..
+                              \               "\n\\>>>" ..
+                              \               "\n\\<<<" ..
+                              \               "\n\\=>>" ..
+                              \               "\n\\<<=" ..
+                              \               "\n\\\n" ..
+                              \               "\nAgain, should cause no problem for the parsing and should be" ..
+                              \               "\nunescaped to the escape sequences.",
+                              \         "assistant": "Assistant message showing *escaped* escape sequences:" ..
+                              \                    "\n\\>>>" ..
+                              \                    "\n\\<<<" ..
+                              \                    "\n\\=>>" ..
+                              \                    "\n\\<<=" ..
+                              \                    "\n\\\n" ..
+                              \                    "\nAgain, should cause no problem for the parsing and should be" ..
+                              \                    "\nunescaped to the escape sequences"
                               \       }
                               \     ]
                               \ }
@@ -1207,6 +1230,404 @@ function s:TestParseChatBufferToBlocksWithSpecialEscapes()
     "
     "  1). Forcefully delete the new buffer without saving its content.
     "
+    bd!
+
+endfunction
+
+
+" This test asserts the proper operation of function ParseChatBufferToBlocks() when the chat buffer being processed
+" contains a system prompt with escape sequences in its text.
+function s:TestParseChatBufferToBlocksWithSystemPromptContainingEscapeSequences()
+    " Define a chat log document that contains a system prompt with escaped special sequences.
+    let l:test_chat_doc =
+        \   "Server URL: https://somehost" ..
+        \ "\nServer Type: Ollama" ..
+        \ "\nModel ID: Some model" ..
+        \ "\nSystem Prompt: A system prompt" ..
+        \ "\n\\n" ..
+        \ "\n\\n" ..
+        \ "\nthat contains escaped \\>>>" ..
+        \ "\n\\n" ..
+        \ "\n\\n" ..
+        \ "\n\\n" ..
+        \ "\nspecial sequences\\n" ..
+        \ "\n\\[foo]" ..
+        \ "\n" ..
+        \ "\n*** ENDSETUP ***"
+
+    " Open a new buffer then write the content of variable 'l:test_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the buffer's initial line (the parse should ignore this so there should not need
+    " to be any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:test_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function to perform a header only parse and store the dictionary that is
+    " returned.
+    let l:actual_parse_dict = s:util.ParseChatBufferToBlocks(1)
+
+    " Now define an expected parse dictionary and show that the 'l:actual_parse_dict' returned from parsing the chat
+    " log document is identical to it.
+    let l:expected_parse_dict = {
+                              \   "header":
+                              \   {
+                              \     "server url": "https://somehost",
+                              \     "server type": "Ollama",
+                              \     "model id": "Some model",
+                              \     "system prompt": "A system prompt\n\n" ..
+                              \                      " that contains escaped >>>\n\n\n " ..
+                              \                      "special sequences\n " ..
+                              \                      "[foo]"
+                              \   }
+                              \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:expected_parse_dict, l:actual_parse_dict)
+
+    " Finally, cleanup by performing the following tasks:
+    "
+    "  1). Forcefully delete the new buffer without saving its content.
+    "
+    bd!
+
+endfunction
+
+
+" This test asserts the proper operation of function ParseChatBufferToBlocks() when the chat buffer being processed
+" contains a system prompt with a dynamic embedding reference within it.
+function s:TestParseChatBufferToBlocksWithSystemPromptContainingDynamicEmbeddingReference()
+    " Create a new buffer then write a set of known lines to it.
+    "
+    " NOTE: When a new buffer is created it will come with an initial line already and adding content to the buffer via
+    "       the 'put' command will shift this line down.  For our purposes here we don't really care that such line is
+    "       present but we do need to make sure we account for its presence when we validate the embedding result
+    "       later.
+    "
+    let l:embedding_content = "Some information\nwritten out to a\ntesting buffer.\n" ..
+                           \  "Note that special references like\nthe following should NOT be unescaped:" ..
+                           \  "\n\\>>>\n\\<<<\n\\=>>\n\\<<=\n\\n"
+
+    new
+    silent! put! = l:embedding_content
+
+    " Capture the numerical identifier for the newly created buffer into a local variable for later use.  Note that
+    " we assume our focus was shifted to the new buffer when it was created so the logic here will simply store the
+    " identifier for the active buffer.
+    let l:embedding_buffer = bufnr('')
+
+    " Now define a chat log document that contains a system prompt with a dynamic embedding reference to the
+    " previously created buffer.
+    let l:test_chat_doc =
+        \   "Server URL: https://testdomain.com" ..
+        \ "\nServer Type: Open WebUI" ..
+        \ "\nModel ID: Test Model" ..
+        \ "\nSystem Prompt: A system prompt with the following dynamically embedded text:" ..
+        \ "\n[d:@" .. l:embedding_buffer .. "]" ..
+        \ "\n" ..
+        \ "\n*** ENDSETUP ***"
+
+    " Open another new buffer then write the content of variable 'l:test_chat_doc' to it.  Note that we will use the
+    " 'put!' command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing
+    " newline resulting from the downshift of the buffer's initial line (the parse should ignore this so there should
+    " not need to be any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:test_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function to perform a header only parse and store the dictionary that is
+    " returned.
+    let l:actual_parse_dict = s:util.ParseChatBufferToBlocks(1)
+
+    " Now define an expected parse dictionary and show that the 'l:actual_parse_dict' returned from parsing the chat
+    " log document is identical to it.
+    let l:expected_parse_dict = {
+                              \   "header":
+                              \   {
+                              \     "server url": "https://testdomain.com",
+                              \     "server type": "Open WebUI",
+                              \     "model id": "Test Model",
+                              \     "system prompt": "A system prompt with the following dynamically embedded text:" ..
+                              \                    "\nSome information" ..
+                              \                    "\nwritten out to a" ..
+                              \                    "\ntesting buffer." ..
+                              \                    "\nNote that special references like" ..
+                              \                    "\nthe following should NOT be unescaped:" ..
+                              \                    "\n\\>>>" ..
+                              \                    "\n\\<<<" ..
+                              \                    "\n\\=>>" ..
+                              \                    "\n\\<<=" ..
+                              \                    "\n\\n"
+                              \   }
+                              \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:expected_parse_dict, l:actual_parse_dict)
+
+    " Finally, cleanup by performing the following tasks:
+    "
+    "  1). Remove the test buffer containing the dynamic embedding content.
+    "  2). Forcefully delete the test chat buffer without saving its content.
+    "
+    execute "bd! " .. l:embedding_buffer
+    bd!
+
+endfunction
+
+
+" This test asserts the proper operation of function ParseChatBufferToBlocks() when the chat buffer being processed
+" contains a dynamic embedding token at the start of its system prompt.
+function s:TestParseChatBuferToBlocksWithStartingDynamicEmbeddingInSystemPrompt()
+    " Create a new buffer then write a set of known lines to it.
+    "
+    " NOTE: When a new buffer is created it will come with an initial line already and adding content to the buffer via
+    "       the 'put' command will shift this line down.  For our purposes here we don't really care that such line is
+    "       present but we do need to make sure we account for its presence when we validate the embedding result
+    "       later.
+    "
+    let l:embedding_content = "Some information\nwritten out to a\ntesting buffer.\n" ..
+                            \ "Note that special references like\nthe following should NOT be unescaped:" ..
+                            \ "\n\\>>>\n\\<<<\n\\=>>\n\\<<=\n\\n"
+
+    new
+    silent! put! = l:embedding_content
+
+    " Capture the numerical identifier for the newly created buffer into a local variable for later use.  Note that
+    " we assume our focus was shifted to the new buffer when it was created so the logic here will simply store the
+    " identifier for the active buffer.
+    let l:embedding_buffer = bufnr('')
+
+
+    " Now define a chat log document which contains a system prompt that starts with a dynamic embedding reference to
+    " the previously created buffer.
+    let l:test_chat_doc =
+        \   "Server URL: https://testdomain.com" ..
+        \ "\nServer Type: Open WebUI" ..
+        \ "\nModel ID: Test Model" ..
+        \ "\nSystem Prompt: [d:@" .. l:embedding_buffer .. "]" ..
+        \ "\nA system prompt string following previously embedded text." ..
+        \ "\n" ..
+        \ "\n*** ENDSETUP ***"
+
+
+    " Open another new buffer then write the content of variable 'l:test_chat_doc' to it.  Note that we will use the
+    " 'put!' command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing
+    " newline resulting from the downshift of the buffer's initial line (the parse should ignore this so there should
+    " not need to be any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:test_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function to perform a header only parse and store the dictionary that is
+    " returned.
+    let l:actual_parse_dict = s:util.ParseChatBufferToBlocks(1)
+
+    " Now define an expected parse dictionary and show that the 'l:actual_parse_dict' returned from parsing the chat
+    " log document is identical to it.
+    let l:expected_parse_dict = {
+                              \   "header":
+                              \   {
+                              \     "server url": "https://testdomain.com",
+                              \     "server type": "Open WebUI",
+                              \     "model id": "Test Model",
+                              \     "system prompt": "\nSome information" ..
+                              \                      "\nwritten out to a" ..
+                              \                      "\ntesting buffer." ..
+                              \                      "\nNote that special references like" ..
+                              \                      "\nthe following should NOT be unescaped:" ..
+                              \                      "\n\\>>>" ..
+                              \                      "\n\\<<<" ..
+                              \                      "\n\\=>>" ..
+                              \                      "\n\\<<=" ..
+                              \                      "\n\\n" ..
+                              \                      "\n A system prompt string following previously embedded text."
+                              \   }
+                              \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:expected_parse_dict, l:actual_parse_dict)
+
+    " Finally, cleanup by performing the following tasks:
+    "
+    "  1). Remove the test buffer containing the dynamic embedding content.
+    "  2). Forcefully delete the test chat buffer without saving its content.
+    "
+    execute "bd! " .. l:embedding_buffer
+    bd!
+
+endfunction
+
+
+" This test asserts the proper operation of function ParseChatBufferToBlocks() when the chat buffer being processed
+" contains a user message that holds a dynamic embedding reference within it.
+function s:TestParseChatBufferToBlocksWithUserMessageContainingDynamicEmbeddingReference()
+    " Create a new buffer then write a set of known lines to it.
+    "
+    " NOTE: When a new buffer is created it will come with an initial line already and adding content to the buffer via
+    "       the 'put' command will shift this line down.  For our purposes here we don't really care that such line is
+    "       present but we do need to make sure we account for its presence when we validate the embedding result
+    "       later.
+    "
+    let l:embedding_content = "Content to be embedded into a\nuser message from another\nbuffer.\n" ..
+                            \ "Note that special references like\nthe following should NOT be unescaped:" ..
+                            \ "\n\\>>>\n\\<<<\n\\=>>\n\\<<=\n\\n"
+
+    new
+    silent! put! = l:embedding_content
+
+
+    " Capture the numerical identifier for the newly created buffer into a local variable for later use.  Note that
+    " we assume our focus was shifted to the new buffer when it was created so the logic here will simply store the
+    " identifier for the active buffer.
+    let l:embedding_buffer = bufnr('')
+
+
+    " Now define a chat log document that contains a user message with a dynamic embedding reference to the previously
+    " created buffer.
+    let l:test_chat_doc =
+        \   "Server URL: https://testdomain.com" ..
+        \ "\nServer Type: Open WebUI" ..
+        \ "\nModel ID: Test Model" ..
+        \ "\n*** ENDSETUP ***" ..
+        \ "\n>>> A user message that contains the following" ..
+        \ "\ndynamic embedding content:" ..
+        \ "\n[d:@" .. l:embedding_buffer .. "]" ..
+        \ "\n<<<"
+
+
+    " Open another new buffer then write the content of variable 'l:test_chat_doc' to it.  Note that we will use the
+    " 'put!' command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing
+    " newline resulting from the downshift of the buffer's initial line (the parse should ignore this so there should
+    " not need to be any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:test_chat_doc
+
+
+    " Invoke the ParseChatBufferToBlocks() function to perform a parse of the chat document buffer content.
+    let l:actual_parse_dict = s:util.ParseChatBufferToBlocks()
+
+
+    " Now define an expected parse dictionary and show that the 'l:actual_parse_dict' returned from parsing the chat
+    " log document is identical to it.
+    let l:expected_parse_dict = {
+                              \   "header":
+                              \   {
+                              \     "server url": "https://testdomain.com",
+                              \     "server type": "Open WebUI",
+                              \     "model id": "Test Model",
+                              \   },
+                              \   "messages":
+                              \   [
+                              \     {
+                              \       "user": "A user message that contains the following" ..
+                              \             "\ndynamic embedding content:" ..
+                              \             "\nContent to be embedded into a" ..
+                              \             "\nuser message from another" ..
+                              \             "\nbuffer." ..
+                              \             "\nNote that special references like" ..
+                              \             "\nthe following should NOT be unescaped:" ..
+                              \             "\n\\>>>" ..
+                              \             "\n\\<<<" ..
+                              \             "\n\\=>>" ..
+                              \             "\n\\<<=" ..
+                              \             "\n\\n"
+                              \     }
+                              \   ]
+                              \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:expected_parse_dict, l:actual_parse_dict)
+
+    " Finally, cleanup by performing the following tasks:
+    "
+    "  1). Remove the test buffer containing the dynamic embedding content.
+    "  2). Forcefully delete the test chat buffer without saving its content.
+    "
+    execute "bd! " .. l:embedding_buffer
+    bd!
+
+endfunction
+
+
+" This test asserts the proper operation of function ParseChatBufferToBlocks() when the chat buffer being processed
+" contains a dynamic embedding token at the start of a user message.
+function s:TestParseChatBufferToBlocksWithStartingDynamicEmbeddingInUserMessage()
+    " Create a new buffer then write a set of known lines to it.
+    "
+    " NOTE: When a new buffer is created it will come with an initial line already and adding content to the buffer via
+    "       the 'put' command will shift this line down.  For our purposes here we don't really care that such line is
+    "       present but we do need to make sure we account for its presence when we validate the embedding result
+    "       later.
+    "
+    let l:embedding_content = "Content to be embedded into a\nuser message from another\nbuffer.\n" ..
+                            \ "Note that special references like\nthe following should NOT be unescaped:" ..
+                            \ "\n\\>>>\n\\<<<\n\\=>>\n\\<<=\n\\n"
+
+    new
+    silent! put! = l:embedding_content
+
+
+    " Capture the numerical identifier for the newly created buffer into a local variable for later use.  Note that
+    " we assume our focus was shifted to the new buffer when it was created so the logic here will simply store the
+    " identifier for the active buffer.
+    let l:embedding_buffer = bufnr('')
+
+
+    " Now define a chat log document which contains a user message that starts with a dynamic embedding reference and
+    " output the document to the previously created buffer.
+    let l:test_chat_doc =
+        \   "Server URL: https://testdomain.com" ..
+        \ "\nServer Type: Open WebUI" ..
+        \ "\nModel ID: Test Model" ..
+        \ "\n*** ENDSETUP ***" ..
+        \ "\n>>>[d:@" .. l:embedding_buffer .. "]" ..
+        \ "\nA user message that contains a" ..
+        \ "\nleading embedding reference." ..
+        \ "\n<<<"
+
+
+    " Open another new buffer then write the content of variable 'l:test_chat_doc' to it.  Note that we will use the
+    " 'put!' command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing
+    " newline resulting from the downshift of the buffer's initial line (the parse should ignore this so there should
+    " not need to be any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:test_chat_doc
+
+
+    " Invoke the ParseChatBufferToBlocks() function to perform a parse of the chat document buffer content.
+    let l:actual_parse_dict = s:util.ParseChatBufferToBlocks()
+
+
+    " Now define an expected parse dictionary and show that the 'l:actual_parse_dict' returned from parsing the chat
+    " log document is identical to it.
+    let l:expected_parse_dict = {
+                              \   "header":
+                              \   {
+                              \     "server url": "https://testdomain.com",
+                              \     "server type": "Open WebUI",
+                              \     "model id": "Test Model",
+                              \   },
+                              \   "messages":
+                              \   [
+                              \     {
+                              \       "user": "Content to be embedded into a" ..
+                              \             "\nuser message from another" ..
+                              \             "\nbuffer." ..
+                              \             "\nNote that special references like" ..
+                              \             "\nthe following should NOT be unescaped:" ..
+                              \             "\n\\>>>" ..
+                              \             "\n\\<<<" ..
+                              \             "\n\\=>>" ..
+                              \             "\n\\<<=" ..
+                              \             "\n\\n" ..
+                              \             "\n" ..
+                              \             "\nA user message that contains a" ..
+                              \             "\nleading embedding reference."
+                              \     }
+                              \   ]
+                              \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:expected_parse_dict, l:actual_parse_dict)
+
+    " Finally, cleanup by performing the following tasks:
+    "
+    "  1). Remove the test buffer containing the dynamic embedding content.
+    "  2). Forcefully delete the test chat buffer without saving its content.
+    "
+    execute "bd! " .. l:embedding_buffer
     bd!
 
 endfunction
@@ -1228,7 +1649,7 @@ function s:TestParseChatBufferToBlocksWithMissingServerType()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1272,7 +1693,7 @@ function s:TestParseChatBufferToBlocksWithMissingServerTypeAndEnabledDebugMode()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1327,7 +1748,7 @@ function s:TestParseChatBufferToBlocksWithMissingServerURL()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1371,7 +1792,7 @@ function s:TestParseChatBufferToBlocksWithMissingServerURLAndEnabledDebugMode()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1426,7 +1847,7 @@ function s:TestParseChatBufferToBlocksWithMissingModelID()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1470,7 +1891,7 @@ function s:TestParseChatBufferToBlocksWithMissingModelIDAndEnabledDebugMode()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1527,7 +1948,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateServerTypeDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1574,7 +1995,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateServerTypeDeclAndEnabledDebug
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1630,7 +2051,7 @@ function s:TestParseChatBufferToBlocksWithEmptyServerTypeDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1676,7 +2097,7 @@ function s:TestParseChatBufferToBlocksWithEmptyServerTypeDeclAndEnabledDebugMode
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1733,7 +2154,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateServerURLDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1781,7 +2202,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateServerURLDeclAndEnabledDebugM
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1838,7 +2259,7 @@ function s:TestParseChatBufferToBlocksWithEmptyServerURLDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1884,7 +2305,7 @@ function s:TestParseChatBufferToBlocksWithEmptyServerURLDeclAndEnabledDebugMode(
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1942,7 +2363,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateModelIDDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -1989,7 +2410,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateModelIDDeclAndEnabledDebugMod
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2045,7 +2466,7 @@ function s:TestParseChatBufferToBlocksWithEmptyModelIDDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2091,7 +2512,7 @@ function s:TestParseChatBufferToBlocksWithEmptyModelIDDeclAndEnabledDebugMode()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2149,7 +2570,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateUseAuthDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2198,7 +2619,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateUseAuthDeclAndEnabledDebugMod
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2257,7 +2678,7 @@ function s:TestParseChatBufferToBlocksWithBadUseAuthDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2304,7 +2725,7 @@ function s:TestParseChatBufferToBlocksWithBadUseAuthDeclAndEnabledDebugMode()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2362,7 +2783,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateAuthTokenDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2410,7 +2831,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateAuthTokenDeclAndEnabledDebugM
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2470,7 +2891,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateSystemPromptDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2520,7 +2941,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateSystemPromptDeclAndEnabledDeb
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2578,7 +2999,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateMaxContextMessagesDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2626,7 +3047,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateMaxContextMessagesDeclAndEnab
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2683,7 +3104,7 @@ function s:TestParseChatBufferToBlocksWithBadMaxContextMessagesValue()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2730,7 +3151,7 @@ function s:TestParseChatBufferToBlocksWithBadMaxContextMessagesValueAndEnabledDe
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2790,7 +3211,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateOptionDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2839,7 +3260,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateOptionDeclAndEndabledDebugMod
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2897,7 +3318,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateShowReasoningDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -2945,7 +3366,7 @@ function s:TestParseChatBufferToBlocksWithDuplicateShowReasoningDeclAndEnabledDe
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3002,7 +3423,7 @@ function s:TestParseChatBufferToBlocksWithEmptyShowReasoningDecl()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3049,7 +3470,7 @@ function s:TestParseChatBufferToBlocksWithEmptyShowReasoningDeclAndEnabledDebugM
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3109,7 +3530,7 @@ function s:TestParseChatBufferToBlocksWithInvalidResourceReferences()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3159,7 +3580,7 @@ function s:TestParseChatBufferToBlocksWithInvalidResourceReferencesAndEnabledDeb
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3218,7 +3639,7 @@ function s:TestParseChatBufferToBlocksWithUnexpectedHeaderContent()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3266,7 +3687,7 @@ function s:TestParseChatBufferToBlocksWithUnexpectedHeaderContentAndEnabledDebug
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3328,7 +3749,7 @@ function s:TestParseChatBufferToBlocksWithEmptyAssistantMessageFault()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3379,7 +3800,7 @@ function s:TestParseChatBufferToBlocksWithEmptyAssistantMessageFaultAndEnabledDe
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3441,7 +3862,7 @@ function s:TestParseChatBufferToBlocksWithMissingAssistantMessageFault()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3492,7 +3913,7 @@ function s:TestParseChatBufferToBlocksWithMissingAssistantMessageFaultAndEnabled
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3560,7 +3981,7 @@ function s:TestParseChatBufferToBlocksWithMissingUserMessageFault()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3608,7 +4029,7 @@ function s:TestParseChatBufferToBlocksWithMissingUserMessageFault()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3666,7 +4087,7 @@ function s:TestParseChatBufferToBlocksWithMissingUserMessageFaultAndEnabledDebug
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3730,7 +4151,7 @@ function s:TestParseChatBufferToBlocksWithMissingUserMessageFaultAndEnabledDebug
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3796,7 +4217,7 @@ function s:TestParseChatBufferToBlocksWithUnexpectedTextContent()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3852,7 +4273,7 @@ function s:TestParseChatBufferToBlocksWithUnexpectedTextContentAndEnabledDebugMo
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3910,7 +4331,7 @@ function s:TestParseChatBufferToBlocksWithMissingHeaderSep()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -3961,7 +4382,7 @@ function s:TestParseChatBufferToBlocksWithMissingHeaderSepAndEnabledDebugMode()
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -4023,7 +4444,7 @@ function s:TestParseChatBufferToBlocksWithMissingAssistantMessageClosingDelimite
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -4075,7 +4496,7 @@ function s:TestParseChatBufferToBlocksWithMissingAssistantMessageClosingDelimite
     new
     silent! put! = l:bad_chat_doc
 
-    " Invoke the ParseChatBufferBlocks() function and assert that an exception is thrown whose message indicates the
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
     " fault we're expecting to see.
     try
         call s:util.ParseChatBufferToBlocks()
@@ -5283,9 +5704,9 @@ endfunction
 
 
 
-" *******************************************************
-" ****  FormatNumberWithThousandsSep Function Tests  ****
-" *******************************************************
+" *********************************************************
+" ****  FormatNumberWithThousandsSep() Function Tests  ****
+" *********************************************************
 
 " This test asserts the proper operation of function FormatNumberWithThousandsSep() when global variable
 " 'g:llmchat_thousands_sep_char' has been unset.
@@ -5373,6 +5794,117 @@ function s:TestFormatNumberWithThousandsSepAndNonEmptySep()
     "
     let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
     let g:llmchat_thousands_sep_char = l:defaults_dict["g:llmchat_thousands_sep_char"]
+
+endfunction
+
+
+" ****************************************************
+" ****  ProcessDynamicEmbedding() Function Tests  ****
+" ****************************************************
+
+" This test asserts the proper operation of function ProcessDynamicEmbedding() when the 'tag_value' argument given to
+" it references an available buffer.
+function s:TestProcessDynamicEmbeddingWithBufferRef()
+    " Create a new buffer then write a set of known lines to it.
+    "
+    " NOTE: When a new buffer is created it will come with an initial line already and adding content ot the buffer via
+    "       the 'put' command will shift this line down.  For our purposes here we don't really care that such line is
+    "       present but we do need to make sure we account for its presence when we validate the result returned by
+    "       the ProcessDynamicEmbedding() function later.
+    "
+    let l:buffer_content = "Some content written out\nto a disposable buffer for\nuse in testing."
+
+    new
+    silent! put! = l:buffer_content
+
+
+    " Capture the numerical identifier for the newly created buffer into a local variable for later use in constructing
+    " the "ID" we will send to the ProcessDynamicEmbedding() function.
+    let l:embedding_buffer = bufnr('')
+
+
+    " Create a dynamic embedding identifier which refers to the embedding content buffer and then invoke the
+    " ProcessDynamicEmbedding() function with such identifier.  Verify that the result returned matches to what was
+    " expected (including the extra newline that will be found at the bottom of the embedding content buffer).
+    let l:embedding_id = "@" .. l:embedding_buffer
+    let l:actual_result = s:util.ProcessDynamicEmbedding(l:embedding_id)
+
+    let l:expected_result = split(buffer_content, "\n")
+    call add(l:expected_result, "")   " Add empty line that *should* be at the bottom of the buffer
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:expected_result, l:actual_result)
+
+
+    " Cleanup after testing by performing the following tasks:
+    "
+    "   1). Forcefully delete the embedding content buffer created earlier in the test.
+    "
+    bd!
+
+endfunction
+
+
+" This test asserts the proper operation of function ProcessDynamicEmbedding() when the 'tag_value' argument given to
+" it references an existing file on disk.
+function s:TestProcessDynamicEmbeddingWithValidFileRef()
+    " Request the path to a temporary file from Vim and then output some testing content to it.
+    let l:temp_file = tempname()
+
+    let l:file_data = [
+                    \   "Some content written out to file",
+                    \   "for testing dynamic embedding",
+                    \   "file fetches."
+                    \ ]
+    call writefile(l:file_data, l:temp_file)
+
+
+    " Create a dynamic embedding identifier which refers to the temporary file and then invoke the
+    " ProcessDynamicEmbedding() function with such identifier.  Verify that the result returned matches exactly to the
+    " content that was written to file.
+    let l:embedding_id = l:temp_file
+    let l:actual_result = s:util.ProcessDynamicEmbedding(l:embedding_id)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:file_data, l:actual_result)
+
+
+    " Cleanup after testing by performing the following tasks:
+    "
+    "   1). Delete the temporary file created by the test execution.
+    "
+    call delete(l:temp_file)
+
+endfunction
+
+
+" This test asserts that an expected exception is thrown from function ProcessDynamicEmbedding() when the 'tag_value'
+" argument given to it references a non-existant file.
+function s:TestProcessDynamicEmbeddingWithInvalidFileRef()
+    " Request a temporary file name from Vim but do NOT write anything to the file.  This should leave us with a unique
+    " filename that does not yet exist on the system.
+    let l:nonexistant_file = tempname()
+
+    " Sanity Check - Verify that Vim cannot read from the 'l:nonexistant_file' before moving forward.
+    AssertTxt(!filereadable(l:nonexistant_file),
+            \ "Did not expect to find any file allocated at path '" .. l:nonexistant_file .. "' but such file " ..
+            \ "already existed on the local system.")
+
+    try
+        " Attempt to invoke the ProcessDynamicEmbedding() function using the 'l:nonexistant_file' as the provided
+        " ID; this should throw an exception if the logic is working properly as no such file exists.
+        call s:util.ProcessDynamicEmbedding(l:nonexistant_file)
+
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown prior to this point in the
+        " logic making this statement unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ProcessDynamicEmbedding() when the " ..
+                           \ "ID given to it corresponded to a non-existant filepath; however, no exception was " ..
+                           \ "thrown.")
+
+    catch /\c[error].*does not exist.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful as this was the behavior we expected to see happen.
+    endtry
 
 endfunction
 
