@@ -126,7 +126,6 @@ will need to checkout the tag associated with the release you would like to use 
 
 ## RoadMap
 There are plans for supporting the following features as this plugin evolves:
-  - Support for embedding file and buffer content into chats (still being designed).
   - Support for dynamic updates to buffer content based on chat responses (still under research).
 
 ## Known Issues
