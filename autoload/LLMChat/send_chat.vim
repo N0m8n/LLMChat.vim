@@ -1005,16 +1005,6 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
 
     endif
 
-
-    " NOTE: The modeling for resources used in a chat is unfortunately not in line with the way Open-WebUI models it.
-    "       Within the plugin, resources are seen as relevant to particular messages so they are attached as
-    "       supplementary data within the scope of a particular chat interaction.  In Open-WebUI resources are global
-    "       to the chat and are therefore attached outside the scope of messages. To resolve this modeling discrepancy
-    "       we will watch for resources attached to messages as we are building up the message segment of the request
-    "       payload and when found we will add these to a 'resources_list' for later processing.
-    let l:resources_list = []
-
-
     for l:curr_message_dict in l:message_array
         " Use the 'l:is_first_message' flag to determine whether or not we append a trailing comma character to the
         " message block being created.  When set to 1 we will skip adding the comma and will instead just change the
@@ -1045,54 +1035,9 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
                          \ "\n      }"
         endif
 
-        if has_key(l:curr_message_dict, s:util.parse_dictionary_user_resources_key)
-            " In this case we've found one or more resources attached to the chat.  Retrieve the array of resources
-            " attached to the current message dictionary and then add each resource to the 'l:resources_list'.
-            let l:user_resources_list = l:curr_message_dict[s:util.parse_dictionary_user_resources_key]
-
-            for l:curr_user_resource in l:user_resources_list
-                call add(l:resources_list, l:curr_user_resource)
-            endfor
-
-        endif
     endfor
 
     let l:request_message = l:request_message .. "\n    ]"
-
-    if len(l:resources_list) > 0
-        let l:request_message = l:request_message .. "," ..
-                         \ "\n  \"files\":" ..
-                         \ "\n    ["
-
-        let l:is_first_resource = 1   " Used to track when we inject trailing commas for added JSON objects.
-
-        for l:curr_resource in l:resources_list
-            if l:is_first_resource
-                let l:is_first_resource = 0
-            else
-                let l:request_message = l:request_message .. ","
-            endif
-
-            " We expect resources to be strings that start with either an 'f:' (for a file) or a 'c:' (for a
-            " collection).  Extract such prefix from the front of the resource value to split the 'curr_resource' into a
-            " type identifier and a resource ID.
-            "
-            " NOTE: Comparisons for the resource type prefix should always be case insensitive as this is more flexible
-            "       for the user (there is no ambiguity between "f:" and "F:" so we don't have a solid reason to fail).
-            "
-            let l:resource_type = (l:curr_resource[0:1] ==? "c:" ? "collection" : "file")
-            let l:resource_id = l:curr_resource[2:]
-
-            let l:request_message = l:request_message ..
-                               \ "\n      {" ..
-                               \ "\n        \"type\": \"" .. l:resource_type .. "\"," ..
-                               \ "\n        \"id\": \"" .. l:resource_id .. "\"" ..
-                               \ "\n      }"
-        endfor
-
-        let l:request_message = l:request_message .. "\n    ]"
-
-    endif
 
     if has_key(l:header_dict, s:util.parse_dictionary_header_options_dict)
         let l:request_message = l:request_message .. "," ..

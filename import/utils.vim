@@ -382,13 +382,6 @@ enddef
 #    |  [
 #    |    { + parse_dictionary_user_msg_key : 'Holds the user message for the chat "interaction"'
 #    |      |
-#    |      + parse_dictionary_user_resources_key
-#    |      |  [
-#    |      |    "Resource reference found within the user chat",
-#    |      |    "Another resource reference found within the user chat",
-#    |      |    ...
-#    |      |  ]
-#    |      |
 #    |      + parse_dictionary_assistant_msg_key : "Holds the assistant response to the user message if such
 #    |                                              response exists (for newly submitted questions there will be no
 #    |                                              response present)".
@@ -1338,11 +1331,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     # found some line that belongs to the block.  Check to see now if the line matches to a string
                     # having one of the following general forms:
                     #
-                    #   1). '[f:id]' or '[k:id]' - In this case we assume that we've found an Open WebUI resource
-                    #                              reference to either a file (f) or knowledge collection (k) within
-                    #                              the chat message.
-                    #
-                    #   2). '[d:id]' - In this case we assume that we've found a dynamic embedding reference within
+                    #   1). '[d:id]' - In this case we assume that we've found a dynamic embedding reference within
                     #                  the chat message.  This is a token that references either (1) an available
                     #                  buffer within Vim or (2) a file path and which should be replaced during parsing
                     #                  with the content of the referenced resource.
@@ -1353,33 +1342,20 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     # NOTE: The leading '\v...' in the regular expression is there to let Vim know we want it to use
                     #       "very magic" mode when performing interpretation of the regex.
                     if curr_buff_line =~# '\v^\s*\[.+\]\s*$'
-                        # If the logic comes here than we've found a "resource" that is embedded within the chat message
-                        # content.  Resources refer to things like files or entities that are separate from the chat
-                        # document but which should be included or referenced by the discussion.  Take the steps below
-                        # to finish processing this information:
+                        # If the logic comes here than we've found a "resource reference" that is embedded within the
+                        # chat message content.  Resource references refer to things like files or entities that are
+                        # separate from the chat document but which should be included or referenced by the discussion.
+                        # Take the steps below to finish processing this information:
                         #
                         #  1). Remove the wrapping '[' and ']' characters from the resource reference (along with any
                         #      leading or trailing whitespace); these are only used to identify the resource while
                         #      parsing.
                         #
-                        #  2). Validate that the resource begins with the prefix "d:", "f:", or "c:" (which specifies
-                        #      the type of resource; "d:" meaning "dynamic embedding", "f:" meaning "file", and "c:"
-                        #      meaning "collection").  If the resource does NOT begin with one of the supported
-                        #      prefixes than we will throw an exception.
+                        #  2). Validate that the resource begins with the prefix "d:" (which specifies the type of
+                        #      resource; "d:" meaning "dynamic embedding").  If the resource does NOT begin with a
+                        #      supported prefix than we will throw an exception.
                         #
-                        #  3). For resources with the "f:" or "c:" prefix do the following:
-                        #
-                        #      A). Check to see if a key matching to the value held by variable
-                        #          'parse_dictionary_user_resources_key' exists within the 'curr_chat_interaction_dict'
-                        #          as this will determine how we choose to add the new information.
-                        #
-                        #      B). If the key aleady existed than append the new resource information to the list that
-                        #          exists below that key.
-                        #
-                        #      C). If the key did NOT already exist than add the resource information into a new list
-                        #          and set this list into the 'curr_chat_interaction_dict' under the key.
-                        #
-                        #  4). For resources with the "d:" prefix do the following:
+                        #  3). For resources with the "d:" prefix do the following:
                         #
                         #      A). Call a utility function to fully resolve the content of the referenced resource.
                         #
@@ -1390,20 +1366,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                         var resource_ref_prefix = resource_ref[0 : 0]
 
-                        if resource_ref_prefix ==# 'c' || resource_ref_prefix ==# 'f'
-                            if has_key(curr_chat_interaction_dict, parse_dictionary_user_resources_key)
-                                add(curr_chat_interaction_dict[parse_dictionary_user_resources_key], resource_ref)
-                            else
-                                curr_chat_interaction_dict[parse_dictionary_user_resources_key] = [resource_ref]
-                            endif
-
-                            if IsDebugEnabled()
-                                add(debug_trace_list,
-                                    "Processed resource reference from user message (line " .. curr_buffer_line_cntr ..
-                                    ", value = '" .. resource_ref .. "')")
-                            endif
-
-                        elseif resource_ref_prefix ==# 'd'
+                        if resource_ref_prefix ==# 'd'
                             var content_tag = resource_ref[2 : -1]
 
                             extend(curr_text_block, ProcessDynamicEmbedding(content_tag))
@@ -1422,12 +1385,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                             throw "[ERROR] - A resource reference was encountered on line " ..
                                   curr_buffer_line_cntr .. " whose format was invalid.  Any provided resource " ..
-                                  "reference must be given in the format '[d:ID]' (for a dynamic embedding), " ..
-                                  "'[s:ID]' (for a file), or [c:ID] (for a knowledge collection) in order to be " ..
-                                  "understood by the parsing.  The resource reference that prompted this fault was " ..
-                                  "not found to begin with any of the supported prefixes (for example 'd:') so its " ..
-                                  "type could not be understood.  Please update this reference to use a supported " ..
-                                  "prefix value in order to resolve the fault."
+                                  "reference must be given in the format '[ID:resource]' where the 'ID' portion " ..
+                                  "of the reference corresponds to a supported reference type.  The resource " ..
+                                  "reference that prompted this fault was not found to begin with any of the " ..
+                                  "supported prefixes (for example 'd:') so its type could not be understood.  " ..
+                                  "Please update this reference to use a supported prefix value in order to resolve " ..
+                                  "the fault."
                         endif
 
                     else
@@ -1621,35 +1584,20 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                         var trimmed_message_start = substitute(curr_buff_line, '\v^\>\>\>', '', '')
                         if trimmed_message_start != ''
                             if trimmed_message_start =~# '\v^\s*\[.+\]\s*$'
-                                # If the logic comes here than we've found a "resource" that is embedded within the
-                                # chat message content.  Resources refer to things like files or entities that are
-                                # separate from the chat document but which should be included into the chat discussion.
-                                # Take the steps below to finish processing the information:
+                                # If the logic comes here than we've found a "resource reference" that is embedded
+                                # within the chat message content.  Resource references refer to things like files or
+                                # entities that are separate from the chat document but which should be included into
+                                # the chat discussion.  Take the steps below to finish processing the information:
                                 #
                                 #   1). Remove the wrapping '[' and ']' characters from the resource reference (along
                                 #       with any leading or trailing whitespace); these characters are only used to
                                 #       identify the resource during parsing.
                                 #
-                                #   2). Validate that the resource begins with the prefix "d:", "f:", or "c:" (which
-                                #       specifies the type of resource; "d:" meaning "dynamic embedding", "f:" meaning
-                                #       "file", and "c:" meaning collection).  If the resource does NOT begin with one
-                                #       of the supported prefixes than we will throw an exception.
+                                #   2). Validate that the resource begins with the prefix "d:" (which specifies the
+                                #       type of resource; "d:" meaning "dynamic embedding").  If the resource does NOT
+                                #       begin with a supported prefix than we will throw an exception.
                                 #
-                                #   3). For resources with the "f:" or "c:" prefix do the following:
-                                #
-                                #       A). Check to see if a key matching to the value held by variable
-                                #           'parse_dictionary_user_resources_key' exists within the
-                                #           'curr_chat_interaction_dict' as this will determine how we choose to add the
-                                #           new information.
-                                #
-                                #       B). If the key already existed than append the new resource infomration to the
-                                #           list that exists below that key.
-                                #
-                                #       C). If the key did NOT already exist than add the resource information info a
-                                #           new list and set this list into the 'curr_chat_interaction_dict' under the
-                                #           key.
-                                #
-                                #   4). For resources with the "d:" prefix do the following:
+                                #   3). For resources with the "d:" prefix do the following:
                                 #
                                 #       A). Call a utility function to fully resolve the content of the referenced
                                 #           resource.
@@ -1661,21 +1609,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                                 var resource_ref_prefix = resource_ref[0 : 0]
 
-                                if resource_ref_prefix ==# 'c' || resource_ref_prefix ==# 'f'
-                                    if has_key(curr_chat_interaction_dict, parse_dictionary_user_resources_key)
-                                        add(curr_chat_interaction_dict[parse_dictionary_user_resources_key],
-                                            resource_ref)
-                                    else
-                                        curr_chat_interaction_dict[parse_dictionary_user_resources_key] = [resource_ref]
-                                    endif
-
-                                    if IsDebugEnabled()
-                                        add(debug_trace_list,
-                                            "Processed resource reference from user message (line " ..
-                                            curr_buffer_line_cntr ..  ", value = '" .. resource_ref .. "')")
-                                    endif
-
-                                elseif resource_ref_prefix ==# 'd'
+                                if resource_ref_prefix ==# 'd'
                                     var content_tag = resource_ref[2 : -1]
 
                                     extend(curr_text_block, ProcessDynamicEmbedding(content_tag))
@@ -1694,13 +1628,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                                     throw "[ERROR] - A resource reference was encountered on line " ..
                                           curr_buffer_line_cntr .. " whose format was invalid.  Any provided " ..
-                                          "resource reference must be given in the format '[d:ID]' (for a dynamic " ..
-                                          "embedding), '[s:ID]' (for a file), or [c:ID] (for a knowledge " ..
-                                          "collection) in order to be understood by the parsing.  The resource " ..
-                                          "reference that prompted this fault was not found to begin with any of " ..
-                                          "the supported prefixes (for example 'd:') so its type could not be " ..
-                                          "understood.  Please update this reference to use a supported prefix " ..
-                                          "value in order to resolve the fault."
+                                          "resource reference must be given in the format '[ID:resource]' where the " ..
+                                          "'ID' portion of the reference corresponds to a supported reference type. " ..
+                                          "The resource reference that prompted this fault was not found to begin " ..
+                                          "with any of the supported prefixes (for example 'd:') so its type could " ..
+                                          "not be understood.  Please update this reference to use a supported " ..
+                                          "prefix value in order to resolve the fault."
                                 endif
 
                             else
@@ -2879,7 +2812,6 @@ enddef
 export const parse_dictionary_header_key = "header"
 export const parse_dictionary_messages_key = "messages"
 export const parse_dictionary_user_msg_key = "user"
-export const parse_dictionary_user_resources_key = "user_resources"
 export const parse_dictionary_assistant_msg_key = "assistant"
 export const parse_dictionary_parse_flags = "flags"
 

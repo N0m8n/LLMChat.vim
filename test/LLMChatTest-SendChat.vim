@@ -2725,14 +2725,7 @@ function s:TestCreateOpenWebUIRequestPayloadWithMaximalParseDict()
                           \                    "else I can help with?"
                           \     },
                           \     {
-                          \       "user": "Yes, can you summarize the \"attached file?\"",
-                          \       "user_resources":
-                          \       [
-                          \         "f:example_script",
-                          \         "c:dependency_collection",
-                          \         "F:glossary",
-                          \         "C:dictionary"
-                          \       ]
+                          \       "user": "Yes, can you summarize the \"attached file?\""
                           \     }
                           \   ],
                           \   "flags":
@@ -2780,25 +2773,6 @@ function s:TestCreateOpenWebUIRequestPayloadWithMaximalParseDict()
                         \ "\n      {" ..
                         \ "\n        \"role\": \"user\"," ..
                         \ "\n        \"content\": \"Yes, can you summarize the \\\"attached file?\\\"\"" ..
-                        \ "\n      }" ..
-                        \ "\n    ]," ..
-                        \ "\n  \"files\":" ..
-                        \ "\n    [" ..
-                        \ "\n      {" ..
-                        \ "\n        \"type\": \"file\"," ..
-                        \ "\n        \"id\": \"example_script\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"type\": \"collection\"," ..
-                        \ "\n        \"id\": \"dependency_collection\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"type\": \"file\"," ..
-                        \ "\n        \"id\": \"glossary\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"type\": \"collection\"," ..
-                        \ "\n        \"id\": \"dictionary\"" ..
                         \ "\n      }" ..
                         \ "\n    ]," ..
                         \ "\n  \"options\":" ..

@@ -654,10 +654,7 @@ function s:TestParseChatBufferToBlocksWithMaxDoc()
         \ "\n" ..
         \ "\n#Unfinished chat interaction (1) resources given and (2) with no assistant response." ..
         \ "\n>>>    I'm told this paper might know; can you read it" ..
-        \ "\nand let me know what you think?   " ..
-        \ "\n[f:document_1]" ..
-        \ "\n[f:https://some.domain:4568/knowledge/collection/id]   " ..
-        \ "\n     [c:foo]   "
+        \ "\nand let me know what you think?   "
 
 
     " Open a new buffer then write the content of variable "l:max_chat_doc" to it.  Note that we will use the 'put!'
@@ -708,13 +705,7 @@ function s:TestParseChatBufferToBlocksWithMaxDoc()
                               \       },
                               \       {
                               \         "user": "I'm told this paper might know; can you read it\n" ..
-                              \                 "and let me know what you think?",
-                              \         "user_resources":
-                              \           [
-                              \             "f:document_1",
-                              \             "f:https://some.domain:4568/knowledge/collection/id",
-                              \             "c:foo"
-                              \           ]
+                              \                 "and let me know what you think?"
                               \       }
                               \     ],
                               \   "flags":
@@ -794,10 +785,7 @@ function s:TestParseChatBufferToBlocksWithGoodDocAndDebugModeEnabled()
         \ "\n" ..
         \ "\n#Unfinished chat interaction (1) resources given and (2) with no assistant response." ..
         \ "\n>>>    I'm told this paper might know; can you read it" ..
-        \ "\nand let me know what you think?   " ..
-        \ "\n[f:document_1]" ..
-        \ "\n[f:https://some.domain:4568/knowledge/collection/id]   " ..
-        \ "\n     [c:foo]   "
+        \ "\nand let me know what you think?   "
 
 
     " Open a new buffer then write the content of variable "l:max_chat_doc" to it.  Note that we will use the 'put!'
@@ -848,13 +836,7 @@ function s:TestParseChatBufferToBlocksWithGoodDocAndDebugModeEnabled()
                               \       },
                               \       {
                               \         "user": "I'm told this paper might know; can you read it\n" ..
-                              \                 "and let me know what you think?",
-                              \         "user_resources":
-                              \           [
-                              \             "f:document_1",
-                              \             "f:https://some.domain:4568/knowledge/collection/id",
-                              \             "c:foo"
-                              \           ]
+                              \                 "and let me know what you think?"
                               \       }
                               \     ],
                               \   "flags":
