@@ -1092,6 +1092,101 @@ function s:TestParseChatBufferToBlocksWithHeaderOnlyParse()
 endfunction
 
 
+" This test verifies the behavior of function ParseChatBufferToBlocks() when it is invoked to parse a chat document
+" that is missing the 'Model ID' chat option AND the 'require_model' argument was provided as 'false'.
+function s:TestParseChatBufferToBlocksWithMissingModelIDAndSuppressedModelIDCheck()
+    " Define an example chat log document that contains header only content and which is missing any model ID
+    " declaration.
+    let l:test_doc = "Server Type: Ollama" ..
+                 \ "\nServer URL: https://testllms.com" ..
+                 \ "\n**** ENDSETUP ***"
+
+
+    " Open a new buffer then write the content of variable 'l:test_doc' to it.  Note that we will use the 'put!' command
+    " so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline resulting
+    " from the downshift of the first buffer line (the parse should ignore this so there should not need to be any
+    " special effort exerted to clean it up).
+    "
+    " NOTE: When the 'new' command is run we expect focus to automatically shift to the new testing buffer; for this
+    "       reason no code is included to shift focus to the newly opened buffer.
+    new
+    silent! put! = l:test_doc
+
+
+    " Invoke the ParseChatBufferToBlocks() function to perform a header-only parse of the new buffer and provide
+    " argument 'require_model' as 0 so that model ID validation is disabled.
+    let l:actual_parse_dict = s:util.ParseChatBufferToBlocks(1, bufnr(), 0)
+
+
+    " Now define an expected parse dictionary and show that the 'l:actual_parse_dict' returned earlier from the parsing
+    " process is identical to it.
+    let l:expected_parse_dict = {
+                              \   "header":
+                              \   {
+                              \     "server type": "Ollama",
+                              \     "server url": "https://testllms.com"
+                              \   }
+                              \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:expected_parse_dict, l:actual_parse_dict)
+
+    " Finally, cleanup by performing the following tasks:
+    "
+    "  1). Forcefully delete the new buffer without saving its content.
+    "
+    bd!
+
+endfunction
+
+
+" This test verifies the behavior of function ParseChatBufferToBlocks() when it is invoked to parse a chat document
+" that has an empty value given for its 'Model ID' chat option AND the 'require_model' argument was provided as 'false'.
+function s:TestParseChatBufferToBlocksWithEmptyModelIDAndSuppressedModelIDCheck()
+    " Define an example chat log document that contains header only content and which has an empty model ID
+    " declaration.
+    let l:test_doc = "Server Type: Ollama" ..
+                 \ "\nServer URL: https://testllms.com" ..
+                 \ "\nModel ID: " ..
+                 \ "\n**** ENDSETUP ***"
+
+
+    " Open a new buffer then write the content of variable 'l:test_doc' to it.  Note that we will use the 'put!' command
+    " so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline resulting
+    " from the downshift of the first buffer line (the parse should ignore this so there should not need to be any
+    " special effort exerted to clean it up).
+    "
+    " NOTE: When the 'new' command is run we expect focus to automatically shift to the new testing buffer; for this
+    "       reason no code is included to shift focus to the newly opened buffer.
+    new
+    silent! put! = l:test_doc
+
+
+    " Invoke the ParseChatBufferToBlocks() function to perform a header-only parse of the new buffer and provide
+    " argument 'require_model' as 0 so that model ID validation is disabled.
+    let l:actual_parse_dict = s:util.ParseChatBufferToBlocks(1, bufnr(), 0)
+
+
+    " Now define an expected parse dictionary and show that the 'l:actual_parse_dict' returned earlier from the parsing
+    " process is identical to it.
+    let l:expected_parse_dict = {
+                              \   "header":
+                              \   {
+                              \     "server type": "Ollama",
+                              \     "server url": "https://testllms.com"
+                              \   }
+                              \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:expected_parse_dict, l:actual_parse_dict)
+
+    " Finally, cleanup by performing the following tasks:
+    "
+    "  1). Forcefully delete the new buffer without saving its content.
+    "
+    bd!
+
+endfunction
+
+
 " This test verifies the behavior of function ParseChatBufferToBlocks() when the chat messages it is invoked to parse
 " contain special escape sequences.  If working properly the test expects to see the parse complete successfully and the
 " resulting parse dictionary should contain the correct unescaped text for the given sequences.
@@ -3492,8 +3587,8 @@ endfunction
 
 
 " This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
-" buffer content being processing contains a user message with invalid resource references.
-function s:TestParseChatBufferToBlocksWithInvalidResourceReferences()
+" buffer content being processing contains a user message with an invalid resource reference.
+function s:TestParseChatBufferToBlocksWithInvalidResourceReference()
     " Define an invalid chat document whose content holds an improperly formatted resource reference within a user
     " message.
     let l:bad_chat_doc =
@@ -3536,9 +3631,9 @@ endfunction
 
 
 " This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
-" when the buffer content being processed contains a user message with invalid resource references AND debug mode is
+" when the buffer content being processed contains a user message with an invalid resource reference AND debug mode is
 " enabled.
-function s:TestParseChatBufferToBlocksWithInvalidResourceReferencesAndEnabledDebugMode()
+function s:TestParseChatBufferToBlocksWithInvalidResourceReferenceAndEnabledDebugMode()
     " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
     " mode (this will implicitly enable debug mode).
     let l:debug_target = tempname()
@@ -3573,6 +3668,115 @@ function s:TestParseChatBufferToBlocksWithInvalidResourceReferencesAndEnabledDeb
                            \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
                            \ "was invoked to parse the content of a chat buffer that contained an improperly " ..
                            \ "defined resource reference; however, no exception occurred.")
+
+    catch /\c[error].*resource reference.*format was invalid.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
+" buffer content being processed contains a user message that starts with an improperly formatted resource reference.
+function s:TestParseChatBufferToBlocksWithStartingInvalidResourceReference()
+    " Define a chat document whose content holds a user message that starts with an improperly formatted resource
+    " reference.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\n* ENDSETUP *" ..
+      \ "\n>>>[Bad Resource Ref]"
+
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer that contained a user message " ..
+                           \ "starting with an improperly defined resource reference; however, no exception occurred.")
+
+    catch /\c[error].*resource reference.*format was invalid.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
+    bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a user message that starts with an invalid resource reference AND
+" debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithStartingInvalidResourceReferenceAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+
+    " Define a chat document whose content holds a user message that starts with an improperly formatted resource
+    " reference.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\n* ENDSETUP *" ..
+      \ "\n>>>[Bad Resource Ref]"
+
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer that contained a user message " ..
+                           \ "starting with an improperly defined resource reference; however, no exception occurred.")
 
     catch /\c[error].*resource reference.*format was invalid.*/
         " The caught exception has a message that matches the expression we were looking for; assume that the test

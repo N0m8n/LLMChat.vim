@@ -417,11 +417,17 @@ enddef
 #                    function execution.  When this argument is not provided than the function invocation will default
 #                    to parsing the content of the currently active buffer.
 #
+#    require_model - (Optional) This argument specifies whether or not the function execution should enforce that a
+#                    model ID was given within the header portion of the chat document.  While this enforcement is
+#                    generally desirable there are some workflows where a missing model ID is permissible (or even
+#                    expected) and in such situations the validation is counter-productive.  A value of 'true' (the
+#                    default) leaves the validation enabled while a value of 'false' disables the validation check.
+#
 #  Returns: A "parse dictionary" having the general structure documented above if the parse was successful.
 #
 #  Throws: Will throw an exception on parse failure whose message is a user-understandable description of the fault.
 #
-export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bufnr()): dict<any>
+export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bufnr(), require_model = true): dict<any>
     # Retrieve a dictionary of information about the buffer whose ID was provided to us (argument 'chat_buff_num')
     # then store this into a local variable.
     var buff_info_dict_array = getbufinfo(chat_buff_num)
@@ -660,7 +666,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                               "URL of the LLM service that chats are to be sent to."
                     endif
 
-                    if ! has_key(header_dict, parse_dictionary_header_model_id)
+                    if ! has_key(header_dict, parse_dictionary_header_model_id) && require_model
                         if IsDebugEnabled()
                             WriteToDebug(join(debug_trace_list, "\n"))
                         endif
@@ -835,6 +841,11 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #  4). Validate that the trimmed up value is not empty as the model ID is a required
                             #      declaration.
                             #
+                            #      NOTE: We will bypass this check if the 'require_model' argument given to this
+                            #            function was 'false'.  In such a case the logic will simply skip any further
+                            #            processing of the model ID found and will proceed on as if no such statement
+                            #            had been encountered.
+                            #
                             #  5). Add the extracted and cleaned value into the 'header_dict' variable.
                             #
                             if has_key(header_dict, parse_dictionary_header_model_id)
@@ -851,23 +862,27 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             var trimmed_value = substitute(curr_buff_line, '\v\s*Model ID:\s*', '', '')
                             trimmed_value = substitute(trimmed_value, '\v\s+$', '', '')
 
+
                             if trimmed_value == ''
-                                if IsDebugEnabled()
-                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                if require_model
+
+                                    if IsDebugEnabled()
+                                        WriteToDebug(join(debug_trace_list, "\n"))
+                                    endif
+
+                                    throw "[ERROR] - The 'Model ID' declaration found within the header segment " ..
+                                          "of the current chat buffer (line '" .. curr_buffer_line_cntr .. "') had " ..
+                                          "an empty value.  Please supply a valid, non-empty value for this " ..
+                                          "declaration in order to resolve this fault."
                                 endif
+                            else
+                                header_dict[parse_dictionary_header_model_id] = trimmed_value
 
-                                throw "[ERROR] - The 'Model ID' declaration found within the header segment " ..
-                                      "of the current chat buffer (line '" .. curr_buffer_line_cntr .. "') had " ..
-                                      "an empty value.  Please supply a valid, non-empty value for this declaration " ..
-                                      "in order to resolve this fault."
-                            endif
-
-                            header_dict[parse_dictionary_header_model_id] = trimmed_value
-
-                            if IsDebugEnabled()
-                                add(debug_trace_list,
-                                    "Processed 'Model ID' chat option (line = " .. curr_buffer_line_cntr ..
-                                    ", value = '" .. trimmed_value .. "')")
+                                if IsDebugEnabled()
+                                    add(debug_trace_list,
+                                        "Processed 'Model ID' chat option (line = " .. curr_buffer_line_cntr ..
+                                        ", value = '" .. trimmed_value .. "')")
+                                endif
                             endif
 
                         elseif curr_buff_line =~# '\v^\s*Use Auth Token\:.*$'

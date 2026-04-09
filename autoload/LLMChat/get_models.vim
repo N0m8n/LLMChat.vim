@@ -71,7 +71,7 @@ function LLMChat#get_models#FetchModels(register_name = '"')
         " Now initiate a parse of header information from the current buffer; we will need this to get critical
         " information such as the remote server URL, the type of server we're requesting the model listing from,
         " authentication details, etc.
-        let l:parse_dict = s:util.ParseChatBufferToBlocks(1)
+        let l:parse_dict = s:util.ParseChatBufferToBlocks(1, bufnr(), 0)
 
 
         " Output a debug message detailing that we're about to request a model listing from the remote LLM server.
