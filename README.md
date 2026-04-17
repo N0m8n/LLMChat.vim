@@ -23,6 +23,7 @@ Currently the plugin supports all of the following features:
   - Makes use of the asynchronous job framework in Vim for chat submissions so that the editor is usable while waiting
     on a response.
   - Supports the use of authentication for interacting with LLMs on secured servers.
+  - Includes Vim help page fully documenting the plugin usage and features (see ":help llmchat" after installation)
   - Only depends on the availability of `curl` locally (see the "Requirements" section below) and is otherwise written
     in pure vimscript (no additional requirements on language bindings, no need for specially compiled Vim binaries,
     etc)
