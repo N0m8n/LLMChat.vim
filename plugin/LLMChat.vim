@@ -85,12 +85,29 @@ if ! exists("g:llmchat_apikey_file")
 endif
 
 
+" This variable specifies the name of a "default" message register that should be used any time that a send chat event
+" takes place.  A "message register" is a register in Vim that a copy of the latest LLM response should be written into
+" once received during a chat interaction.  When such register is to be used than the value of this variable MUST be set
+" to one of the following:
+"
+"   1). A lowecase letter (a-z)
+"   2). An uppercase letter (A-Z)
+"   3). " (which refers to the "unnamed" register)
+"
+" If no message register is to be used than this variable must have the empty string set as its value.  Note that any
+" value set for this variable will be applied to *all* chat interactions run by the plugin (for chat-specific settings
+" please refer to the help file for chat header option 'Message Register').
+if ! exists("g:llmchat_default_message_register")
+    let g:llmchat_default_message_register = ''
+endif
+
+
 " This variable specifies the maximum length of chat history to use as context when submitting new messages to the
 " remote LLM.  A value of 0 or less indicates that ALL available chat history should be included on each chat request
-" made.  A positive value of 1 more more indicates that only the specified number of messages (beginning from the most
-" recent and going backwards in the chat history) should be included.  Note that this setting does NOT impact the chat
-" history being kept within the log file itself; it only effects the number of those messages that are included for
-" context when new chats are sent to the LLM.
+" made.  A positive value of 1 more more indicates that only the specified number of message pairings (i.e., sets of
+" user messages and assistant responses), beginning from the most recent and going backwards in the chat history,
+" should be included.  Note that this setting does NOT impact the chat history being kept within the log file itself; it
+" only effects the number of those messages that are included for context when new chats are sent to the LLM.
 if ! exists("g:llmchat_max_context_messages")
     let g:llmchat_max_context_messages = 0
 endif

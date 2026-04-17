@@ -495,6 +495,25 @@ Max Context Messages - This option allows the user to control how many messages
     that may be set by variable 'g:llmchat_max_context_messages' (see the
     comments in file 'plugin/LLMChat.vim' for more details).
 
+Message Register - This option specifies the name of a Vim register which
+                   should have its value set to the full content of the last
+    received assistant message.  When defined, the value given MUST be one of
+    the following:
+
+      1). A lowercase letter (a-z)
+      2). An uppercase letter (A-Z)
+      3). " meaning the "unnamed" register (this is the default register that
+          yanks are copied to).
+
+    Setting of the register value will always happen after the remote LLM
+    responds during a "SendChat" execution and the value set will be the message
+    returned by that execution (for more information on the "SendChat" command
+    please see section |LLMChat_Commands|).
+
+    Note that the value held by this option will always take precidence over
+    any value given to global variable 'g:llmchat_default_message_register'
+    within the context of the chat containing it.
+
 Option - This allows for the declaration of LLM model "options" within your
          chat log document.  When provided than the "value" must be of the
     form "name = value" where 'name' is an LLM model option supported for use by

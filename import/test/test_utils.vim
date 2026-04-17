@@ -46,6 +46,9 @@ const default_llmchat_default_system_prompt_value = ''
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_apikey_file'.
 const default_llmchat_apikey_file_value = ''
 
+# This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_message_register'.
+const default_llmchat_default_msg_register = ''
+
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_max_context_messages'.
 const default_llmchat_max_context_messages = 0
 
@@ -652,6 +655,14 @@ export def ResetGlobalVars(): dict<any>
     endif
 
 
+    # Check to see if the 'g:llmchat_default_message_register' variable has been set to a non-default value and if so
+    # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
+    if g:llmchat_default_message_register != default_llmchat_default_msg_register
+        orig_values_dict["g:llmchat_default_message_register"] = g:llmchat_default_message_register
+        g:llmchat_default_message_register = default_llmchat_default_msg_register
+    endif
+
+
     # Check to see if the 'g:llmchat_max_context_messages' variable has been set to a non-default value and if so backup
     # its value within the 'orig_values_dict' before resetting it to the plugin default.
     if g:llmchat_max_context_messages != default_llmchat_max_context_messages
@@ -795,6 +806,10 @@ export def RestoreGlobalVars(restore_dict: dict<any>)
         g:llmchat_apikey_file = restore_dict["g:llmchat_apikey_file"]
     endif
 
+    if has_key(restore_dict, "g:llmchat_default_message_register")
+        g:llmchat_default_message_register = restore_dict["g:llmchat_default_message_register"]
+    endif
+
     if has_key(restore_dict, "g:llmchat_max_context_messages")
         g:llmchat_max_context_messages = restore_dict["g:llmchat_max_context_messages"]
     endif
@@ -866,6 +881,7 @@ export def GetGlobalVariableDefaults(): dict<any>
              "g:llmchat_default_model_id": default_llmchat_default_model_id_value,
              "g:llmchat_default_system_prompt": default_llmchat_default_system_prompt_value,
              "g:llmchat_apikey_file": default_llmchat_apikey_file_value,
+             "g:llmchat_default_message_register": default_llmchat_default_msg_register,
              "g:llmchat_max_context_messages": default_llmchat_max_context_messages,
              "g:llmchat_open_splits_in_insert_mode": default_llmchat_open_new_chats_in_insert_mode_value,
              "g:llmchat_fully_expand_new_chats": default_llmchat_fully_expand_new_chats,

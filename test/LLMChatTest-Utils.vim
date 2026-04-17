@@ -618,6 +618,7 @@ function s:TestParseChatBufferToBlocksWithMaxDoc()
         \ "\nAuth Token: 3jdu93nfk3h" ..
         \ "\nShow Reasoning: medium" ..
         \ "\nMax Context Messages: 3" ..
+        \ "\nMessage Register: b" ..
         \ "\n" ..
         \ "\nSystem Prompt:   You are a helpful, knowledgable, and respectful" ..
         \ "\nassistant that will respond to any asked questions to the best" ..
@@ -681,6 +682,7 @@ function s:TestParseChatBufferToBlocksWithMaxDoc()
                               \       "auth key": "3jdu93nfk3h",
                               \       "show thinking": "medium",
                               \       "max context": 3,
+                              \       "message register": "b",
                               \       "system prompt": "You are a helpful, knowledgable, and respectful " ..
                               \                        "assistant that will respond to any asked questions to the " ..
                               \                        "best of your ability.",
@@ -749,6 +751,7 @@ function s:TestParseChatBufferToBlocksWithGoodDocAndDebugModeEnabled()
         \ "\nAuth Token: 3jdu93nfk3h" ..
         \ "\nShow Reasoning: medium" ..
         \ "\nMax Context Messages: 3" ..
+        \ "\nMessage Register: B" ..
         \ "\n" ..
         \ "\nSystem Prompt:   You are a helpful, knowledgable, and respectful" ..
         \ "\nassistant that will respond to any asked questions to the best" ..
@@ -812,6 +815,7 @@ function s:TestParseChatBufferToBlocksWithGoodDocAndDebugModeEnabled()
                               \       "auth key": "3jdu93nfk3h",
                               \       "show thinking": "medium",
                               \       "max context": 3,
+                              \       "message register": "B",
                               \       "system prompt": "You are a helpful, knowledgable, and respectful " ..
                               \                        "assistant that will respond to any asked questions to the " ..
                               \                        "best of your ability.",
@@ -3574,6 +3578,217 @@ function s:TestParseChatBufferToBlocksWithEmptyShowReasoningDeclAndEnabledDebugM
             \ "was empty.")
 
     " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
+" buffer content being processed contains a duplicate message register declaration in its header.
+function s:TestParseChatBufferToBlocksWithDuplicateMessageRegisterDecl()
+    " Define an invalid chat log document that contains a header with duplicate message register declarations.
+    let l:bad_chat_doc =
+        \   "Server Type: Ollama" ..
+        \ "\nMessage Register: a" ..
+        \ "\nServer URL: https://testllm.net/" ..
+        \ "\nModel ID: Test model" ..
+        \ "\nMessage Register: b" ..
+        \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "duplicate message register declarations; however, no exception occurred.")
+
+    catch /\c[error].*duplicate 'message register'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was succesful and take no further action.
+    endtry
+
+    " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
+    bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a duplicate message register declaration in its header AND debug mode
+" is enabled.
+function s:TestParseChatBufferToBlocksWithDuplicateMessageRegisterDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with duplicate message register declarations.
+    let l:bad_chat_doc =
+        \   "Server Type: Ollama" ..
+        \ "\nMessage Register: a" ..
+        \ "\nServer URL: https://testllm.net/" ..
+        \ "\nModel ID: Test model" ..
+        \ "\nMessage Register: b" ..
+        \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "duplicate message register declarations; however, no exception occurred.")
+
+    catch /\c[error].*duplicate 'message register'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was succesful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+
+    " Cleanup - Take the following actions now that the test execution has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
+" buffer content being processed contains a message register declaration in its header that has an invalid value.
+function s:TestParseChatBufferToBlocksWithInvalidMessageRegisterDecl()
+    " Define an invalid chat log document that contains a header with an invalid message register declaration.
+    let l:bad_chat_doc =
+                \   "Server Type: Open WebUI" ..
+                \ "\nServer URL: https://somhost/somepath" ..
+                \ "\nModel ID: Some Model ID" ..
+                \ "\nMessage Register: abc" ..
+                \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained an " ..
+                           \ "invalid message register declaration; however, no exception occurred.")
+
+    catch /\c[error].*register name.*invalid.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was succesful and take no further action.
+    endtry
+
+    " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
+    bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a message register declaration with an invalid value in its header
+" AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithInvalidMessageRegisterDeclAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with an invalid message register declaration.
+    let l:bad_chat_doc =
+                \   "Server Type: Open WebUI" ..
+                \ "\nServer URL: https://somhost/somepath" ..
+                \ "\nModel ID: Some Model ID" ..
+                \ "\nMessage Register: abc" ..
+                \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained an " ..
+                           \ "invalid message register declaration; however, no exception occurred.")
+
+    catch /\c[error].*register name.*invalid.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was succesful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test execution has completed:
     "
     "   1). Forcefully close out the new buffer that was created to hold the test document.
     "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.

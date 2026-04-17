@@ -367,9 +367,11 @@ enddef
 #    |    parse_dictionary_header_server_url: "https://remote.server.url",
 #    |    parse_dictionary_header_model_id: "model id",
 #    |    parse_dictionary_header_auth_key: "auth key",
-#    |    parse_dictionary_header_user_aut: 'true' or 'false'
+#    |    parse_dictionary_header_user_auth: 'true' or 'false'
 #    |    parse_dictionary_header_system_prompt: "system message",
 #    |    parse_dictionary_header_show_thinking: "thinking value",
+#    |    parse_dictionary_header_max_context: *Integer indicating number of message pairs to keep in chat submissions
+#    |    parse_dictionary_header_msg_register: *A-Z, a-z, or "
 #    |    parse_dicitonary_header_options_dict:
 #    |      {
 #    |        "option_name_1": "option_value_1",
@@ -1078,7 +1080,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #      If this is such a token than take the following steps; if not than jump to step
                             #      5.
                             #
-                            #        A). Call a utility method to retrieve the text for the token based on its
+                            #        A). Call a utility function to retrieve the text for the token based on its
                             #            content tag.
                             #
                             #        B). Prefix each line in the resolved content text, except the first, with a
@@ -1094,7 +1096,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #  5). If the remaining prompt value was NOT a dynamic embedding token than take the
                             #      following steps:
                             #
-                            #      A). Call a utility method to unescape any special sequences held by the trimmed
+                            #      A). Call a utility function to unescape any special sequences held by the trimmed
                             #          value.
                             #
                             #      B). Add the unescaped value into the list held by variable 'curr_text_block'.
@@ -1166,7 +1168,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #  2). Strip the 'Max Context Messages:' name prefix from the front of the line along with
                             #      any leading or trailing whitespace around it.
                             #
-                            #  3). Remove any trailing whitespacer from the end of the remaining value and then parse
+                            #  3). Remove any trailing whitespace from the end of the remaining value and then parse
                             #      the final result into a number.
                             #
                             #  4). Add the extracted and parsed value into the 'header_dict' variable.  Note that since
@@ -1258,6 +1260,69 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                 add(debug_trace_list,
                                     "Processed 'Option' chat option (line = " .. curr_buffer_line_cntr ..
                                     ", name = '" .. option_name .. "', value = '" .. option_value .. "')")
+                            endif
+
+                        elseif curr_buff_line =~# '\v^\s*Message Register\:.*$'
+                            # In this case we've encountered a message register declaration which will specify the name
+                            # of a Vim register that LLM response messages should be copied into.  Process this
+                            # statement by taking the following actions:
+                            #
+                            #   1). Verify that the 'header_dict' dictionary does NOT have any value already associated
+                            #       with the key held by constant 'parse_dictionary_header_msg_register'; if such key
+                            #       does exist it means we have found a duplicate option in the chat header and we'll
+                            #       throw an exception.
+                            #
+                            #   2). Strip the 'Message Register:' name prefix from the front of the line along with any
+                            #       leading or trailing whitespace around it.
+                            #
+                            #   3). Remove any trailing whitespace from the end of the remaining value.
+                            #
+                            #   4). Validate that the trimmed value matches to one of the following accepted register
+                            #       names:
+                            #
+                            #         A). Upper case letters [A-Z]
+                            #         B). Lower case letters [a-z]
+                            #         C). The "unnamed" register identified by "
+                            #
+                            #       If the value given in the statement is anything outside of these values than throw
+                            #       an exception.
+                            #
+                            #  5). Add the validated value into the 'header_dict' variable for later use.
+                            #
+                            if has_key(header_dict, parse_dictionary_header_msg_register)
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
+                                throw "[ERROR] - A duplicate 'Message Register' declaration was found within the " ..
+                                      "header segment of the current chat buffer on line " .. curr_buffer_line_cntr ..
+                                      ".  This declaration may only be given once per chat log document; to resolve " ..
+                                      "this issue you will need to remove the duplicate definition."
+
+                            endif
+
+                            var trimmed_value = substitute(curr_buff_line, '\v\s*Message Register\:\s*', '', '')
+                            trimmed_value = substitute(trimmed_value, '\v\s+$', '', '')
+
+                            if trimmed_value !~ '\v^[A-Za-z"]$'
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
+                                throw "[ERROR] - The register name provided as the value to the 'Message Register' " ..
+                                      "declaration on line " .. curr_buffer_line_cntr .. " within the current chat " ..
+                                      "log document was invalid.  The value given to this declaration MUST be a " ..
+                                      "single character that is (1) a lower case letter [a-z], (2) an upper case " ..
+                                      "letter [A-Z], or \" which refers to the unnamed register.  The register " ..
+                                      "name found at the time of this fault was: '" .. trimmed_value .. "'."
+                            endif
+
+                            header_dict[parse_dictionary_header_msg_register] = trimmed_value
+
+                            if IsDebugEnabled()
+                                add(debug_trace_list,
+                                    "Processed 'Message Register' chat option (line = " .. curr_buffer_line_cntr ..
+                                    ", value = '" .. trimmed_value .. "')")
                             endif
 
                         else
@@ -2831,15 +2896,16 @@ export const parse_dictionary_assistant_msg_key = "assistant"
 export const parse_dictionary_parse_flags = "flags"
 
 # Header dictionary keys...
+export const parse_dictionary_header_auth_key = "auth key"
+export const parse_dictionary_header_max_context = "max context"
+export const parse_dictionary_header_msg_register = "message register"
+export const parse_dictionary_header_model_id = "model id"
+export const parse_dictionary_header_options_dict = "options"
 export const parse_dictionary_header_server_type = "server type"
 export const parse_dictionary_header_server_url = "server url"
-export const parse_dictionary_header_model_id = "model id"
-export const parse_dictionary_header_use_auth = "use auth"
-export const parse_dictionary_header_auth_key = "auth key"
-export const parse_dictionary_header_system_prompt = "system prompt"
 export const parse_dictionary_header_show_thinking = "show thinking"
-export const parse_dictionary_header_options_dict = "options"
-export const parse_dictionary_header_max_context = "max context"
+export const parse_dictionary_header_system_prompt = "system prompt"
+export const parse_dictionary_header_use_auth = "use auth"
 
 
     # --------------------------------

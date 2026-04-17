@@ -2215,6 +2215,150 @@ function s:TestHandleChatResponseWithEnabledReasoning()
 endfunction
 
 
+" This test asserts that function HandleChatResponse() places a copy of the received response message into a known
+" register when the parse dictionary given to it indicates that a message register should be used.
+function s:TestHandleChatResponseWithMessageRegister()
+    " Set the 'g:llmchat_test_bypass_mode' variable to a value of 1 so that any exceptions that might come out of the
+    " HandleChatResponse() function will be properly surfaced.
+    let g:llmchat_test_bypass_mode = 1
+
+
+    " Set the 'g:llmchat_separator_bar_size' to a known size that way the test is insensitive to any changes that might
+    " be made to the default value of this variable.
+    let g:llmchat_separator_bar_size = 10
+
+
+    " Request Vim to provide us with the name and path to a temporary file then write some content to the file.  Note
+    " that we don't actually care what the file contains as nothing will use it; our main concern is simply that the
+    " file gets created.  We will then use this file to simulate the "request payload" file during testing to verify
+    " that it is removed as part of the cleanup performed by function HandleChatResponse().
+    let l:request_tempfile = tempname()
+    call writefile(["Some testing content"], l:request_tempfile)
+    AssertTxt(filereadable(l:request_tempfile),
+            \ "Unable to create a simulated request payload file on disk for testing.")
+
+
+    " Create a new buffer that will be used by the testing then write a line of text to it.  Note that the
+    " HandleChatResponse() function will only look at the current chat execution dictionary for its data so the content
+    " we write to the buffer doesn't need to be in proper chat document format; we only do this so we can confirm that
+    " content written to the buffer by the HandleChatResponse() function will appear in the correct place.
+    "
+    " NOTE: After running the 'new' command we assume the newly opened buffer to become the active buffer.
+    new
+    let l:test_lines_list = [ "Some test content", "written to the new buffer." ]
+    call appendbufline('%', '$', l:test_lines_list)
+
+
+    " Call a utility function to locate the "data" directory for this test then copy the content of the "response.json"
+    " file found at that location to a temporary file whose path is provided by Vim.  We do this because the response
+    " payload file we use will be removed by the execution of function HandleChatResponse() and we don't want to
+    " delete the original test data file from the system.
+    let l:response_tempfile = tempname()
+    call filecopy(s:testutil.GetTestDataDir("TestHandleChatResponseWithUnclosedUserMessage", 1) .. "response.json",
+                \ l:response_tempfile)
+
+    " Backup any value held by register 'a' at the time of this test so that we can restore such value at the end of
+    " testing.
+    let l:orig_register_value = @a
+
+
+    " Define a test "chat execution dictionary" that will simulate the information associated with a completed chat
+    " execution job and then invoke the necessary function to set it for use.  Note that, in the case of this test,
+    " we will also add the appropriate content to the embedded "parse dictionary" to indicate that register "a" should
+    " be used as the message register.
+    "
+    " NOTE: For this test "thinking" will be disabled and the output associated with such feature will be verified by
+    "       a separate test.
+    let l:test_chat_exec_dict = {
+                              \   "stdout": "200",
+                              \   "parse dict":
+                              \   {
+                              \     "header":
+                              \     {
+                              \       "server type": "Ollama",
+                              \       "show thinking": "false",
+                              \       "message register": "a"
+                              \     },
+                              \     "flags": { }
+                              \   },
+                              \   "buffer number": bufnr(),
+                              \   "buffer textwidth": "100",
+                              \   "buffer line count": line("$"),
+                              \   "response payload filename": l:response_tempfile,
+                              \   "request payload filename": l:request_tempfile
+                              \ }
+
+    call LLMChat#send_chat#SetCurrChatExecDict(l:test_chat_exec_dict)
+
+
+    " Invoke the HandleChatResponse() function such that it appears a successful response was received from an LLM.
+    "
+    " NOTE: The 'job_id' argument is not currently used by anything in the function so we will simply default this to
+    "       the empty string for now.
+    "
+    call LLMChat#send_chat#HandleChatResponse('', 0)
+
+
+    " Retrieve all content from the test buffer and validate that it contains (1) the original test text written to the
+    " buffer as well as (2) the content we expected to see the HandleChatResponse() function update the buffer with.
+    "
+    " NOTE: The lines appended to the buffer by function HandleChatResponse() should follow the line length restrictions
+    "       imposed by the information we put into the test chat execution dictionary.
+    "
+    let l:actual_list = getline(0, '$')
+    let l:expected_list =
+      \ [
+      \   '',
+      \   l:test_lines_list[0],
+      \   l:test_lines_list[1],
+      \   "=>>",
+      \   "Hello! I'm just a virtual assistant, so I don't have feelings, but I'm here and ready to help! How",
+      \   "can I assist you today?",
+      \   "<<=",
+      \   "----------",
+      \   ">>> "
+      \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:expected_list, l:actual_list)
+
+
+    " Assert that register 'a' also contains a copy of the response message but in this case such message should be
+    " verbatim and NOT formatted to the line length settings for the chat log.
+    let l:expected_reg_value = "Hello! I'm just a virtual assistant, so I don't have feelings, but I'm here and " ..
+                             \ "ready to help! How can I assist you today?"
+
+    AssertEquals(l:expected_reg_value, @a)
+
+
+    " Assert that both the "response payload" and "request payload" files used for testing were removed from the system.
+    AssertIs(0, filereadable(l:request_tempfile))
+    AssertIs(0, filereadable(l:response_tempfile))
+
+
+    " Now perform the following cleanup actions to tidy up after testing:
+    "
+    "   1). Invoke function AbortRunningChatExec() to cleanup the test chat execution dictionary we set earlier.
+    "   2). Forcibly close out the testing buffer (force is needed because the buffer contains unsaved content and we
+    "       have no need to save this).
+    "   3). Unset the 'g:llmchat_test_bypass_mode' variable to disable test behaviors from the code execution.
+    "   4). Reset the 'g:llmchat_separator_bar_size' variable to its default value.
+    "   5). If the value held by variable 'l:orig_register_value' is non-empty than restore such value back to register
+    "       'a'
+    "
+    call LLMChat#send_chat#AbortRunningChatExec()
+    bd!
+    unlet g:llmchat_test_bypass_mode
+
+    let l:defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_separator_bar_size = l:defaults_dict["g:llmchat_separator_bar_size"]
+
+    if !empty(l:orig_register_value)
+        let @a = l:orig_register_value
+    endif
+
+endfunction
+
+
 " This test asserts that function HandleChatResponse() throws a expected exception when it detects that the cURL call,
 " whose response data it is supposed to process, exited abonormally.
 function s:TestHandleChatResponseWithAbnormalCurlExit()
@@ -3800,6 +3944,164 @@ function s:TestGetMessageContextWithContextLimitInGlobalVar()
                                    \ '',
                                    \ l:expected_messages,
                                    \ l:actual_messages)
+endfunction
+
+
+" ***********************************************
+" ****  GetMessageRegister() Function Tests  ****
+" ***********************************************
+
+" This test asserts the behavior of function GetMessageRegister() when the 'parse_dict' given to it contains a header
+" field defining a message register that should be used.
+function s:TestGetMessageRegisterWithMessageRegisterHeaderOption()
+    " Craft a "parse dictionary" that contains a message register header field with a valid value.  Note that the
+    " GetMessageRegister() function does not pay attention to any other content in the dictionary so we will not include
+    " such content during testing.
+    let l:test_parse_dict = {
+                          \   "header":
+                          \   {
+                          \     "message register": "x"
+                          \   }
+                          \ }
+
+    " Invoke function GetMessageRegister using the test parse dictionary and assert that the expected register name is
+    " returned back.
+    AssertEquals('x', GetMessageRegister(l:test_parse_dict))
+
+endfunction
+
+
+" This test asserts the behavior of function GetMessageRegister() when the 'parse_dict' given to it does NOT contain
+" any message register header field BUT global variable 'g:llmchat_default_message_register' has been set to a known
+" value.
+function s:TestGetMessageRegisterWithGlobalRegisterDef()
+    " Set the 'g:llmchat_default_message_register' variable to a known, and valid register name value.
+    let g:llmchat_default_message_register = '"'
+
+    " Craft a test "parse dictionary" that does NOT contain a message register header field within it.  Note that since
+    " the GetMessageRegister() function only pays attention to the existence of such field (and any value assigned to
+    " it) we will omit all other information from the test parse dictionary.
+    let l:test_parse_dict = {
+                          \   "header": { }
+                          \ }
+
+    "Invoke function GetMessageRegister using the test parse dictionary and assert that the expected register name is
+    "returned back.
+    AssertEquals('"', GetMessageRegister(l:test_parse_dict))
+
+    " Reset global variable 'g:llmchat_default_message_register' back to its testing default value before exiting the
+    " test execution.  Note that any real value in use for this variable will be restored when the full test suite
+    " completes so we are only concerned with resetting the value to the state that any other test accessing it would
+    " expect to see.
+    let l:test_defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_default_message_register = l:test_defaults_dict["g:llmchat_default_message_register"]
+
+endfunction
+
+
+" This test asserts the behavior of function GetMessageRegister() when the 'parse_dict' given to it contains a message
+" register header field AND global variable 'g:llmchat_default_message_register' has been set to a different register
+" name.
+function s:TestGetMessageRegisterWithHeaderFieldAndGlobalSetting()
+    " Set the 'g:llmchat_default_message_register' variable to a known, and valid register name value.
+    let g:llmchat_default_message_register = 'p'
+
+    " Craft a "parse dictionary" that contains a message register header field with a valid value.  Note that the
+    " GetMessageRegister() function does not pay attention to any other content in the dictionary so we will not include
+    " such content during testing.
+    let l:test_parse_dict = {
+                          \   "header":
+                          \   {
+                          \     "message register": '"'
+                          \   }
+                          \ }
+
+    " Invoke function GetMessageRegister using the test parse dictionary and assert that the expected register name is
+    " returned back.
+    AssertEquals('"', GetMessageRegister(l:test_parse_dict))
+
+    " Reset global variable 'g:llmchat_default_message_register' back to its testing default value before exiting the
+    " test execution.  Note that any real value in use for this variable will be restored when the full test suite
+    " completes so we are only concerned with resetting the value to the state that any other test accessing it would
+    " expect to see.
+    let l:test_defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_default_message_register = l:test_defaults_dict["g:llmchat_default_message_register"]
+
+endfunction
+
+
+" This test asserts the behavior of function GetMessageRegister() when the 'parse_dict' given to it contains NO message
+" register header field AND global variable 'g:llmchat_default_message_register' is set to the empty string.
+function s:TestGetMessageRegisterWithNoSpecifiedRegister()
+    " Make sure that the 'g:llmchat_default_message_register' variable is set to the empty string (which is used as
+    " a special value to indicate that no global message register is in use).
+    let g:llmchat_default_message_register = ''
+
+    " Craft a test "parse dictionary" that does NOT contain a message register header field within it.  Note that since
+    " the GetMessageRegister() function only pays attention to the existence of such field (and any value assigned to
+    " it) we will omit all other information from the test parse dictionary.
+    let l:test_parse_dict = {
+                          \   "header": { }
+                          \ }
+
+    " Invoke function GetMessageRegister() and assert that the empty string is returned (indicating that no message
+    " register has been configured for use).
+    AssertEquals('', GetMessageRegister(l:test_parse_dict))
+
+    " Reset global variable 'g:llmchat_default_message_register' back to its testing default value before exiting the
+    " test execution.  Note that any real value in use for this variable will be restored when the full test suite
+    " completes so we are only concerned with resetting the value to the state that any other test accessing it would
+    " expect to see.
+    let l:test_defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_default_message_register = l:test_defaults_dict["g:llmchat_default_message_register"]
+
+endfunction
+
+
+" This test asserts that an expected exception is thrown from function GetMessageRegister() when (1) the 'parse_dict'
+" given to the function contains NO message register header field and (2) the 'g:llmchat_default_message_register' is
+" set to an invalid value.
+function s:TestGetMessageRegisterWithInvalidGlobalSetting()
+    " Set the 'g:llmchat_default_message_register' variable to an invalid value.
+    let g:llmchat_default_message_register = 'abc'
+
+
+    " Craft a test "parse dictionary" that does NOT contain a message register header field within it.  Note that since
+    " the GetMessageRegister() function only pays attention to the existence of such field (and any value assigned to
+    " it) we will omit all other information from the test parse dictionary.
+    let l:test_parse_dict = {
+                          \   "header": { }
+                          \ }
+
+    try
+        " Attempt to invoke the GetMessageRegister() function to resolve any register to be used for message capture.
+        " We expect the function execution to examine the value held by global variable
+        " 'g:llmchat_default_message_register' and then throw an exception when such value is found to be invalid.
+        call GetMessageRegister(l:test_parse_dict)
+
+
+        " If the logic makes it here than fail the test; an exception should have already been thrown which would make
+        " this statement unreachable.
+        call s:.testUtil.Fail(expand('<sflnum>') - 9,
+                            \ "Expected to see an exception thrown from function GetMessageRegister() when the " ..
+                            \ "function was invoked such that (1) it would need to return the value held by " ..
+                            \ "global variable 'g:llmchat_default_message_register' AND the value for such variable " ..
+                            \ "was invalid; however, no exception occurred.")
+
+    catch /\c[error].*register name.*invalid.*/
+        " If the logic comes here than we have caught an exception whose message appears to match the message for the
+        " exception we expected to see thrown; take no action and allow the test to proceed as this is what should
+        " occur if the logic was working correctly.
+    endtry
+
+
+    " Reset global variable 'g:llmchat_default_message_register' back to its testing default value before exiting the
+    " test execution.  Note that any real value in use for this variable will be restored when the full test suite
+    " completes so we are only concerned with resetting the value to the state that any other test accessing it would
+    " expect to see.
+    let l:test_defaults_dict = s:testutil.GetGlobalVariableDefaults()
+    let g:llmchat_default_message_register = l:test_defaults_dict["g:llmchat_default_message_register"]
+
 endfunction
 
 

@@ -651,6 +651,20 @@ function LLMChat#send_chat#HandleChatResponse(job_id, exit_status)
         let l:new_cursor_line = l:curr_chat_buffer_lines
 
 
+        " Check to see if a "message register" has been specified for use; if so (i.e., if a non-empty register name
+        " can be found) than we will copy the full LLM response message into the register.
+        "
+        " NOTE: Unlike the message insertion into the chat later, we will NOT pre-format the message to ensure that
+        "       line length is within set limits.  We do not know what the user will do with the register content or
+        "       what line limits (if any) exist in a buffer they may paste this content to so it doesn't make sense
+        "       to enforce limits from the chat log arbitrarily here.
+        "
+        let l:message_register = GetMessageRegister(l:parse_dictionary)
+        if !empty(l:message_register)
+            call setreg(l:message_register, l:response_dict[s:common_resp_dict_message])
+        endif
+
+
         " Create a list that will hold the full response we want to write back to the chat buffer as sequence of text
         " "lines".  The issue here is that the appendbufline() function does not seem to like newlines within the
         " strings you give to it (instead it will escape these which messes up your output) but the function will
@@ -658,6 +672,7 @@ function LLMChat#send_chat#HandleChatResponse(job_id, exit_status)
         " lines we want to insert rather than one giant string representing multiple lines delimited by newline
         " sequences.
         let l:response_lines_list = []
+
 
         " Check to see if a flags dictionary exists within the 'l:parse_dictionary'; if so than we need to retrieve it
         " and look for conditions that need to be addressed before we add the assistant response to the chat.
@@ -1631,6 +1646,79 @@ function LLMChat#send_chat#GetMessageContext(parse_dict)
     return l:messages_list
 
 endfunction
+
+
+" This function will attempt to resolve and return the name of any register that should be used to hold a copy of a
+" response message returned from an LLM during a chat interaction.  To complete this task the function execution will
+" perform the following actions:
+"
+"   1). If the 'parse_dict' argument provided contains a message register field in its header section than the value
+"       for that field will be returned.  Note that no additional validation steps are taken in this case as it is
+"       always assumed the value was validated during creation of the parse dictionary.
+"
+"   2). If the 'parse_dict' contains no message register specification than the logic will check to see if
+"       global variable 'g:llmchat_default_message_register' is set and if so the value held by such variable will be
+"       returned instead.  Note that in this case validation of the variable value IS enforced and such value must be
+"       (1) a lower case letter [a-z], (2) an upper case letter [A-Z], or " (which refers to the unnamed register)
+"       otherwise an exception will be thrown.
+"
+"   3). When the 'parse_dict' argument given contains no message register specification AND the
+"       'g:llmchat_default_message_register' variable is set to the empty string than this function will simply return
+"       the empty string (which means no message register should be used by the caller).
+"
+" Arguments:
+"   parse_dict - The parse dictionary representing the chat log document content at the time this function was invoked.
+"                Note that since only header information is needed by the function execution than a parse dictionary
+"                produced by a header only parse is still acceptable to provide.
+"
+" Returns: A value representing a valid message register (i.e., a-z, A-Z or ") or the empty string if no message
+"          register should be used.
+"
+" Throws: An exception if the value of variable 'g:llmchat_default_message_register' is consulted and found to be
+"         anything other than (1) a valid register name or (2) the empty string.
+"
+function GetMessageRegister(parse_dict)
+    " Define a variable that will hold the register name to be returned from this function call.  By default this will
+    " be set to the empty string which means no register should be used for capturing the latest response message in the
+    " chat.
+    let l:resolved_register = ''
+
+
+    " Retrieve the "header dictionary" from the parse dictionary given and store this into a local variable.  The
+    " header dictionary will give us access to all chat options defined by the user at the time of chat submission.
+    let l:header_dict = a:parse_dict[s:util.parse_dictionary_header_key]
+
+
+    " Check to see if the header dictionary contains a key matching to the value held by parse constant
+    " 'parse_dictionary_header_msg_register'; if so than set the value stored under such key as the name of the
+    " register to return.  If the header dictionary contains no such entry than we will check to see if a global
+    " message register was set that can be returned.
+    if has_key(l:header_dict, s:util.parse_dictionary_header_msg_register)
+        let l:resolved_register = l:header_dict[s:util.parse_dictionary_header_msg_register]
+
+    elseif exists('g:llmchat_default_message_register') && !empty(g:llmchat_default_message_register)
+        " NOTE: Since a global variable can be set at any time (and such setting does NOT enforce validation) we need
+        "       to ensure that the value found is usable before we try to return it.
+        if g:llmchat_default_message_register !~ '\v^[A-Za-z"]$'
+            throw "[ERROR] - The register name provided in global variable 'g:llmchat_default_message_register'" ..
+                \ "was invalid.  The register supplied as a value to this variable MUST be a single character that " ..
+                \ "is (1) a lower case letter [a-z], (2) an upper case letter [A-Z], or \" which refers to the " ..
+                \ "unnamed register.  The register name found at the time of this fault was: '" ..
+                \ g:llmchat_default_message_register .. "'."
+        endif
+
+
+        " If the logic comes here than the value held by global variable 'g:llmchat_default_message_register' is
+        " assumed to be valid; go ahead and change the value held by variable 'l:resolved_register' to be the same.
+        let l:resolved_register = g:llmchat_default_message_register
+
+    endif
+
+    " Return the resolved register name back to the caller.
+    return l:resolved_register
+
+endfunction
+
 
 
 " ============================
