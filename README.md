@@ -19,6 +19,7 @@ Currently the plugin supports all of the following features:
   - Supports the output of reasoning (i.e., "thinking") responses produced by some LLM models.
   - Supports the dynamic embedding of external content (either from buffer or from file) into the chat context during
     chat submission.
+  - Can automatically copy the latest LLM response into a general purpose register ("message register" feature)
   - Makes use of the asynchronous job framework in Vim for chat submissions so that the editor is usable while waiting
     on a response.
   - Supports the use of authentication for interacting with LLMs on secured servers.
@@ -102,6 +103,13 @@ This plugin is provided for general use under the terms of the GNU Public Licens
 Releases are made by tagging the repository with one of the versions listed below.  To install a specific release you
 will need to checkout the tag associated with the release you would like to use after cloning the repository locally.
 
+  - **v0.5.0** - Added the new features listed below and relaxed validation of the 'Model ID' header option during
+                 chat model listing:
+    - Added a new "dynamic embedding" feature that can automatically insert content from a buffer or local file into
+      either a user chat message or the system prompt of a chat.
+    - Added a "message register" setting that can be used to copy the full content of the most recently received LLM
+      response into a general purpose Vim register.  This makes pasting the response into another buffer simpler and
+      faster to perform.
   - **v0.4.2** - Reworked the folding feature to account for ambiguity introduced when recognized syntax features,
                  such as lines that begin with '#', are included inside user/assistant messages.
   - **v0.4.1** - Corrected a minor parsing bug which would cause lines containing a '-' character to be ignored; this
