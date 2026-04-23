@@ -17,3 +17,22 @@ if g:llmchat_use_chat_folding
     setlocal foldexpr=LLMChat#folding#GetFoldLevel(v:lnum)
 
 endif
+
+
+" Setup the format options and comments defaults for chat log files.  This will include the following:
+"
+"   Format Options:
+"     c  - Automatically wrap comments when a comment line exceeds 'textwidth' characters in size
+"     j  - Remove comment leaders (i.e., '#' characters) when joining together comment lines.
+"     l  - Don't break existing long lines when going into insert mode
+"     o  - Automatically insert the comment leader on a new line created by 'o' or 'O' in normal mode when the command
+"          is issued from a comment line.
+"     q  - Allow the formatting of comments when the 'gq' command is issued.
+"     r  - Automatically insert the comment leader on a new line created by pressing <Enter> from a comment line.
+"     t  - Auto-wrap text based on the 'textwidth' setting.
+"
+"  Comments: Any line that starts with a '#' character should be recognized as a comment line.
+"
+setlocal formatoptions=cjloqrt
+setlocal comments=:#
+
