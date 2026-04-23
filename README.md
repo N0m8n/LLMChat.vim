@@ -104,6 +104,8 @@ This plugin is provided for general use under the terms of the GNU Public Licens
 Releases are made by tagging the repository with one of the versions listed below.  To install a specific release you
 will need to checkout the tag associated with the release you would like to use after cloning the repository locally.
 
+  - **v0.5.1** - Fixed a bug where user messages that started immediately after the opening '>>>' sequence, and which
+                 were automatically line wrapped by Vim, would be started with a '>>>' sequence.
   - **v0.5.0** - Added the new features listed below and relaxed validation of the 'Model ID' header option during
                  chat model listing:
     - Added a new "dynamic embedding" feature that can automatically insert content from a buffer or local file into
@@ -138,11 +140,7 @@ There are plans for supporting the following features as this plugin evolves:
   - Support for dynamic updates to buffer content based on chat responses (still under research).
 
 ## Known Issues
-The following issues are known to exist in the plugin and have yet to be resolved:
-  - If you begin typing messages immediately after the opening '>>>' sequence, and allow Vim to line wrap your text,
-    than the next line will incorrectly be started with a '>>>'.  You must then remove this opening sequence to continue
-    typing your message (note that starting messages on the line after the '>>>' works around this problem).  It is
-    unclear exactly what causes this and the issue remains under investigation.
+There are currently no known issues or outstanding bugs with the plugin.
 
 ## Additional Screenshots
 ### Showing Remote Model Listing
