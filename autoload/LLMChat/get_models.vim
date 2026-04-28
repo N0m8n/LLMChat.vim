@@ -210,13 +210,6 @@ function LLMChat#get_models#FetchModels(register_name = '"')
         call LLMChat#get_models#RequestModelList(l:curl_command, l:model_listing_info_dict)
 
     catch /\v.*/
-        " Check to see if the 'g:llmchat_test_bypass_mode' variable has been set to a non-empty value; if so we will
-        " assume that this function is being called by a test and we will re-throw the caught exception in order to
-        " properly surface it.
-        if exists("g:llmchat_test_bypass_mode")
-            throw v:exception
-        endif
-
         " If the logic comes here than we assume an exception was encountered outside the context of testing while
         " trying to execute an LLM interaction; display the exception message using 'echom' then take no further action.
         if s:util.IsDebugEnabled()
@@ -224,7 +217,15 @@ function LLMChat#get_models#FetchModels(register_name = '"')
                                     \ join(v:stacktrace, "\n"))
         endif
 
-        echom v:exception
+        " Check to see if the 'g:llmchat_test_bypass_mode' variable has been set to a non-empty value; if so we will
+        " assume that this function is being called by a test and we will re-throw the caught exception in order to
+        " properly surface it.  If it looks like we're NOT in the context of a running test than echo the fault message
+        " for the user to review.
+        if exists("g:llmchat_test_bypass_mode")
+            throw v:exception
+        else
+            echom v:exception
+        endif
 
     endtry
 
@@ -502,13 +503,6 @@ function LLMChat#get_models#ProcessModelListingResponse(model_listing_info_dict)
         endif
 
     catch /\v.*/
-        " Check to see if the 'g:llmchat_test_bypass_mode' variable has been set to a non-empty value; if so we will
-        " assume that this function is being called by a test and we will re-throw the caught exception in order to
-        " properly surface it.
-        if exists("g:llmchat_test_bypass_mode")
-            throw v:exception
-        endif
-
         " If the logic comes here than we assume an exception was encountered outside the context of testing while
         " trying to execute an LLM interaction; display the exception message using 'echom' then take no further action.
         if s:util.IsDebugEnabled()
@@ -516,7 +510,16 @@ function LLMChat#get_models#ProcessModelListingResponse(model_listing_info_dict)
                                     \ join(v:stacktrace, "\n"))
         endif
 
-        echom v:exception
+        " Check to see if the 'g:llmchat_test_bypass_mode' variable has been set to a non-empty value; if so we will
+        " assume that this function is being called by a test and we will re-throw the caught exception in order to
+        " properly surface it.  If it looks like we're NOT in the context of a test than simply echo the fault message
+        " out for the user to review.
+        if exists("g:llmchat_test_bypass_mode")
+            throw v:exception
+        else
+            echom v:exception
+        endif
+
 
     endtry
 

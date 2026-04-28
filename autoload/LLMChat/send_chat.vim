@@ -332,13 +332,6 @@ function LLMChat#send_chat#InitiateChatInteraction()
         endif
 
     catch /\v.*/
-        " Check to see if the 'g:llmchat_test_bypass_mode' variable has been set to a non-empty value; if so we will
-        " assume that this function is being called by a test and we will re-throw the caught exception in order to
-        " properly surface it.
-        if exists("g:llmchat_test_bypass_mode")
-            throw v:exception
-        endif
-
         " If the logic comes here than we assume an exception was encountered outside the context of testing while
         " trying to execute an LLM interaction; display the exception message using 'echom' then take no further action.
         if s:util.IsDebugEnabled()
@@ -346,7 +339,15 @@ function LLMChat#send_chat#InitiateChatInteraction()
                                     \ join(v:stacktrace, "\n"))
         endif
 
-        echom v:exception
+        " Check to see if the 'g:llmchat_test_bypass_mode' variable has been set to a non-empty value; if so we will
+        " assume that this function is being called by a test and we will re-throw the caught exception in order to
+        " properly surface it.  If it appears that a test is NOT running than just echo the fault out for the user to
+        " review.
+        if exists("g:llmchat_test_bypass_mode")
+            throw v:exception
+        else
+            echom v:exception
+        endif
 
     endtry
 
@@ -805,20 +806,21 @@ function LLMChat#send_chat#HandleChatResponse(job_id, exit_status)
         call s:util.WriteToDebug("Chat interaction completed successfully!")
 
     catch /\v.*/
-        " Check to see if the 'g:llmchat_test_bypass_mode' variable has been set to a non-empty value; if so we will
-        " assume that this function is being called by a test and we will re-throw the caught exception in order to
-        " properly surface it.
-        if exists("g:llmchat_test_bypass_mode")
-            throw v:exception
-        endif
-
         " If the logic comes here than we assume an exception was encountered outside the context of testing while
         " trying to execute an LLM interaction; display the exception message using 'echom' then take no further action.
         if s:util.IsDebugEnabled()
             call s:util.WriteToDebug("Chat interaction failed: " .. v:exception)
         endif
 
-        echom v:exception
+        " Check to see if the 'g:llmchat_test_bypass_mode' variable has been set to a non-empty value; if so we will
+        " assume that this function is being called by a test and we will re-throw the caught exception in order to
+        " properly surface it.  If it appears that we're NOT in the context of a running test than simply echo the
+        " fault out for the user to review.
+        if exists("g:llmchat_test_bypass_mode")
+            throw v:exception
+        else
+            echom v:exception
+        endif
 
     endtry
 
@@ -849,120 +851,85 @@ function LLMChat#send_chat#CreateOllamaChatRequestPayload(parse_dictionary, outp
     let l:message_array = LLMChat#send_chat#GetMessageContext(a:parse_dictionary)
 
 
-    " Begin building up the request payload that we should send for a chat interaction with an Ollama server.
+    " Resolve the "thinking" value to be used on the request to the Ollama server.
     let l:thinking_value = has_key(l:header_dict, s:util.parse_dictionary_header_show_thinking) ?
                           \ l:header_dict[s:util.parse_dictionary_header_show_thinking] :
-                          \ "false"
+                          \ v:false
 
-    if l:thinking_value != "true" && l:thinking_value != "false"
-        " Special Case - Ollama allows a string value to be passed for its "thinking" specification when the model
-        "                supports more granularity than just on/off.  We assume this to be the case here so make sure
-        "                we wrap the value within quotes as it won't be a boolean.
-        let l:thinking_value = "\"" .. l:thinking_value .. "\""
+    " Special Cases - If the "thinking" value is equal to the string literal "true" or "false" than we will need to
+    "                 change the value representation to have this properly encoded as a boolean within the JSON
+    "                 generated later.  Currently Vim will see both of these as string literals which will wind up as
+    "                 a quoted string if we did not take action.
+    if l:thinking_value ==? "true"
+        let l:thinking_value = v:true
+    elseif l:thinking_value ==? "false"
+        let l:thinking_value = v:false
     endif
 
-    let l:encoded_model_id = json_encode(l:header_dict[s:util.parse_dictionary_header_model_id])
-    let l:request_message = "{" ..
-                        \ "\n  \"model\": " .. l:encoded_model_id .. "," ..
-                        \ "\n  \"think\": " .. l:thinking_value .. "," ..
-                        \ "\n  \"stream\": " .. (g:llmchat_use_streaming_mode ? "true" : "false") .. "," ..
-                        \ "\n  \"messages\":" ..
-                        \ "\n    ["
 
-    let l:is_first_message = 1   " Will be used to control when commas are inserted after array elements.
+    " Create a dictionary that will define the content and tree form of the JSON to be submitted to the remote LLM
+    " server as the chat request payload.
+    let l:json_dict = { }
+
+
+    " Add the top level field values for model, thinking, and request streaming.
+    let l:json_dict["model"] = l:header_dict[s:util.parse_dictionary_header_model_id]
+    let l:json_dict["think"] = l:thinking_value
+    let l:json_dict["stream"] = (g:llmchat_use_streaming_mode ? v:true : v:false)
+
+
+    " Add all messages held by the parse dictionary into a list that will then be embedded into the 'json_dict'.  Note
+    " that each entry within the list will be its own dictionary and will contain fields for the user, assistant, and
+    " possibly system messages.
+    let l:json_message_list = [ ]
+
     if has_key(l:header_dict, s:util.parse_dictionary_header_system_prompt)
-        " NOTE: Make sure to retrieve the system prompt text and escape any " characters it might contain with \" before
-        "       appending the text to the JSON request payload.
-        let l:escaped_system_prompt = json_encode(l:header_dict[s:util.parse_dictionary_header_system_prompt])
-        let l:request_message = l:request_message ..
-                     \ "\n      {" ..
-                     \ "\n        \"role\": \"system\"," ..
-                     \ "\n        \"content\": " .. l:escaped_system_prompt ..
-                     \ "\n      }"
-
-        " Set the 'l:is_first_message' variable to 0 since our first message was the system prompt.
-        let l:is_first_message = 0
-
+        call add(l:json_message_list,
+               \ {
+               \   "role": "system",
+               \   "content": l:header_dict[s:util.parse_dictionary_header_system_prompt]
+               \ })
     endif
 
     for l:curr_message_dict in l:message_array
-        " Use the 'l:is_first_message' flag to determine whether or not we append a trailing comma character to the
-        " message block being created.  When set to 1 we will skip adding the comma and will instead just change the
-        " value to 0; when the value is 0 we will add a comma BEFORE the next message block.
-        if l:is_first_message
-            let l:is_first_message = 0
-        else
-            let l:request_message = l:request_message .. ","
-        endif
-
-        " NOTE: Make sure to retrieve the user message text and escape any " characters it might contain with \" before
-        "       appending the text to the JSON request payload.
-        let l:escaped_user_msg = json_encode(l:curr_message_dict[s:util.parse_dictionary_user_msg_key])
-        let l:request_message = l:request_message ..
-                     \ "\n      {" ..
-                     \ "\n        \"role\": \"user\"," ..
-                     \ "\n        \"content\": " .. l:escaped_user_msg ..
-                     \ "\n      }"
+        call add(l:json_message_list,
+               \ {
+               \   "role": "user",
+               \   "content": l:curr_message_dict[s:util.parse_dictionary_user_msg_key]
+               \ })
 
         if has_key(l:curr_message_dict, s:util.parse_dictionary_assistant_msg_key)
-            " NOTE: Make sure to retrieve the assistant message text and escape any " characters it might contain with
-            "       \" before appending the text to the JSON request payload.
-            let l:escaped_assistant_msg = json_encode(l:curr_message_dict[s:util.parse_dictionary_assistant_msg_key])
-            let l:request_message = l:request_message .. "," ..
-                         \ "\n      {" ..
-                         \ "\n        \"role\": \"assistant\"," ..
-                         \ "\n        \"content\": " .. l:escaped_assistant_msg ..
-                         \ "\n      }"
+            call add(l:json_message_list,
+                   \ {
+                   \   "role": "assistant",
+                   \   "content": l:curr_message_dict[s:util.parse_dictionary_assistant_msg_key]
+                   \ })
         endif
 
     endfor
 
-    let l:request_message = l:request_message .. "\n    ]"
+    let l:json_dict["messages"] = l:json_message_list
 
-    if has_key(l:header_dict, s:util.parse_dictionary_header_options_dict)
-        let l:request_message = l:request_message .. "," ..
-                         \ "\n  \"options\":" ..
-                         \ "\n    {"
 
-        " NOTE: Iterating through a dictionary in Vim does not seem to have a defined ordering and this makes it
-        "       difficult to reliably verify behavior in testing.  To combat this we will always apply options in sorted
-        "       order of the keys held by the option dictionary and that way the addition of options to the output
-        "       document should always be consistent.
-        let l:first_option = 1
+    " Create a new "options" dictionary that will hold any options specified in the chat for the remote LLM.  Once all
+    " option values are added we will bind the dictionary into the 'json_dict'.
+    "
+    " Why don't we just bind the options dictionary held by the 'header_dict' straight into the 'json_options_dict'?
+    " Afterall we expect the keys in such dictionary to match to the JSON name values and the option values should
+    " already be formatted (as per requirement in the plugin documentation)?  The reason why we don't do this has to do
+    " with how Vim handles the conversion of Vim types into JSON types and nuances like no boolean type existing in
+    " Vimscript.  For a more indepth explanation see the documentation for function GetOptionsDictForJSONOutput() which
+    " we will use here to handle the details of this conversion.
+    let l:json_options_dict = GetOptionsDictForJSONOutput(l:header_dict)
 
-        let l:options_dict = l:header_dict[s:util.parse_dictionary_header_options_dict]
-        let l:sorted_option_keys = sort(keys(l:options_dict))
-
-        for l:option_key in l:sorted_option_keys
-            let l:option_value = l:options_dict[l:option_key]
-
-            " Use the 'l:first_option' variable to determine when we should insert a comma character.  When this
-            " variable is set to 1 we won't add a comma and will instead just flip its value to 0; when set to 0 we will
-            " add a comma BEFORE the next option field.
-            if l:first_option
-                let l:first_option = 0
-            else
-                let l:request_message = l:request_message .. ','
-            endif
-
-            " NOTE: We do NOT surround the 'l:option_value' with quotes because we don't know what type of option
-            "       we've got.  For instance options whose data type is number or boolean should be written to the
-            "       document verbatim whereas strings should be quoted.  We assume that if the value is supposed to be
-            "       a string type than the option value is already quoted (meaning the user quotes this inside the
-            "       chat document header when they define the option; eg. 'Option: name="value"').
-            let l:request_message = l:request_message ..
-                                  \ "\n      \"" .. l:option_key .. "\": " .. l:option_value
-
-        endfor
-
-        let l:request_message = l:request_message .. "\n    }"
-
+    if !empty(json_options_dict)
+        let l:json_dict["options"] = json_options_dict
     endif
 
-    let l:request_message = l:request_message .. "\n}"
 
-    " Output the request payload to the specified file and return.
-    call writefile(split(l:request_message, "\n"), a:output_filename)
+    " Now convert the content held by the 'json_dict' variable into a JSON string and write the result out to the
+    " file whose name was given to this function call.
+    call writefile([json_encode(l:json_dict)], a:output_filename)
 
 endfunction
 
@@ -991,114 +958,178 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
     let l:message_array = LLMChat#send_chat#GetMessageContext(a:parse_dictionary)
 
 
-    " Begin building up the request payload that we should send for a chat interaction with an Open-WebUI server.
+    " Create a dictionary that will define the content and tree form of the JSON to be submitted to the remote LLM
+    " server as the chat request payload.
+    let l:json_dict = { }
+
+
+    " Add the top level field values for model  and request streaming.
     "
     " NOTE: The request for Open-WebUI doesn't seem to have a 'thinking' field and such information appears to be
     "       included in the response by default for models that support it.  If this is found to be wrong in the future,
     "       and there is an explicit field we should add to guarantee behavior, than the logic here should be corrected.
     "
-    let l:encoded_model_id = json_encode(l:header_dict[s:util.parse_dictionary_header_model_id])
-    let l:request_message = "{" ..
-                        \ "\n  \"model\": " .. l:encoded_model_id .. "," ..
-                        \ "\n  \"stream\": " .. (g:llmchat_use_streaming_mode ? "true" : "false") .."," ..
-                        \ "\n  \"messages\":" ..
-                        \ "\n    ["
+    let l:json_dict["model"] = l:header_dict[s:util.parse_dictionary_header_model_id]
+    let l:json_dict["stream"] = (g:llmchat_use_streaming_mode ? v:true : v:false)
 
-    let l:is_first_message = 1   " Will be used to control when commas are inserted after array elements.
+
+    " Add all messages held by the parse dictionary into a list that will then be embedded into the 'json_dict'.  Note
+    " that each entry within the list will be its own dictionary and will contain fields for the user, assistant, and
+    " possibly system messages.
+    let l:json_message_list = [ ]
+
     if has_key(l:header_dict, s:util.parse_dictionary_header_system_prompt)
-        " NOTE: Make sure to retrieve the system prompt text and escape any " characters it might contain with \" before
-        "       appending the text to the JSON request payload.
-        let l:escaped_system_prompt = json_encode(l:header_dict[s:util.parse_dictionary_header_system_prompt])
-        let l:request_message = l:request_message ..
-                     \ "\n      {" ..
-                     \ "\n        \"role\": \"system\"," ..
-                     \ "\n        \"content\": " .. l:escaped_system_prompt ..
-                     \ "\n      }"
-
-        " Set the 'l:is_first_message' variable to 0 since our first message was the system prompt.
-        let l:is_first_message = 0
-
+        call add(l:json_message_list,
+               \ {
+               \   "role": "system",
+               \   "content": l:header_dict[s:util.parse_dictionary_header_system_prompt]
+               \ })
     endif
 
     for l:curr_message_dict in l:message_array
-        " Use the 'l:is_first_message' flag to determine whether or not we append a trailing comma character to the
-        " message block being created.  When set to 1 we will skip adding the comma and will instead just change the
-        " value to 0; when the value is 0 we will add a comma BEFORE the next message block.
-        if l:is_first_message
-            let l:is_first_message = 0
-        else
-            let l:request_message = l:request_message .. ","
-        endif
-
-        " NOTE: Make sure to retrieve the user message text and escape any " characters it might contain with \" before
-        "       appending the text to the JSON request payload.
-        let l:escaped_user_msg = json_encode(l:curr_message_dict[s:util.parse_dictionary_user_msg_key])
-        let l:request_message = l:request_message ..
-                     \ "\n      {" ..
-                     \ "\n        \"role\": \"user\"," ..
-                     \ "\n        \"content\": " .. l:escaped_user_msg ..
-                     \ "\n      }"
+        call add(l:json_message_list,
+               \ {
+               \   "role": "user",
+               \   "content": l:curr_message_dict[s:util.parse_dictionary_user_msg_key]
+               \ })
 
         if has_key(l:curr_message_dict, s:util.parse_dictionary_assistant_msg_key)
-            " NOTE: Make sure to retrieve the assistant message text and escape any " characters it might contain with
-            "       \" before appending the text to the JSON request payload.
-            let l:escaped_assistant_msg = json_encode(l:curr_message_dict[s:util.parse_dictionary_assistant_msg_key])
-            let l:request_message = l:request_message .. "," ..
-                         \ "\n      {" ..
-                         \ "\n        \"role\": \"assistant\"," ..
-                         \ "\n        \"content\": " .. l:escaped_assistant_msg ..
-                         \ "\n      }"
+            call add(l:json_message_list,
+                   \ {
+                   \   "role": "assistant",
+                   \   "content": l:curr_message_dict[s:util.parse_dictionary_assistant_msg_key]
+                   \ })
         endif
 
     endfor
 
-    let l:request_message = l:request_message .. "\n    ]"
+    let l:json_dict["messages"] = l:json_message_list
 
-    if has_key(l:header_dict, s:util.parse_dictionary_header_options_dict)
-        let l:request_message = l:request_message .. "," ..
-                         \ "\n  \"options\":" ..
-                         \ "\n    {"
 
-        " NOTE: Iterating through a dictionary in Vim does not seem to have a defined ordering and this makes it
-        "       difficult to reliably verify behavior in testing.  To combat this we will always apply options in sorted
-        "       order of the keys held by the option dictionary and that way the addition of options to the output
-        "       document should always be consistent.
-        let l:first_option = 1
+    " Create a new "options" dictionary that will hold any options specified in the chat for the remote LLM.  Once all
+    " option values are added we will bind the dictionary into the 'json_dict'.
+    "
+    " Why don't we just bind the options dictionary held by the 'header_dict' straight into the 'json_options_dict'?
+    " Afterall we expect the keys in such dictionary to match to the JSON name values and the option values should
+    " already be formatted (as per requirement in the plugin documentation)?  The reason why we don't do this has to do
+    " with how Vim handles the conversion of Vim types into JSON types and nuances like no boolean type existing in
+    " Vimscript.  For a more indepth explanation see the documentation for function GetOptionsDictForJSONOutput() which
+    " we will use here to handle the details of this conversion.
+    let l:json_options_dict = GetOptionsDictForJSONOutput(l:header_dict)
 
-        let l:options_dict = l:header_dict[s:util.parse_dictionary_header_options_dict]
-        let l:sorted_option_keys = sort(keys(l:options_dict))
-
-        for l:option_key in l:sorted_option_keys
-            let l:option_value = l:options_dict[l:option_key]
-
-            " Use the 'l:first_option' variable to determine when we should insert a comma character.  When this
-            " variable is set to 1 we won't add a comma and will instead just flip its value to 0; when set to 0 we will
-            " add a comma BEFORE the next option field.
-            if l:first_option
-                let l:first_option = 0
-            else
-                let l:request_message = l:request_message .. ','
-            endif
-
-            " NOTE: We do NOT surround the 'l:option_value' with quotes because we don't know what type of option
-            "       we've got.  For instance options whose data type is number or boolean should be written to the
-            "       document verbatim whereas strings should be quoted.  We assume that if the value is supposed to be a
-            "       string type than the option value is already quoted (meaning the user quotes this inside the chat
-            "       document header when they define the option; eg. 'Option: name="value"').
-            let l:request_message = l:request_message ..
-                                  \ "\n      \"" .. l:option_key .. "\": " .. l:option_value
-
-        endfor
-
-        let l:request_message = l:request_message .. "\n    }"
-
+    if !empty(json_options_dict)
+        let l:json_dict["options"] = json_options_dict
     endif
 
-    let l:request_message = l:request_message .. "\n}"
 
-    " Output the request payload to the specified file and return.
-    call writefile(split(l:request_message, "\n"), a:output_filename)
+    " Now convert the content held by the 'json_dict' variable into a JSON string and write the result out to the
+    " file whose name was given to this function call.
+    call writefile([json_encode(l:json_dict)], a:output_filename)
 
+
+    " ======= OLD CODE STARTS HERE =====
+"    let l:encoded_model_id = json_encode(l:header_dict[s:util.parse_dictionary_header_model_id])
+"    let l:request_message = "{" ..
+"                        \ "\n  \"model\": " .. l:encoded_model_id .. "," ..
+"                        \ "\n  \"stream\": " .. (g:llmchat_use_streaming_mode ? "true" : "false") .."," ..
+"                        \ "\n  \"messages\":" ..
+"                        \ "\n    ["
+"
+"    let l:is_first_message = 1   " Will be used to control when commas are inserted after array elements.
+"    if has_key(l:header_dict, s:util.parse_dictionary_header_system_prompt)
+"        " NOTE: Make sure to retrieve the system prompt text and escape any " characters it might contain with \" before
+"        "       appending the text to the JSON request payload.
+"        let l:escaped_system_prompt = json_encode(l:header_dict[s:util.parse_dictionary_header_system_prompt])
+"        let l:request_message = l:request_message ..
+"                     \ "\n      {" ..
+"                     \ "\n        \"role\": \"system\"," ..
+"                     \ "\n        \"content\": " .. l:escaped_system_prompt ..
+"                     \ "\n      }"
+"
+"        " Set the 'l:is_first_message' variable to 0 since our first message was the system prompt.
+"        let l:is_first_message = 0
+"
+"    endif
+"
+"    for l:curr_message_dict in l:message_array
+"        " Use the 'l:is_first_message' flag to determine whether or not we append a trailing comma character to the
+"        " message block being created.  When set to 1 we will skip adding the comma and will instead just change the
+"        " value to 0; when the value is 0 we will add a comma BEFORE the next message block.
+"        if l:is_first_message
+"            let l:is_first_message = 0
+"        else
+"            let l:request_message = l:request_message .. ","
+"        endif
+"
+"        " NOTE: Make sure to retrieve the user message text and escape any " characters it might contain with \" before
+"        "       appending the text to the JSON request payload.
+"        let l:escaped_user_msg = json_encode(l:curr_message_dict[s:util.parse_dictionary_user_msg_key])
+"        let l:request_message = l:request_message ..
+"                     \ "\n      {" ..
+"                     \ "\n        \"role\": \"user\"," ..
+"                     \ "\n        \"content\": " .. l:escaped_user_msg ..
+"                     \ "\n      }"
+"
+"        if has_key(l:curr_message_dict, s:util.parse_dictionary_assistant_msg_key)
+"            " NOTE: Make sure to retrieve the assistant message text and escape any " characters it might contain with
+"            "       \" before appending the text to the JSON request payload.
+"            let l:escaped_assistant_msg = json_encode(l:curr_message_dict[s:util.parse_dictionary_assistant_msg_key])
+"            let l:request_message = l:request_message .. "," ..
+"                         \ "\n      {" ..
+"                         \ "\n        \"role\": \"assistant\"," ..
+"                         \ "\n        \"content\": " .. l:escaped_assistant_msg ..
+"                         \ "\n      }"
+"        endif
+"
+"    endfor
+"
+"    let l:request_message = l:request_message .. "\n    ]"
+"
+"    if has_key(l:header_dict, s:util.parse_dictionary_header_options_dict)
+"        let l:request_message = l:request_message .. "," ..
+"                         \ "\n  \"options\":" ..
+"                         \ "\n    {"
+"
+"        " NOTE: Iterating through a dictionary in Vim does not seem to have a defined ordering and this makes it
+"        "       difficult to reliably verify behavior in testing.  To combat this we will always apply options in sorted
+"        "       order of the keys held by the option dictionary and that way the addition of options to the output
+"        "       document should always be consistent.
+"        let l:first_option = 1
+"
+"        let l:options_dict = l:header_dict[s:util.parse_dictionary_header_options_dict]
+"        let l:sorted_option_keys = sort(keys(l:options_dict))
+"
+"        for l:option_key in l:sorted_option_keys
+"            let l:option_value = l:options_dict[l:option_key]
+"
+"            " Use the 'l:first_option' variable to determine when we should insert a comma character.  When this
+"            " variable is set to 1 we won't add a comma and will instead just flip its value to 0; when set to 0 we will
+"            " add a comma BEFORE the next option field.
+"            if l:first_option
+"                let l:first_option = 0
+"            else
+"                let l:request_message = l:request_message .. ','
+"            endif
+"
+"            " NOTE: We do NOT surround the 'l:option_value' with quotes because we don't know what type of option
+"            "       we've got.  For instance options whose data type is number or boolean should be written to the
+"            "       document verbatim whereas strings should be quoted.  We assume that if the value is supposed to be a
+"            "       string type than the option value is already quoted (meaning the user quotes this inside the chat
+"            "       document header when they define the option; eg. 'Option: name="value"').
+"            let l:request_message = l:request_message ..
+"                                  \ "\n      \"" .. l:option_key .. "\": " .. l:option_value
+"
+"        endfor
+"
+"        let l:request_message = l:request_message .. "\n    }"
+"
+"    endif
+"
+"    let l:request_message = l:request_message .. "\n}"
+"
+"    " Output the request payload to the specified file and return.
+"    call writefile(split(l:request_message, "\n"), a:output_filename)
+"
 endfunction
 
 
@@ -1719,6 +1750,84 @@ function GetMessageRegister(parse_dict)
 
 endfunction
 
+
+" This is a utility function for converting the "options" dictionary found within the "header dict" of a chat parse
+" dictionary into a form that is suitable for serialization to JSON.  The issue is that, even though the user provides
+" text formatting that helps the plugin logic to understand the implied type, Vim will not treat this text formatting as
+" expected.  We must explicitly convert the text values provided into numbers, floats, and booleans ourselves in order
+" for the JSON conversion process to work properly.  Additionally we need to take some cleanup actions such as
+" unwrapping the quotes from quoted strings to ensure that these aren't unintentionally included by the conversion
+" (remember that quoting tells the plugin if something is supposed to be treated as a string literal but for JSON
+" conversion Vim only pays attention to the type being "string" and quotes would be considered part of the value.)
+"
+" Arguments:
+"   header_dict - The header dictionary that may (or may not) contain an options dictionary to be converted.  Note
+"                 that the conversion process does not change the original dictionary in any way.
+"
+" Return: A new dictionary that contains all extracted option name/value pairings but defined with the proper Vim types.
+"         Note that if no child options dictionary was found within the 'header_dict' argument supplied than an empty
+"         dictionary will be returned.
+"
+function GetOptionsDictForJSONOutput(header_dict)
+    " Create an empty dictionary that we will add processed key value pairs into.  Ultimately this will become the
+    " dictionary that is returned back to the caller at the end of the function execution.
+    let l:json_options_dict = { }
+
+    if has_key(a:header_dict, s:util.parse_dictionary_header_options_dict)
+        " If the logic comes here than the 'header_dict' given appears to contain a nested options dictionary; retrieve
+        " such dictionary and store its reference into a local variable for easier use.
+        let l:options_dict = a:header_dict[s:util.parse_dictionary_header_options_dict]
+
+        " Iterate through all keys in the retrieved options dictionary, retrieve the value for the option, then convert
+        " the value to the appropriate Vim data type before adding it into the 'json_options_dict'.
+        for l:option_key in keys(l:options_dict)
+            let l:curr_option_value = l:options_dict[l:option_key]
+
+            if l:curr_option_value ==? "true"
+                " In this case we've encountered the unquoted literal value 'true' which we assume means we need to
+                " use a boolean.  Note that to do this, and to have Vim properly embed the value as a boolean 'true'
+                " we MUST use the constant v:true as the value.
+                let l:json_options_dict[l:option_key] = v:true
+
+            elseif l:curr_option_value ==? "false"
+                " In this case we've encountered the unquoted literal value 'false' which we assume means we need to
+                " use a boolean.  Note htat to do this, and to have Vim properly embed the value as a boolean 'false'
+                " we MUST use the contant v:false as the value.
+                let l:json_options_dict[l:option_key] = v:false
+
+            elseif l:curr_option_value =~ '\v^[+\-]?[0-9]+$'
+                " In this case we assume that the value was an integer value (if this should be treated as a string
+                " literal anyways than it should have been quoted).  Convert the string value found into a number and
+                " push the result into the 'l:json_options_dict'.
+                let l:json_options_dict[l:option_key] = str2nr(l:curr_option_value)
+
+            elseif l:curr_option_value =~ '\v^[+\-]?[0-9]+\.[0-9]*$'
+                " In this case we assume that the value was a floating point decimal (again, if this should have been
+                " treated as a string than it should have been quoted).  Convert the value into a float and push the
+                " result into the 'l:json_options_dict'.
+                let l:json_options_dict[l:option_key] = str2float(l:curr_option_value)
+
+            else
+                " If the logic came here than we assume that we have a string value for the option.  Check to see
+                " if such option is quoted and if so remove the quotes before adding the value into the
+                " 'l:json_options_dict'.
+                if l:curr_option_value =~ '\v^\".*\"$'
+                    let l:json_options_dict[l:option_key] = l:curr_option_value[1: -2]
+                else
+                    let l:json_options_dict[l:option_key] = l:curr_option_value
+                endif
+
+            endif
+
+        endfor
+
+    endif
+
+
+    " Return the 'l:json_options_dict' containing the converted dictionary information back to the caller.
+    return l:json_options_dict
+
+endfunction
 
 
 " ============================

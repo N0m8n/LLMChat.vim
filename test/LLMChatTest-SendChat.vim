@@ -178,20 +178,30 @@ function s:TestInitiateChatInteractionWithChatDocForOllama()
 
 
     " Validate that the request payload file contains the expected JSON content for the initiated chat interaction.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this becomes too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
     let l:actual_payload_text = join(readfile(l:request_payload_file), "\n")
 
     let l:expected_payload_text = "{" ..
-                              \ "\n  \"model\": \"Foo\"," ..
-                              \ "\n  \"think\": false," ..
-                              \ "\n  \"stream\": false," ..
-                              \ "\n  \"messages\":" ..
-                              \ "\n    [" ..
-                              \ "\n      {" ..
-                              \ "\n        \"role\": \"user\"," ..
-                              \ "\n        \"content\": \"My test message.\"" ..
-                              \ "\n      }" ..
-                              \ "\n    ]" ..
-                              \ "\n}"
+                                 \   "\"messages\":" ..
+                                 \     "[" ..
+                                 \       "{" ..
+                                 \          "\"role\":\"user\"," ..
+                                 \          "\"content\":\"My test message.\"" ..
+                                 \       "}" ..
+                                 \     "]," ..
+                                 \   "\"model\":\"Foo\"," ..
+                                 \   "\"stream\":false," ..
+                                 \   "\"think\":false" ..
+                                 \"}"
 
     call s:testutil.AssertEqualTextBlocks(expand('<sflnum>') - 9, '', l:expected_payload_text, l:actual_payload_text)
 
@@ -371,19 +381,29 @@ function s:TestInitiateChatInteractionWithChatDocForOpenWebUI()
 
 
         " Validate that the request payload file contains the expected JSON content for the initiated chat interaction.
+        "
+        " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to
+        "          the JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a
+        "          dictionary into a JSON string appears to be arbitrary.  The 'l:expected_output' value below is
+        "          currently organized to reflect the ordering actually seen from Vim during test runs but this doesn't
+        "          mean such ordering will remain the same (typically within a particular software release orderings are
+        "          consistent but across releases they may come to vary).  If this becomes too fragile we can parse the
+        "          JSON into a dictionary and compare that way but this may loose visibility into how the different
+        "          types are actually being converted (which is why the test is the way it is).
+        "
         let l:actual_payload_text = join(readfile(l:request_payload_file), "\n")
 
         let l:expected_payload_text = "{" ..
-                                  \ "\n  \"model\": \"Foo\"," ..
-                                  \ "\n  \"stream\": false," ..
-                                  \ "\n  \"messages\":" ..
-                                  \ "\n    [" ..
-                                  \ "\n      {" ..
-                                  \ "\n        \"role\": \"user\"," ..
-                                  \ "\n        \"content\": \"My test message.\"" ..
-                                  \ "\n      }" ..
-                                  \ "\n    ]" ..
-                                  \ "\n}"
+                                    \    "\"messages\":" ..
+                                    \      "[" ..
+                                    \        "{" ..
+                                    \           "\"role\":\"user\"," ..
+                                    \           "\"content\":\"My test message.\"" ..
+                                    \        "}" ..
+                                    \      "]," ..
+                                    \    "\"model\":\"Foo\"," ..
+                                    \    "\"stream\":false" ..
+                                    \ "}"
 
         call s:testutil.AssertEqualTextBlocks(expand('<sflnum>') - 9,
                                             \ '',
@@ -586,20 +606,30 @@ function s:TestInitiateChatInteractionWithEnabledDebugMode()
 
 
     " Validate that the request payload file contains the expected JSON content for the initiated chat interaction.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this becomes too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
     let l:actual_payload_text = join(readfile(l:request_payload_file), "\n")
 
     let l:expected_payload_text = "{" ..
-                              \ "\n  \"model\": \"Foo\"," ..
-                              \ "\n  \"think\": false," ..
-                              \ "\n  \"stream\": false," ..
-                              \ "\n  \"messages\":" ..
-                              \ "\n    [" ..
-                              \ "\n      {" ..
-                              \ "\n        \"role\": \"user\"," ..
-                              \ "\n        \"content\": \"My test message.\"" ..
-                              \ "\n      }" ..
-                              \ "\n    ]" ..
-                              \ "\n}"
+                                 \   "\"messages\":" ..
+                                 \     "[" ..
+                                 \       "{" ..
+                                 \          "\"role\":\"user\"," ..
+                                 \          "\"content\":\"My test message.\"" ..
+                                 \       "}" ..
+                                 \     "]," ..
+                                 \   "\"model\":\"Foo\"," ..
+                                 \   "\"stream\":false," ..
+                                 \   "\"think\":false" ..
+                                 \ "}"
 
     call s:testutil.AssertEqualTextBlocks(expand('<sflnum>') - 9, '', l:expected_payload_text, l:actual_payload_text)
 
@@ -811,20 +841,30 @@ function s:TestInitiateChatInteractionWithRequiredAuth()
 
 
     " Validate that the request payload file contains the expected JSON content for the initiated chat interaction.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this becomes too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
     let l:actual_payload_text = join(readfile(l:request_payload_file), "\n")
 
     let l:expected_payload_text = "{" ..
-                              \ "\n  \"model\": \"Foo\"," ..
-                              \ "\n  \"think\": false," ..
-                              \ "\n  \"stream\": false," ..
-                              \ "\n  \"messages\":" ..
-                              \ "\n    [" ..
-                              \ "\n      {" ..
-                              \ "\n        \"role\": \"user\"," ..
-                              \ "\n        \"content\": \"My test message.\"" ..
-                              \ "\n      }" ..
-                              \ "\n    ]" ..
-                              \ "\n}"
+                                 \ "\"messages\":" ..
+                                 \   "[" ..
+                                 \     "{" ..
+                                 \        "\"role\":\"user\"," ..
+                                 \        "\"content\":\"My test message.\"" ..
+                                 \     "}" ..
+                                 \   "]," ..
+                                 \ "\"model\":\"Foo\"," ..
+                                 \ "\"stream\":false," ..
+                                 \ "\"think\":false" ..
+                                 \ "}"
 
     call s:testutil.AssertEqualTextBlocks(expand('<sflnum>') - 9, '', l:expected_payload_text, l:actual_payload_text)
 
@@ -1216,20 +1256,30 @@ function s:TestInitiateChatInteractionWithExtraCurlArgs()
 
 
     " Validate that the request payload file contains the expected JSON content for the initiated chat interaction.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this becomes too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
     let l:actual_payload_text = join(readfile(l:request_payload_file), "\n")
 
     let l:expected_payload_text = "{" ..
-                              \ "\n  \"model\": \"Foo\"," ..
-                              \ "\n  \"think\": false," ..
-                              \ "\n  \"stream\": false," ..
-                              \ "\n  \"messages\":" ..
-                              \ "\n    [" ..
-                              \ "\n      {" ..
-                              \ "\n        \"role\": \"user\"," ..
-                              \ "\n        \"content\": \"My test message.\"" ..
-                              \ "\n      }" ..
-                              \ "\n    ]" ..
-                              \ "\n}"
+                                 \ "\"messages\":" ..
+                                 \   "[" ..
+                                 \     "{" ..
+                                 \        "\"role\":\"user\"," ..
+                                 \        "\"content\":\"My test message.\"" ..
+                                 \     "}" ..
+                                 \   "]," ..
+                                 \ "\"model\":\"Foo\"," ..
+                                 \ "\"stream\":false," ..
+                                 \ "\"think\":false" ..
+                                 \ "}"
 
     call s:testutil.AssertEqualTextBlocks(expand('<sflnum>') - 9, '', l:expected_payload_text, l:actual_payload_text)
 
@@ -2517,18 +2567,28 @@ function s:TestCreateOllamaChatRequestPayloadWithMinimalParseDict()
 
     " Read all lines from the temporary file that function CreateOllamaChatRequestPayload() wrote its output to, join
     " the lines back together using newline sequences, then compare the result to an expected text block.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this becomes too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
     let l:expected_output = "{" ..
-                        \ "\n  \"model\": \"qwen:latest\"," ..
-                        \ "\n  \"think\": false," ..
-                        \ "\n  \"stream\": false," ..
-                        \ "\n  \"messages\":" ..
-                        \ "\n    [" ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"How are you today?\"" ..
-                        \ "\n      }" ..
-                        \ "\n    ]" ..
-                        \ "\n}"
+                           \  "\"messages\":" ..
+                           \    "[" ..
+                           \      "{" ..
+                           \         "\"role\":\"user\"," ..
+                           \         "\"content\":\"How are you today?\"" ..
+                           \      "}" ..
+                           \    "]," ..
+                           \  "\"model\":\"qwen:latest\"," ..
+                           \  "\"stream\":false," ..
+                           \  "\"think\":false" ..
+                           \"}"
 
     let l:actual_output = join(readfile(l:temp_file), "\n")
 
@@ -2558,9 +2618,17 @@ function s:TestCreateOllamaChatRequestPayloadWithMaximalParseDict()
                           \     "show thinking": "high",
                           \     "options":
                           \     {
-                          \       "abc": "\"123\"",
-                          \       "def": "\"789\"",
-                          \       "use foo": "true"
+                          \       "abc": "123",
+                          \       "def": "\"123\"",
+                          \       "ghi": "\"12.13\"",
+                          \       "jkl": "12.13",
+                          \       "mno": "some string value",
+                          \       "pqr": "\"some quoted string value\"",
+                          \       "stu": "\"\"some nested quoted string value\"\"",
+                          \       "vwx": "\"true\"",
+                          \        "yz": "\"false\"",
+                          \       "use foo": "true",
+                          \       "avoid bar": "false"
                           \     }
                           \   },
                           \   "messages":
@@ -2593,46 +2661,64 @@ function s:TestCreateOllamaChatRequestPayloadWithMaximalParseDict()
 
     " Read all lines from the temporary file that function CreateOllamaChatRequestPayload() wrote its output to, join
     " the lines back together using newline sequences, then compare the result to an expected text block.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this becomes too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
     let l:expected_output = "{" ..
-                        \ "\n  \"model\": \"super awesome model\"," ..
-                        \ "\n  \"think\": \"high\"," ..
-                        \ "\n  \"stream\": false," ..
-                        \ "\n  \"messages\":" ..
-                        \ "\n    [" ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"system\"," ..
-                        \ "\n        \"content\": \"You are a \\\"super helpful\\\" and respectful assistant.\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"How are you today?\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"assistant\"," ..
-                        \ "\n        \"content\": \"I am fine; how can I help you today?\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"Can you tell me what day the summer solstice will be on this " ..
-                        \                          "year?\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"assistant\"," ..
-                        \ "\n        \"content\": \"Sure; the \\\"summer solstice\\\" is on June 21.  Is there " ..
-                        \                          "anything else I can help with?\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"Yes, can you tell me what a \\\"Chinese Cabbage\\\" is?\"" ..
-                        \ "\n      }" ..
-                        \ "\n    ]," ..
-                        \ "\n  \"options\":" ..
-                        \ "\n    {" ..
-                        \ "\n      \"abc\": \"123\"," ..
-                        \ "\n      \"def\": \"789\"," ..
-                        \ "\n      \"use foo\": true" ..
-                        \ "\n    }"..
-                        \ "\n}"
+                           \   "\"messages\":" ..
+                           \     "[" ..
+                           \       "{" ..
+                           \          "\"role\":\"system\"," ..
+                           \          "\"content\":\"You are a \\\"super helpful\\\" and respectful assistant.\"" ..
+                           \       "}," ..
+                           \       "{" ..
+                           \          "\"role\":\"user\"," ..
+                           \          "\"content\":\"How are you today?\"" ..
+                           \       "}," ..
+                           \       "{" ..
+                           \          "\"role\":\"assistant\"," ..
+                           \          "\"content\":\"I am fine; how can I help you today?\"" ..
+                           \       "}," ..
+                           \       "{" ..
+                           \          "\"role\":\"user\"," ..
+                           \          "\"content\":\"Can you tell me what day the summer solstice will be on this " ..
+                           \                         "year?\"" ..
+                           \       "}," ..
+                           \       "{" ..
+                           \          "\"role\":\"assistant\"," ..
+                           \          "\"content\":\"Sure; the \\\"summer solstice\\\" is on June 21.  Is there " ..
+                           \                         "anything else I can help with?\"" ..
+                           \       "}," ..
+                           \       "{" ..
+                           \          "\"role\":\"user\"," ..
+                           \          "\"content\":\"Yes, can you tell me what a \\\"Chinese Cabbage\\\" is?\"" ..
+                           \       "}" ..
+                           \     "]," ..
+                           \   "\"options\":" ..
+                           \     "{" ..
+                           \        "\"ghi\":\"12.13\"," ..
+                           \        "\"vwx\":\"true\"," ..
+                           \        "\"avoid bar\":false," ..
+                           \        "\"def\":\"123\"," ..
+                           \        "\"stu\":\"\\\"some nested quoted string value\\\"\"," ..
+                           \        "\"abc\":123," ..
+                           \        "\"pqr\":\"some quoted string value\"," ..
+                           \        "\"mno\":\"some string value\"," ..
+                           \        "\"yz\":\"false\"," ..
+                           \        "\"use foo\":true," ..
+                           \        "\"jkl\":12.13" ..
+                           \     "},"..
+                           \   "\"model\":\"super awesome model\"," ..
+                           \   "\"stream\":false," ..
+                           \   "\"think\":\"high\"" ..
+                           \ "}"
 
     let l:actual_output = join(readfile(l:temp_file), "\n")
 
@@ -2677,18 +2763,28 @@ function s:TestCreateOllamaChatRequestPayloadWithEnabledStreaming()
 
     " Read all lines from the temporary file that function CreateOllamaChatRequestPayload() wrote its output to, join
     " the lines back together using newline sequences, then compare the result to an expected text block.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this becomes too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
     let l:expected_output = "{" ..
-                        \ "\n  \"model\": \"qwen:latest\"," ..
-                        \ "\n  \"think\": false," ..
-                        \ "\n  \"stream\": true," ..
-                        \ "\n  \"messages\":" ..
-                        \ "\n    [" ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"How are you today?\"" ..
-                        \ "\n      }" ..
-                        \ "\n    ]" ..
-                        \ "\n}"
+                           \   "\"messages\":" ..
+                           \     "[" ..
+                           \       "{" ..
+                           \          "\"role\":\"user\"," ..
+                           \          "\"content\":\"How are you today?\"" ..
+                           \       "}" ..
+                           \     "]," ..
+                           \   "\"model\":\"qwen:latest\"," ..
+                           \   "\"stream\":true," ..
+                           \   "\"think\":false" ..
+                           \"}"
 
     let l:actual_output = join(readfile(l:temp_file), "\n")
 
@@ -2743,26 +2839,36 @@ function s:TestCreateOllamaChatRequestPayloadWithLimitedMessageContext()
 
     " Read all lines from the temporary file that function CreateOllamaChatRequestPayload() wrote its output to, join
     " the lines back together using newline sequences, then compare the result to an expected text block.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this becomes too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
     let l:expected_output = "{" ..
-                        \ "\n  \"model\": \"qwen:latest\"," ..
-                        \ "\n  \"think\": false," ..
-                        \ "\n  \"stream\": false," ..
-                        \ "\n  \"messages\":" ..
-                        \ "\n    [" ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"User message 2\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"assistant\"," ..
-                        \ "\n        \"content\": \"Assistant message 2\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"User message 3\"" ..
-                        \ "\n      }" ..
-                        \ "\n    ]" ..
-                        \ "\n}"
+                           \   "\"messages\":" ..
+                           \     "[" ..
+                           \       "{" ..
+                           \          "\"role\":\"user\"," ..
+                           \          "\"content\":\"User message 2\"" ..
+                           \       "}," ..
+                           \       "{" ..
+                           \          "\"role\":\"assistant\"," ..
+                           \          "\"content\":\"Assistant message 2\"" ..
+                           \       "}," ..
+                           \       "{" ..
+                           \          "\"role\":\"user\"," ..
+                           \          "\"content\":\"User message 3\"" ..
+                           \       "}" ..
+                           \     "]," ..
+                           \   "\"model\":\"qwen:latest\"," ..
+                           \   "\"stream\":false," ..
+                           \   "\"think\":false" ..
+                           \ "}"
 
     let l:actual_output = join(readfile(l:temp_file), "\n")
 
@@ -2811,17 +2917,27 @@ function s:TestCreateOpenWebUIChatRequestPayloadWithMinimalParseDict()
 
     " Read all lines from the temporary file that function CreateOpenWebUIChatRequestPayload() wrote its output to, join
     " the lines back together using newline sequences, then compare the result to an expected text block.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this become too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
     let l:expected_output = "{" ..
-                        \ "\n  \"model\": \"qwen:latest\"," ..
-                        \ "\n  \"stream\": false," ..
-                        \ "\n  \"messages\":" ..
-                        \ "\n    [" ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"How are you today?\"" ..
-                        \ "\n      }" ..
-                        \ "\n    ]" ..
-                        \ "\n}"
+                          \    "\"messages\":" ..
+                          \      "[" ..
+                          \        "{" ..
+                          \           "\"role\":\"user\"," ..
+                          \           "\"content\":\"How are you today?\"" ..
+                          \        "}" ..
+                          \      "]," ..
+                          \    "\"model\":\"qwen:latest\"," ..
+                          \    "\"stream\":false" ..
+                          \ "}"
 
     let l:actual_output = join(readfile(l:temp_file), "\n")
 
@@ -2852,9 +2968,17 @@ function s:TestCreateOpenWebUIRequestPayloadWithMaximalParseDict()
                           \     "show thinking": "high",
                           \     "options":
                           \     {
-                          \       "abc": "\"123\"",
-                          \       "def": "\"789\"",
-                          \       "use foo": "true"
+                          \       "abc": "123",
+                          \       "def": "\"123\"",
+                          \       "ghi": "\"12.13\"",
+                          \       "jkl": "12.13",
+                          \       "mno": "some string value",
+                          \       "pqr": "\"some quoted string value\"",
+                          \       "stu": "\"\"some nested quoted string value\"\"",
+                          \       "vwx": "\"true\"",
+                          \        "yz": "\"false\"",
+                          \       "use foo": "true",
+                          \       "avoid bar": "false"
                           \     }
                           \   },
                           \   "messages":
@@ -2887,45 +3011,63 @@ function s:TestCreateOpenWebUIRequestPayloadWithMaximalParseDict()
 
     " Read all lines from the temporary file that function CreateOllamaChatRequestPayload() wrote its output to, join
     " the lines back together using newline sequences, then compare the result to an expected text block.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this become too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
     let l:expected_output = "{" ..
-                        \ "\n  \"model\": \"super awesome model\"," ..
-                        \ "\n  \"stream\": false," ..
-                        \ "\n  \"messages\":" ..
-                        \ "\n    [" ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"system\"," ..
-                        \ "\n        \"content\": \"You are a \\\"super helpful\\\" and respectful assistant.\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"How are you today?\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"assistant\"," ..
-                        \ "\n        \"content\": \"I am fine; how can I help you today?\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"Can you tell me what day the summer solstice will be on this " ..
-                        \                          "year?\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"assistant\"," ..
-                        \ "\n        \"content\": \"Sure; the \\\"summer solstice\\\" is on June 21.  Is there " ..
-                        \                          "anything else I can help with?\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"Yes, can you summarize the \\\"attached file?\\\"\"" ..
-                        \ "\n      }" ..
-                        \ "\n    ]," ..
-                        \ "\n  \"options\":" ..
-                        \ "\n    {" ..
-                        \ "\n      \"abc\": \"123\"," ..
-                        \ "\n      \"def\": \"789\"," ..
-                        \ "\n      \"use foo\": true" ..
-                        \ "\n    }"..
-                        \ "\n}"
+                          \    "\"messages\":" ..
+                          \      "[" ..
+                          \        "{" ..
+                          \           "\"role\":\"system\"," ..
+                          \           "\"content\":\"You are a \\\"super helpful\\\" and respectful assistant.\"" ..
+                          \        "}," ..
+                          \        "{" ..
+                          \           "\"role\":\"user\"," ..
+                          \           "\"content\":\"How are you today?\"" ..
+                          \        "}," ..
+                          \        "{" ..
+                          \           "\"role\":\"assistant\"," ..
+                          \           "\"content\":\"I am fine; how can I help you today?\"" ..
+                          \        "}," ..
+                          \        "{" ..
+                          \           "\"role\":\"user\"," ..
+                          \           "\"content\":\"Can you tell me what day the summer solstice will be on this " ..
+                          \                         "year?\"" ..
+                          \        "}," ..
+                          \        "{" ..
+                          \           "\"role\":\"assistant\"," ..
+                          \           "\"content\":\"Sure; the \\\"summer solstice\\\" is on June 21.  Is there " ..
+                          \                         "anything else I can help with?\"" ..
+                          \        "}," ..
+                          \        "{" ..
+                          \           "\"role\":\"user\"," ..
+                          \           "\"content\":\"Yes, can you summarize the \\\"attached file?\\\"\"" ..
+                          \        "}" ..
+                          \      "]," ..
+                          \    "\"options\":" ..
+                          \      "{" ..
+                           \        "\"ghi\":\"12.13\"," ..
+                           \        "\"vwx\":\"true\"," ..
+                           \        "\"avoid bar\":false," ..
+                           \        "\"def\":\"123\"," ..
+                           \        "\"stu\":\"\\\"some nested quoted string value\\\"\"," ..
+                           \        "\"abc\":123," ..
+                           \        "\"pqr\":\"some quoted string value\"," ..
+                           \        "\"mno\":\"some string value\"," ..
+                           \        "\"yz\":\"false\"," ..
+                           \        "\"use foo\":true," ..
+                           \        "\"jkl\":12.13" ..
+                          \      "},"..
+                          \    "\"model\":\"super awesome model\"," ..
+                          \    "\"stream\":false" ..
+                          \ "}"
 
     let l:actual_output = join(readfile(l:temp_file), "\n")
 
@@ -2969,17 +3111,27 @@ function s:TestCreateOpenWebUIChatRequestPayloadWithEnabledStreaming()
 
     " Read all lines from the temporary file that function CreateOpenWebUIChatRequestPayload() wrote its output to, join
     " the lines back together using newline sequences, then compare the result to an expected text block.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this become too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
     let l:expected_output = "{" ..
-                        \ "\n  \"model\": \"qwen:latest\"," ..
-                        \ "\n  \"stream\": true," ..
-                        \ "\n  \"messages\":" ..
-                        \ "\n    [" ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"How are you today?\"" ..
-                        \ "\n      }" ..
-                        \ "\n    ]" ..
-                        \ "\n}"
+                          \    "\"messages\":" ..
+                          \      "[" ..
+                          \        "{" ..
+                          \           "\"role\":\"user\"," ..
+                          \           "\"content\":\"How are you today?\"" ..
+                          \        "}" ..
+                          \      "]," ..
+                          \    "\"model\":\"qwen:latest\"," ..
+                          \    "\"stream\":true" ..
+                          \ "}"
 
     let l:actual_output = join(readfile(l:temp_file), "\n")
 
@@ -3034,25 +3186,35 @@ function s:TestCreateOpenWebUIChatRequestPayloadWithLimitedMessageContext()
 
     " Read all lines from the temporary file that function CreateOpenWebUIChatRequestPayload() wrote its output to, join
     " the lines back together using newline sequences, then compare the result to an expected text block.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this become too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
     let l:expected_output = "{" ..
-                        \ "\n  \"model\": \"qwen:latest\"," ..
-                        \ "\n  \"stream\": false," ..
-                        \ "\n  \"messages\":" ..
-                        \ "\n    [" ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"User message 2\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"assistant\"," ..
-                        \ "\n        \"content\": \"Assistant message 2\"" ..
-                        \ "\n      }," ..
-                        \ "\n      {" ..
-                        \ "\n        \"role\": \"user\"," ..
-                        \ "\n        \"content\": \"User message 3\"" ..
-                        \ "\n      }" ..
-                        \ "\n    ]" ..
-                        \ "\n}"
+                          \    "\"messages\":" ..
+                          \      "[" ..
+                          \        "{" ..
+                          \           "\"role\":\"user\"," ..
+                          \           "\"content\":\"User message 2\"" ..
+                          \        "}," ..
+                          \        "{" ..
+                          \           "\"role\":\"assistant\"," ..
+                          \           "\"content\":\"Assistant message 2\"" ..
+                          \        "}," ..
+                          \        "{" ..
+                          \           "\"role\":\"user\"," ..
+                          \           "\"content\":\"User message 3\"" ..
+                          \        "}" ..
+                          \      "]," ..
+                          \    "\"model\":\"qwen:latest\"," ..
+                          \    "\"stream\":false" ..
+                          \ "}"
 
     let l:actual_output = join(readfile(l:temp_file), "\n")
 
@@ -4101,6 +4263,85 @@ function s:TestGetMessageRegisterWithInvalidGlobalSetting()
     " expect to see.
     let l:test_defaults_dict = s:testutil.GetGlobalVariableDefaults()
     let g:llmchat_default_message_register = l:test_defaults_dict["g:llmchat_default_message_register"]
+
+endfunction
+
+
+" ***********************************************
+" ****  GetMessageRegister() Function Tests  ****
+" ***********************************************
+
+" This test asserts the behavior of function GetOptionsDictForJSONOutput() when the 'header_dict' given to it does not
+" contain a nested options dictionary.
+function s:TestGetOptionsDictForJSONOutputWithNoOptionsDict()
+    " Invoke the GetOptionsDictForJSONOutput() with an empty dictionary and assert that an empty dictionary is also
+    " returned..
+    let l:return_dict = GetOptionsDictForJSONOutput({ })
+
+    AssertTxt(empty(l:return_dict),
+            \ "Expected to see an empty dictionary returned by instead the return dictionary was non-empty.")
+
+endfunction
+
+
+" This test asserts the behavior of function GetOptionsDictForJSONOutput() when the 'header_dict' given to it contains
+" a nested options dictionary containing a pairing for each convertable data type (e.g., unquoted string, string,
+" boolean, number, etc).
+function s:TestGetOptionsDictForJSONOutputWithAllOptionDataTypes()
+    " Define a "header_dict" that contains a nested options dictionary having a known series of name/value pairings.
+    " For testing coverage we want to ensure that we have a representative name/value pair for each form of type
+    " conversion that the GetOptionsDictForJSONOutput() function may have to do.
+    let l:test_header_dict = {
+                           \   "options":
+                           \   {
+                           \     "true_option": "true",
+                           \     "false_option": "false",
+                           \     "number_option_1": "23",
+                           \     "number_option_2": "+45",
+                           \     "number_option_3": "-24",
+                           \     "float_option_1": "0.12",
+                           \     "float_option_2": "+23.45",
+                           \     "float_option_3": "-50.25",
+                           \     "quoted_str_option_1": "\"some string\"",
+                           \     "quoted_str_option_2": "\"true\"",
+                           \     "quoted_str_option_3": "\"false\"",
+                           \     "quoted_str_option_4": "\"23\"",
+                           \     "quoted_str_option_5": "\"0.12\"",
+                           \     "unquoted_str_option": "some string",
+                           \     "nested_quotes_str_option": "\"\"nested quoted string\"\""
+                           \   }
+                           \ }
+
+
+    " Invoke the GetOptionsDictForJSONOutput() function using the 'l:test_header_dict' and save the actual dictionary
+    " that comes back into a local variable.
+    let l:actual_dict = GetOptionsDictForJSONOutput(l:test_header_dict)
+
+
+    " Now define a Vim dictionary that holds the "expected" content from the GetOptionsDictForJSONOutput() execution
+    " and assert that the 'l:actual_dict' matches to it.
+    let l:expected_dict = {
+                        \   "true_option": v:true,
+                        \   "false_option": v:false,
+                        \   "number_option_1": 23,
+                        \   "number_option_2": 45,
+                        \   "number_option_3": -24,
+                        \   "float_option_1": 0.12,
+                        \   "float_option_2": 23.45,
+                        \   "float_option_3": -50.25,
+                        \   "quoted_str_option_1": "some string",
+                        \   "quoted_str_option_2": "true",
+                        \   "quoted_str_option_3": "false",
+                        \   "quoted_str_option_4": "23",
+                        \   "quoted_str_option_5": "0.12",
+                        \   "unquoted_str_option": "some string",
+                        \   "nested_quotes_str_option": "\"nested quoted string\""
+                        \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9,
+                                          \ '',
+                                          \ l:expected_dict,
+                                          \ l:actual_dict)
 
 endfunction
 
