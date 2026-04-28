@@ -68,10 +68,10 @@ function LLMChat#send_chat#InitiateChatInteraction()
             " the job information held shows that such job was completed or if the dictionary just wasn't cleaned up
             " (for example if some fault occurred previously that preempted cleanup) we will perform that cleanup now
             " before proceeding on.
-            if has_key(s:curr_chat_exec_dict, s:curr_chat_exec_dict_job_id)
+            if has_key(s:curr_chat_exec_dict, s:CURR_CHAT_EXEC_DICT_JOB_ID)
                 " In this case the chat execution dictionary was still holding a reference to a job.  Retrieve that
                 " job reference and check to see if such job is still running.
-                let l:job_ref = s:curr_chat_exec_dict[s:curr_chat_exec_dict_job_id]
+                let l:job_ref = s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_JOB_ID]
                 if job_status(l:job_ref) == "run"
                     throw "[ERROR] - A chat submission appears to already be running and only one submission at a " ..
                         \ "time is allowed.  You will either need to wait on such submission to complete or kill " ..
@@ -98,28 +98,28 @@ function LLMChat#send_chat#InitiateChatInteraction()
         "
         "  1). Push the current system time (in seconds) into the dictionary.
         "
-        "  2). Set the 's:curr_chat_exec_dict_stdout' field (which will capture messages written to standard out during
+        "  2). Set the 's:CURR_CHAT_EXEC_DICT_STDOUT' field (which will capture messages written to standard out during
         "      job execution) to the empty string.  This initializes the field appropriately for spooling messages.
         "
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_timestamp] = localtime()
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_stdout] = ''
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_TIMESTAMP] = localtime()
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_STDOUT] = ''
 
 
         " Retrieve the number of the buffer that was active when this function was called then (1) store this into a
         " local variable and (2) push a copy into the 's:curr_chat_exec_dict'.
         let l:chat_buff_num = bufnr()
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_buffer_num] = l:chat_buff_num
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_BUFFER_NUM] = l:chat_buff_num
 
 
         " Retrieve the text width setting for the current buffer then store this into the 's:curr_chat_exec_dict' for
         " later use while processing the chat response.
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_buffer_textwidth] = &textwidth
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_BUFFER_TEXTWIDTH] = &textwidth
 
 
         " Retrieve the total number of lines currently found in the chat buffer then push this value into the
         " 's:curr_chat_exec_dict'.  We will need to know this later during the processing of any chat response so we can
         " compute where to move the cursor after writing the assistant message.
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_buffer_linecnt] = line('$')
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_BUFFER_LINECNT] = line('$')
 
 
         " Output a debug message detailing that a chat interaction is beginning.
@@ -130,7 +130,7 @@ function LLMChat#send_chat#InitiateChatInteraction()
         " a "parse dictionary" representing its structured information.  Note that we will also need to push a
         " reference to this parse dictionary into the 's:curr_chat_exec_dict' dictionary for post-response processing.
         let l:parse_dictionary = s:util.ParseChatBufferToBlocks(0, l:chat_buff_num)
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_parse_dict] = l:parse_dictionary
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_PARSE_DICT] = l:parse_dictionary
 
 
         " Check to see if one of the following applies to the state of the 'l:parse_dictionary' as each condition
@@ -147,16 +147,16 @@ function LLMChat#send_chat#InitiateChatInteraction()
         "          new chat message for the LLM to respond to we will simply abort the interaction execution with a
         "          warning.
         "
-        if ! has_key(l:parse_dictionary, s:util.parse_dictionary_messages_key)
+        if ! has_key(l:parse_dictionary, s:util.PARSE_DICTIONARY_MESSAGES_KEY)
             " In this case the parse dictionary holds NO chat messages so there is nothing to submit to an LLM.
             throw "[WARN] - The current chat log appears to contain no messages; please enter a new user message " ..
                \  "that an LLM should respond to."
         else
             " Check to see if the last message in the messages array is complete.
-            let l:last_message_idx = len(l:parse_dictionary[s:util.parse_dictionary_messages_key]) - 1
-            let l:last_message_dict = l:parse_dictionary[s:util.parse_dictionary_messages_key][l:last_message_idx]
+            let l:last_message_idx = len(l:parse_dictionary[s:util.PARSE_DICTIONARY_MESSAGES_KEY]) - 1
+            let l:last_message_dict = l:parse_dictionary[s:util.PARSE_DICTIONARY_MESSAGES_KEY][l:last_message_idx]
 
-            if has_key(l:last_message_dict, s:util.parse_dictionary_assistant_msg_key)
+            if has_key(l:last_message_dict, s:util.PARSE_DICTIONARY_ASSISTANT_MSG_KEY)
                 throw "[WARN] - The chat in the current document already has an assistant response; please post " ..
                     \ "a new chat for the LLM to read."
             endif
@@ -179,21 +179,21 @@ function LLMChat#send_chat#InitiateChatInteraction()
         "       these can be referenced by the post-response processing.
         "
         let l:request_payload_filename = tempname()
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_request_filename] = l:request_payload_filename
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_REQUEST_FILENAME] = l:request_payload_filename
 
         let l:response_payload_filename = tempname()
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_response_filename] = l:response_payload_filename
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_RESPONSE_FILENAME] = l:response_payload_filename
 
         if s:util.IsDebugEnabled()
             let l:response_header_filename = tempname()
-            let s:curr_chat_exec_dict[s:curr_chat_exec_dict_response_header_filename] = l:response_header_filename
+            let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_RESPONSE_HEADER_FILENAME] = l:response_header_filename
         endif
 
 
         " Obtain a reference to the "header" dictionary that will be held within the "parse dictionary" obtained
         " earlier.  We will need to access multiple fields from the header information so this just makes code access a
         " little more direct.
-        let l:header_dict = l:parse_dictionary[s:util.parse_dictionary_header_key]
+        let l:header_dict = l:parse_dictionary[s:util.PARSE_DICTIONARY_HEADER_KEY]
 
 
         " Now build out the JSON request payload that we need to send to the remote LLM server.  Note that the
@@ -203,7 +203,7 @@ function LLMChat#send_chat#InitiateChatInteraction()
         " NOTE: For more user friendliness we will always use case-insensitve comparisons when looking up the server
         "       type found in the chat document against the fixed identifiers found in this script.  We will also
         "       tolerate some variation in how 'open webui' is specified (for instance with or without a '-' character).
-        let l:server_type = l:header_dict[s:util.parse_dictionary_header_server_type]
+        let l:server_type = l:header_dict[s:util.PARSE_DICTIONARY_HEADER_SERVER_TYPE]
 
         if l:server_type ==? "ollama"
             " If the logic comes here than it looks like we'll be submiting a chat interaction to an Ollama server;
@@ -291,7 +291,7 @@ function LLMChat#send_chat#InitiateChatInteraction()
 
         endif
 
-        let l:curl_command = l:curl_command .. l:header_dict[s:util.parse_dictionary_header_server_url] .. l:api_path
+        let l:curl_command = l:curl_command .. l:header_dict[s:util.PARSE_DICTIONARY_HEADER_SERVER_URL] .. l:api_path
 
 
         " If debug mode is enabled then create a debug message that details the curl call we're about to run.
@@ -390,14 +390,14 @@ function LLMChat#send_chat#SubmitChatExecJob(command, job_options_dict)
     if exists("g:llmchat_test_bypass_mode") && g:llmchat_test_bypass_mode
         " In this case we will not submit the actual job but will instead append information intended for the job to
         " the 's:curr_chat_exec_dict'.
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_capture_command] = a:command
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_capture_job_opts] = a:job_options_dict
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_CAPTURE_COMMAND] = a:command
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_CAPTURE_JOB_OPTS] = a:job_options_dict
 
     else
         " If the logic comes here than we will proceed forward with creating a new job to execute the chat request.
         " Once the job is submitted we will attach the returned job reference to the 's:curr_chat_exec_dict' so that
         " the job can be tracked/managed.
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_job_id] = job_start(a:command, a:job_options_dict)
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_JOB_ID] = job_start(a:command, a:job_options_dict)
 
     endif
 
@@ -414,14 +414,14 @@ endfunction
 "   message - The message content that was written to the standard output stream.
 "
 function LLMChat#send_chat#SpoolChatExecStdOut(channel, message)
-    " Append the 'message' we received to the 's:curr_chat_exec_dict_stdout' field on the 's:curr_chat_exe_dict'
+    " Append the 'message' we received to the 's:CURR_CHAT_EXEC_DICT_STDOUT' field on the 's:curr_chat_exe_dict'
     " dictionary.  Note that if such field holds no content we will simply set the message to be the field value and if
     " the field already held content we will append a newline before adding the message to the existing information.
-    if has_key(s:curr_chat_exec_dict, s:curr_chat_exec_dict_stdout)
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_stdout] = s:curr_chat_exec_dict[s:curr_chat_exec_dict_stdout] ..
+    if has_key(s:curr_chat_exec_dict, s:CURR_CHAT_EXEC_DICT_STDOUT)
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_STDOUT] = s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_STDOUT] ..
                                                                 \ a:message
     else
-        let s:curr_chat_exec_dict[s:curr_chat_exec_dict_stdout] = a:message
+        let s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_STDOUT] = a:message
     endif
 
 endfunction
@@ -447,11 +447,11 @@ function LLMChat#send_chat#AbortRunningChatExec()
     if exists("s:curr_chat_exec_dict") && ! empty(s:curr_chat_exec_dict)
         " Now check to see if the 's:curr_chat_exec_dict' has a key referencing a job and if so is the job being
         " referenced still running.
-        if has_key(s:curr_chat_exec_dict, s:curr_chat_exec_dict_job_id) &&
-         \ job_status(s:curr_chat_exec_dict[s:curr_chat_exec_dict_job_id]) == "run"
+        if has_key(s:curr_chat_exec_dict, s:CURR_CHAT_EXEC_DICT_JOB_ID) &&
+         \ job_status(s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_JOB_ID]) == "run"
             " If the logic comes here than we've found a running job; attempt to abort it through the job_stop()
             " function
-            call job_stop(s:curr_chat_exec_dict[s:curr_chat_exec_dict_job_id], "int")
+            call job_stop(s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_JOB_ID], "int")
             echo "Aborting currently running chat submission job..."
 
             " We will now assume that the job is dead or that it will be soon; go ahead and clear out all content
@@ -551,31 +551,31 @@ function LLMChat#send_chat#HandleChatResponse(job_id, exit_status)
         " 's:curr_chat_exec_dict' dictionary specifically for use by the post-response processing logic here.  Note that
         " this isn't strictly required but it makes referencing these values easier than specifying the dictionary path
         " each time they're needed.
-        let l:chat_buff_num = s:curr_chat_exec_dict[s:curr_chat_exec_dict_buffer_num]
-        let l:buff_text_width = str2nr(s:curr_chat_exec_dict[s:curr_chat_exec_dict_buffer_textwidth])
-        let l:curr_chat_buffer_lines = str2nr(s:curr_chat_exec_dict[s:curr_chat_exec_dict_buffer_linecnt])
-        let l:parse_dictionary = s:curr_chat_exec_dict[s:curr_chat_exec_dict_parse_dict]
-        let l:header_dict = l:parse_dictionary[s:util.parse_dictionary_header_key]
-        let l:server_type = l:header_dict[s:util.parse_dictionary_header_server_type]
-        let l:request_payload_filename = s:curr_chat_exec_dict[s:curr_chat_exec_dict_request_filename]
-        let l:response_payload_filename = s:curr_chat_exec_dict[s:curr_chat_exec_dict_response_filename]
+        let l:chat_buff_num = s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_BUFFER_NUM]
+        let l:buff_text_width = str2nr(s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_BUFFER_TEXTWIDTH])
+        let l:curr_chat_buffer_lines = str2nr(s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_BUFFER_LINECNT])
+        let l:parse_dictionary = s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_PARSE_DICT]
+        let l:header_dict = l:parse_dictionary[s:util.PARSE_DICTIONARY_HEADER_KEY]
+        let l:server_type = l:header_dict[s:util.PARSE_DICTIONARY_HEADER_SERVER_TYPE]
+        let l:request_payload_filename = s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_REQUEST_FILENAME]
+        let l:response_payload_filename = s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_RESPONSE_FILENAME]
 
-        if has_key(s:curr_chat_exec_dict, s:curr_chat_exec_dict_response_header_filename)
-            let l:response_header_filename = s:curr_chat_exec_dict[s:curr_chat_exec_dict_response_header_filename]
+        if has_key(s:curr_chat_exec_dict, s:CURR_CHAT_EXEC_DICT_RESPONSE_HEADER_FILENAME)
+            let l:response_header_filename = s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_RESPONSE_HEADER_FILENAME]
         endif
 
 
         " Retrieve the spooled standard output stream information from the chat execution dictionary and use this as
         " the HTTP status code returned by the command.
         let l:http_status_code = ''
-        if has_key(s:curr_chat_exec_dict, s:curr_chat_exec_dict_stdout)
-            let l:http_status_code = s:curr_chat_exec_dict[s:curr_chat_exec_dict_stdout]
+        if has_key(s:curr_chat_exec_dict, s:CURR_CHAT_EXEC_DICT_STDOUT)
+            let l:http_status_code = s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_STDOUT]
         endif
 
 
         " If debug messaging was enabled then write out the full response received; headers and payload.
         if s:util.IsDebugEnabled()
-            let l:response_header_filename = s:curr_chat_exec_dict[s:curr_chat_exec_dict_response_header_filename]
+            let l:response_header_filename = s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_RESPONSE_HEADER_FILENAME]
 
             let l:debug_message = "Response Data Received:" ..
                               \ "\n  Headers:" ..
@@ -662,7 +662,7 @@ function LLMChat#send_chat#HandleChatResponse(job_id, exit_status)
         "
         let l:message_register = GetMessageRegister(l:parse_dictionary)
         if !empty(l:message_register)
-            call setreg(l:message_register, l:response_dict[s:common_resp_dict_message])
+            call setreg(l:message_register, l:response_dict[s:COMMON_RESP_DICT_MESSAGE])
         endif
 
 
@@ -677,19 +677,19 @@ function LLMChat#send_chat#HandleChatResponse(job_id, exit_status)
 
         " Check to see if a flags dictionary exists within the 'l:parse_dictionary'; if so than we need to retrieve it
         " and look for conditions that need to be addressed before we add the assistant response to the chat.
-        if has_key(l:parse_dictionary, s:util.parse_dictionary_parse_flags)
+        if has_key(l:parse_dictionary, s:util.PARSE_DICTIONARY_PARSE_FLAGS)
             " Retrieve the flags dictionary and assign this to a local variable for easier reference in the code that
             " follows.
-            let l:flags_dictionary = l:parse_dictionary[s:util.parse_dictionary_parse_flags]
+            let l:flags_dictionary = l:parse_dictionary[s:util.PARSE_DICTIONARY_PARSE_FLAGS]
 
             " Check to see if the flags dictionary holds a key matching to the value held by constant
-            " 's:util.parse_flag_NO_USER_MSG_CLOSE'; if so than we need to add the closing delimiter to the user message
+            " 's:util.PARSE_FLAG_NO_USER_MSG_CLOSE'; if so than we need to add the closing delimiter to the user message
             " before appending further content in the chat buffer.
             "
             " NOTE: The value for this particular flag has no significance; its existence within the flags dictionary
             "       is what implies that the condition exists.
             "
-            if has_key(l:flags_dictionary, s:util.parse_flag_NO_USER_MSG_CLOSE)
+            if has_key(l:flags_dictionary, s:util.PARSE_FLAG_NO_USER_MSG_CLOSE)
                 call add(l:response_lines_list, "<<<")
                 call add(l:response_lines_list, '')
 
@@ -713,9 +713,9 @@ function LLMChat#send_chat#HandleChatResponse(job_id, exit_status)
         " Check to see if the user has enabled the "show reasoning" option for the chat and if so we will see if any
         " 'thinking' message was returned by the remote server.  If such option is set AND a thinking message is present
         " than we will append this as a special comment that immediately preceeds the actual response.
-        if has_key(l:header_dict, s:util.parse_dictionary_header_show_thinking) &&
-         \ l:header_dict[s:util.parse_dictionary_header_show_thinking] ==? "true" &&
-         \ has_key(l:response_dict, s:common_resp_dict_thinking)
+        if has_key(l:header_dict, s:util.PARSE_DICTIONARY_HEADER_SHOW_THINKING) &&
+         \ l:header_dict[s:util.PARSE_DICTIONARY_HEADER_SHOW_THINKING] ==? "true" &&
+         \ has_key(l:response_dict, s:COMMON_RESP_DICT_THINKING)
             " If the logic comes here than the "show reasoning" option was enabled and our response contains a
             " "thinking" message that we can output.  Take the following steps to process such message so it can
             " be written out to the chat buffer:
@@ -731,7 +731,7 @@ function LLMChat#send_chat#HandleChatResponse(job_id, exit_status)
             " NOTE: Since we will be adding the prefix '# ' to each line we will need to subtract 2 from the line
             "       formatting width used so that the message fits correctly within the expected width.
             "
-            let l:raw_thinking_message = l:response_dict[s:common_resp_dict_thinking]
+            let l:raw_thinking_message = l:response_dict[s:COMMON_RESP_DICT_THINKING]
             let l:thinking_lines =  s:util.FormatTextLines(l:raw_thinking_message, l:buff_text_width - 2)
 
             call add(l:response_lines_list, "#=>> REASONING")
@@ -764,7 +764,7 @@ function LLMChat#send_chat#HandleChatResponse(job_id, exit_status)
 
         " NOTE: Make sure to escape any special character sequences (i.e., things like '<<<', '>>>', etc) found within
         "       the assistant response BEFORE appending it to the 'l:response_text' value.
-        let l:escaped_assist_msg = s:util.EscapeSpecialSequences(l:response_dict[s:common_resp_dict_message])
+        let l:escaped_assist_msg = s:util.EscapeSpecialSequences(l:response_dict[s:COMMON_RESP_DICT_MESSAGE])
 
 
         " NOTE: Always include the opening delimiter for a new user message immediately after the assistant message.
@@ -796,8 +796,8 @@ function LLMChat#send_chat#HandleChatResponse(job_id, exit_status)
         " file was created by debug mode than we should remove that as well).
         call delete(l:request_payload_filename)
         call delete(l:response_payload_filename)
-        if has_key(s:curr_chat_exec_dict, s:curr_chat_exec_dict_response_header_filename)
-            call delete(s:curr_chat_exec_dict[s:curr_chat_exec_dict_response_header_filename])
+        if has_key(s:curr_chat_exec_dict, s:CURR_CHAT_EXEC_DICT_RESPONSE_HEADER_FILENAME)
+            call delete(s:curr_chat_exec_dict[s:CURR_CHAT_EXEC_DICT_RESPONSE_HEADER_FILENAME])
         endif
 
 
@@ -841,7 +841,7 @@ endfunction
 function LLMChat#send_chat#CreateOllamaChatRequestPayload(parse_dictionary, output_filename)
     " Retrieve the header dictionary from the 'parse_dictionary' argument provided and store this into a local variable;
     " this will make retrieval of the items it holds more convenient in the code that follows.
-    let l:header_dict = a:parse_dictionary[s:util.parse_dictionary_header_key]
+    let l:header_dict = a:parse_dictionary[s:util.PARSE_DICTIONARY_HEADER_KEY]
 
 
     " Retrieve the list of messages to be included into the request and store this into a local variable.  Note that we
@@ -852,8 +852,8 @@ function LLMChat#send_chat#CreateOllamaChatRequestPayload(parse_dictionary, outp
 
 
     " Resolve the "thinking" value to be used on the request to the Ollama server.
-    let l:thinking_value = has_key(l:header_dict, s:util.parse_dictionary_header_show_thinking) ?
-                          \ l:header_dict[s:util.parse_dictionary_header_show_thinking] :
+    let l:thinking_value = has_key(l:header_dict, s:util.PARSE_DICTIONARY_HEADER_SHOW_THINKING) ?
+                          \ l:header_dict[s:util.PARSE_DICTIONARY_HEADER_SHOW_THINKING] :
                           \ v:false
 
     " Special Cases - If the "thinking" value is equal to the string literal "true" or "false" than we will need to
@@ -873,7 +873,7 @@ function LLMChat#send_chat#CreateOllamaChatRequestPayload(parse_dictionary, outp
 
 
     " Add the top level field values for model, thinking, and request streaming.
-    let l:json_dict["model"] = l:header_dict[s:util.parse_dictionary_header_model_id]
+    let l:json_dict["model"] = l:header_dict[s:util.PARSE_DICTIONARY_HEADER_MODEL_ID]
     let l:json_dict["think"] = l:thinking_value
     let l:json_dict["stream"] = (g:llmchat_use_streaming_mode ? v:true : v:false)
 
@@ -883,11 +883,11 @@ function LLMChat#send_chat#CreateOllamaChatRequestPayload(parse_dictionary, outp
     " possibly system messages.
     let l:json_message_list = [ ]
 
-    if has_key(l:header_dict, s:util.parse_dictionary_header_system_prompt)
+    if has_key(l:header_dict, s:util.PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT)
         call add(l:json_message_list,
                \ {
                \   "role": "system",
-               \   "content": l:header_dict[s:util.parse_dictionary_header_system_prompt]
+               \   "content": l:header_dict[s:util.PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT]
                \ })
     endif
 
@@ -895,14 +895,14 @@ function LLMChat#send_chat#CreateOllamaChatRequestPayload(parse_dictionary, outp
         call add(l:json_message_list,
                \ {
                \   "role": "user",
-               \   "content": l:curr_message_dict[s:util.parse_dictionary_user_msg_key]
+               \   "content": l:curr_message_dict[s:util.PARSE_DICTIONARY_USER_MSG_KEY]
                \ })
 
-        if has_key(l:curr_message_dict, s:util.parse_dictionary_assistant_msg_key)
+        if has_key(l:curr_message_dict, s:util.PARSE_DICTIONARY_ASSISTANT_MSG_KEY)
             call add(l:json_message_list,
                    \ {
                    \   "role": "assistant",
-                   \   "content": l:curr_message_dict[s:util.parse_dictionary_assistant_msg_key]
+                   \   "content": l:curr_message_dict[s:util.PARSE_DICTIONARY_ASSISTANT_MSG_KEY]
                    \ })
         endif
 
@@ -948,7 +948,7 @@ endfunction
 function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, output_filename)
     " Retrieve the header dictionary from the 'parse_dictionary' argument provided and store this into a local
     " variable; this will make retrieval of the items it holds more convenient in the code that follows.
-    let l:header_dict = a:parse_dictionary[s:util.parse_dictionary_header_key]
+    let l:header_dict = a:parse_dictionary[s:util.PARSE_DICTIONARY_HEADER_KEY]
 
 
     " Retrieve the list of messages to be included into the request and store this into a local variable.  Note that we
@@ -969,7 +969,7 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
     "       included in the response by default for models that support it.  If this is found to be wrong in the future,
     "       and there is an explicit field we should add to guarantee behavior, than the logic here should be corrected.
     "
-    let l:json_dict["model"] = l:header_dict[s:util.parse_dictionary_header_model_id]
+    let l:json_dict["model"] = l:header_dict[s:util.PARSE_DICTIONARY_HEADER_MODEL_ID]
     let l:json_dict["stream"] = (g:llmchat_use_streaming_mode ? v:true : v:false)
 
 
@@ -978,11 +978,11 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
     " possibly system messages.
     let l:json_message_list = [ ]
 
-    if has_key(l:header_dict, s:util.parse_dictionary_header_system_prompt)
+    if has_key(l:header_dict, s:util.PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT)
         call add(l:json_message_list,
                \ {
                \   "role": "system",
-               \   "content": l:header_dict[s:util.parse_dictionary_header_system_prompt]
+               \   "content": l:header_dict[s:util.PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT]
                \ })
     endif
 
@@ -990,14 +990,14 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
         call add(l:json_message_list,
                \ {
                \   "role": "user",
-               \   "content": l:curr_message_dict[s:util.parse_dictionary_user_msg_key]
+               \   "content": l:curr_message_dict[s:util.PARSE_DICTIONARY_USER_MSG_KEY]
                \ })
 
-        if has_key(l:curr_message_dict, s:util.parse_dictionary_assistant_msg_key)
+        if has_key(l:curr_message_dict, s:util.PARSE_DICTIONARY_ASSISTANT_MSG_KEY)
             call add(l:json_message_list,
                    \ {
                    \   "role": "assistant",
-                   \   "content": l:curr_message_dict[s:util.parse_dictionary_assistant_msg_key]
+                   \   "content": l:curr_message_dict[s:util.PARSE_DICTIONARY_ASSISTANT_MSG_KEY]
                    \ })
         endif
 
@@ -1028,7 +1028,7 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
 
 
     " ======= OLD CODE STARTS HERE =====
-"    let l:encoded_model_id = json_encode(l:header_dict[s:util.parse_dictionary_header_model_id])
+"    let l:encoded_model_id = json_encode(l:header_dict[s:util.PARSE_DICTIONARY_HEADER_MODEL_ID])
 "    let l:request_message = "{" ..
 "                        \ "\n  \"model\": " .. l:encoded_model_id .. "," ..
 "                        \ "\n  \"stream\": " .. (g:llmchat_use_streaming_mode ? "true" : "false") .."," ..
@@ -1036,10 +1036,10 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
 "                        \ "\n    ["
 "
 "    let l:is_first_message = 1   " Will be used to control when commas are inserted after array elements.
-"    if has_key(l:header_dict, s:util.parse_dictionary_header_system_prompt)
+"    if has_key(l:header_dict, s:util.PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT)
 "        " NOTE: Make sure to retrieve the system prompt text and escape any " characters it might contain with \" before
 "        "       appending the text to the JSON request payload.
-"        let l:escaped_system_prompt = json_encode(l:header_dict[s:util.parse_dictionary_header_system_prompt])
+"        let l:escaped_system_prompt = json_encode(l:header_dict[s:util.PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT])
 "        let l:request_message = l:request_message ..
 "                     \ "\n      {" ..
 "                     \ "\n        \"role\": \"system\"," ..
@@ -1063,17 +1063,17 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
 "
 "        " NOTE: Make sure to retrieve the user message text and escape any " characters it might contain with \" before
 "        "       appending the text to the JSON request payload.
-"        let l:escaped_user_msg = json_encode(l:curr_message_dict[s:util.parse_dictionary_user_msg_key])
+"        let l:escaped_user_msg = json_encode(l:curr_message_dict[s:util.PARSE_DICTIONARY_USER_MSG_KEY])
 "        let l:request_message = l:request_message ..
 "                     \ "\n      {" ..
 "                     \ "\n        \"role\": \"user\"," ..
 "                     \ "\n        \"content\": " .. l:escaped_user_msg ..
 "                     \ "\n      }"
 "
-"        if has_key(l:curr_message_dict, s:util.parse_dictionary_assistant_msg_key)
+"        if has_key(l:curr_message_dict, s:util.PARSE_DICTIONARY_ASSISTANT_MSG_KEY)
 "            " NOTE: Make sure to retrieve the assistant message text and escape any " characters it might contain with
 "            "       \" before appending the text to the JSON request payload.
-"            let l:escaped_assistant_msg = json_encode(l:curr_message_dict[s:util.parse_dictionary_assistant_msg_key])
+"            let l:escaped_assistant_msg = json_encode(l:curr_message_dict[s:util.PARSE_DICTIONARY_ASSISTANT_MSG_KEY])
 "            let l:request_message = l:request_message .. "," ..
 "                         \ "\n      {" ..
 "                         \ "\n        \"role\": \"assistant\"," ..
@@ -1085,7 +1085,7 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
 "
 "    let l:request_message = l:request_message .. "\n    ]"
 "
-"    if has_key(l:header_dict, s:util.parse_dictionary_header_options_dict)
+"    if has_key(l:header_dict, s:util.PARSE_DICTIONARY_HEADER_OPTIONS_DICT)
 "        let l:request_message = l:request_message .. "," ..
 "                         \ "\n  \"options\":" ..
 "                         \ "\n    {"
@@ -1096,7 +1096,7 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
 "        "       document should always be consistent.
 "        let l:first_option = 1
 "
-"        let l:options_dict = l:header_dict[s:util.parse_dictionary_header_options_dict]
+"        let l:options_dict = l:header_dict[s:util.PARSE_DICTIONARY_HEADER_OPTIONS_DICT]
 "        let l:sorted_option_keys = sort(keys(l:options_dict))
 "
 "        for l:option_key in l:sorted_option_keys
@@ -1270,10 +1270,10 @@ function LLMChat#send_chat#ProcessOllamaChatResponsePayload(payload_filepath)
     " knowledgable.  This means that a common format for passing extracted response data back to generalized logic needs
     " to be made available and such format must be consistent regardless of the underlying response parser returning it.
     let l:common_dictionary = {
-                            \   s:common_resp_dict_message : l:assistant_message,
-                            \   s:common_resp_dict_thinking : l:assistant_thinking,
-                            \   s:common_resp_init_timestamp : l:initial_response_time,
-                            \   s:common_resp_final_timestamp : l:final_response_time
+                            \   s:COMMON_RESP_DICT_MESSAGE : l:assistant_message,
+                            \   s:COMMON_RESP_DICT_THINKING : l:assistant_thinking,
+                            \   s:COMMON_RESP_INIT_TIMESTAMP : l:initial_response_time,
+                            \   s:COMMON_RESP_FINAL_TIMESTAMP : l:final_response_time
                             \ }
 
     return l:common_dictionary
@@ -1588,10 +1588,10 @@ function LLMChat#send_chat#ProcessOpenWebUIChatResponsePayload(payload_filepath)
     " logic needs to be made available and such format must be consistent regardless of the underlying response parser
     " returning it.
     let l:common_dictionary = {
-                            \   s:common_resp_dict_message : l:assistant_message,
-                            \   s:common_resp_dict_thinking : l:assistant_thinking,
-                            \   s:common_resp_init_timestamp : l:initial_response_time,
-                            \   s:common_resp_final_timestamp : l:final_response_time
+                            \   s:COMMON_RESP_DICT_MESSAGE : l:assistant_message,
+                            \   s:COMMON_RESP_DICT_THINKING : l:assistant_thinking,
+                            \   s:COMMON_RESP_INIT_TIMESTAMP : l:initial_response_time,
+                            \   s:COMMON_RESP_FINAL_TIMESTAMP : l:final_response_time
                             \ }
 
     return l:common_dictionary
@@ -1630,9 +1630,9 @@ function LLMChat#send_chat#GetMessageContext(parse_dict)
     " extract such value and use it to update the value being stored by 'l:context_limit'.  If no such header field
     " is found we will look for the presence of global variable 'g:llmchat_max_context_messages', and if found, we
     " will use its value instead to update the content of variable 'l:context_limit'.
-    let l:header_dict = a:parse_dict[s:util.parse_dictionary_header_key]
-    if has_key(l:header_dict, s:util.parse_dictionary_header_max_context)
-        let l:context_limit = l:header_dict[s:util.parse_dictionary_header_max_context]
+    let l:header_dict = a:parse_dict[s:util.PARSE_DICTIONARY_HEADER_KEY]
+    if has_key(l:header_dict, s:util.PARSE_DICTIONARY_HEADER_MAX_CONTEXT)
+        let l:context_limit = l:header_dict[s:util.PARSE_DICTIONARY_HEADER_MAX_CONTEXT]
 
     elseif exists("g:llmchat_max_context_messages")
         let l:context_limit = g:llmchat_max_context_messages
@@ -1658,7 +1658,7 @@ function LLMChat#send_chat#GetMessageContext(parse_dict)
     " this as the default).  We can then separate condition #3 out as its own special case and make adjustments to the
     " return list IF that condition is found.
     "
-    let l:messages_list = a:parse_dict[s:util.parse_dictionary_messages_key]
+    let l:messages_list = a:parse_dict[s:util.PARSE_DICTIONARY_MESSAGES_KEY]
     let l:messages_size = len(l:messages_list)
 
     if l:context_limit > 0 && l:context_limit < l:messages_size
@@ -1717,15 +1717,15 @@ function GetMessageRegister(parse_dict)
 
     " Retrieve the "header dictionary" from the parse dictionary given and store this into a local variable.  The
     " header dictionary will give us access to all chat options defined by the user at the time of chat submission.
-    let l:header_dict = a:parse_dict[s:util.parse_dictionary_header_key]
+    let l:header_dict = a:parse_dict[s:util.PARSE_DICTIONARY_HEADER_KEY]
 
 
     " Check to see if the header dictionary contains a key matching to the value held by parse constant
-    " 'parse_dictionary_header_msg_register'; if so than set the value stored under such key as the name of the
+    " 'PARSE_DICTIONARY_HEADER_MSG_REGISTER'; if so than set the value stored under such key as the name of the
     " register to return.  If the header dictionary contains no such entry than we will check to see if a global
     " message register was set that can be returned.
-    if has_key(l:header_dict, s:util.parse_dictionary_header_msg_register)
-        let l:resolved_register = l:header_dict[s:util.parse_dictionary_header_msg_register]
+    if has_key(l:header_dict, s:util.PARSE_DICTIONARY_HEADER_MSG_REGISTER)
+        let l:resolved_register = l:header_dict[s:util.PARSE_DICTIONARY_HEADER_MSG_REGISTER]
 
     elseif exists('g:llmchat_default_message_register') && !empty(g:llmchat_default_message_register)
         " NOTE: Since a global variable can be set at any time (and such setting does NOT enforce validation) we need
@@ -1773,10 +1773,10 @@ function GetOptionsDictForJSONOutput(header_dict)
     " dictionary that is returned back to the caller at the end of the function execution.
     let l:json_options_dict = { }
 
-    if has_key(a:header_dict, s:util.parse_dictionary_header_options_dict)
+    if has_key(a:header_dict, s:util.PARSE_DICTIONARY_HEADER_OPTIONS_DICT)
         " If the logic comes here than the 'header_dict' given appears to contain a nested options dictionary; retrieve
         " such dictionary and store its reference into a local variable for easier use.
-        let l:options_dict = a:header_dict[s:util.parse_dictionary_header_options_dict]
+        let l:options_dict = a:header_dict[s:util.PARSE_DICTIONARY_HEADER_OPTIONS_DICT]
 
         " Iterate through all keys in the retrieved options dictionary, retrieve the value for the option, then convert
         " the value to the appropriate Vim data type before adding it into the 'json_options_dict'.
@@ -1848,10 +1848,10 @@ endfunction
 " is intended to insulate the greater logic within this plugin from the specifics of a response from a particular
 " server type.  Like with the other shared data structures, we will use some variables to hold the field names in this
 " dictionary that way they are centralized and we will get errors if references are incorrect.
-const s:common_resp_dict_message = "response_message"
-const s:common_resp_dict_thinking = "response_thinking"
-const s:common_resp_init_timestamp = "initial_response_timestamp"
-const s:common_resp_final_timestamp = "final_response_timestamp"
+const s:COMMON_RESP_DICT_MESSAGE = "response_message"
+const s:COMMON_RESP_DICT_THINKING = "response_thinking"
+const s:COMMON_RESP_INIT_TIMESTAMP = "initial_response_timestamp"
+const s:COMMON_RESP_FINAL_TIMESTAMP = "final_response_timestamp"
 
 
 
@@ -1871,16 +1871,16 @@ let s:curr_chat_exec_dict = {}
 " Like other dictionaries used between functions within this plugin, the "chat execution" dictionary has its field
 " names stored within script constants rather than being hard coded within the functions that interact with it.  The
 " constants that currently define all content that may be placed within this dictionary are provided below:
-const s:curr_chat_exec_dict_job_id = "job id"
-const s:curr_chat_exec_dict_stdout = "stdout"
-const s:curr_chat_exec_dict_timestamp = "timestamp"
-const s:curr_chat_exec_dict_capture_command = "captured command"
-const s:curr_chat_exec_dict_capture_job_opts = "captured options"
-const s:curr_chat_exec_dict_parse_dict = "parse dict"
-const s:curr_chat_exec_dict_buffer_num = "buffer number"
-const s:curr_chat_exec_dict_buffer_textwidth = "buffer textwidth"
-const s:curr_chat_exec_dict_buffer_linecnt = "buffer line count"
-const s:curr_chat_exec_dict_request_filename = "request payload filename"
-const s:curr_chat_exec_dict_response_filename = "response payload filename"
-const s:curr_chat_exec_dict_response_header_filename = "response header filename"
+const s:CURR_CHAT_EXEC_DICT_JOB_ID = "job id"
+const s:CURR_CHAT_EXEC_DICT_STDOUT = "stdout"
+const s:CURR_CHAT_EXEC_DICT_TIMESTAMP = "timestamp"
+const s:CURR_CHAT_EXEC_DICT_CAPTURE_COMMAND = "captured command"
+const s:CURR_CHAT_EXEC_DICT_CAPTURE_JOB_OPTS = "captured options"
+const s:CURR_CHAT_EXEC_DICT_PARSE_DICT = "parse dict"
+const s:CURR_CHAT_EXEC_DICT_BUFFER_NUM = "buffer number"
+const s:CURR_CHAT_EXEC_DICT_BUFFER_TEXTWIDTH = "buffer textwidth"
+const s:CURR_CHAT_EXEC_DICT_BUFFER_LINECNT = "buffer line count"
+const s:CURR_CHAT_EXEC_DICT_REQUEST_FILENAME = "request payload filename"
+const s:CURR_CHAT_EXEC_DICT_RESPONSE_FILENAME = "response payload filename"
+const s:CURR_CHAT_EXEC_DICT_RESPONSE_HEADER_FILENAME = "response header filename"
 

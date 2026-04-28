@@ -361,17 +361,17 @@ enddef
 #
 #  Parse Dictionary Root
 #  |
-#  { + parse_dictionary_header_key :
+#  { + PARSE_DICTIONARY_HEADER_KEY :
 #    |  {
-#    |    parse_dictionary_header_server_type: "server type",
-#    |    parse_dictionary_header_server_url: "https://remote.server.url",
-#    |    parse_dictionary_header_model_id: "model id",
-#    |    parse_dictionary_header_auth_key: "auth key",
+#    |    PARSE_DICTIONARY_HEADER_SERVER_TYPE: "server type",
+#    |    PARSE_DICTIONARY_HEADER_SERVER_URL: "https://remote.server.url",
+#    |    PARSE_DICTIONARY_HEADER_MODEL_ID: "model id",
+#    |    PARSE_DICTIONARY_HEADER_AUTH_KEY: "auth key",
 #    |    parse_dictionary_header_user_auth: 'true' or 'false'
-#    |    parse_dictionary_header_system_prompt: "system message",
-#    |    parse_dictionary_header_show_thinking: "thinking value",
-#    |    parse_dictionary_header_max_context: *Integer indicating number of message pairs to keep in chat submissions
-#    |    parse_dictionary_header_msg_register: *A-Z, a-z, or "
+#    |    PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT: "system message",
+#    |    PARSE_DICTIONARY_HEADER_SHOW_THINKING: "thinking value",
+#    |    PARSE_DICTIONARY_HEADER_MAX_CONTEXT: *Integer indicating number of message pairs to keep in chat submissions
+#    |    PARSE_DICTIONARY_HEADER_MSG_REGISTER: *A-Z, a-z, or "
 #    |    parse_dicitonary_header_options_dict:
 #    |      {
 #    |        "option_name_1": "option_value_1",
@@ -380,11 +380,11 @@ enddef
 #    |      }
 #    |  }
 #    |
-#    + parse_dictionary_messages_key
+#    + PARSE_DICTIONARY_MESSAGES_KEY
 #    |  [
-#    |    { + parse_dictionary_user_msg_key : 'Holds the user message for the chat "interaction"'
+#    |    { + PARSE_DICTIONARY_USER_MSG_KEY : 'Holds the user message for the chat "interaction"'
 #    |      |
-#    |      + parse_dictionary_assistant_msg_key : "Holds the assistant response to the user message if such
+#    |      + PARSE_DICTIONARY_ASSISTANT_MSG_KEY : "Holds the assistant response to the user message if such
 #    |                                              response exists (for newly submitted questions there will be no
 #    |                                              response present)".
 #    |    },
@@ -394,7 +394,7 @@ enddef
 #    |   ...
 #    |  ]
 #    |
-#    + parse_dictionary_parse_flags
+#    + PARSE_DICTIONARY_PARSE_FLAGS
 #       {
 #           ...Contains a series of name/value pairings where the name corresponds to a "flag" variable declared in
 #              the main part of this script.  Note that some such variables have values while others do not (and in
@@ -556,7 +556,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     trimmed_prompt = substitute(trimmed_prompt, '\v \n', "\n", 'g')
 
                     if trimmed_prompt != ''
-                        header_dict[parse_dictionary_header_system_prompt] = trimmed_prompt
+                        header_dict[PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT] = trimmed_prompt
                     endif
 
                     curr_text_block = []
@@ -647,7 +647,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     #      incremented at the end of each loop so this will be 1 greater than 'total_buffer_lines' when
                     #      the next loop conditional check is made.
                     #
-                    if ! has_key(header_dict, parse_dictionary_header_server_type)
+                    if ! has_key(header_dict, PARSE_DICTIONARY_HEADER_SERVER_TYPE)
                         if IsDebugEnabled()
                             WriteToDebug(join(debug_trace_list, "\n"))
                         endif
@@ -658,7 +658,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                               "or 'Server Type: Open WebUI'."
                     endif
 
-                    if ! has_key(header_dict, parse_dictionary_header_server_url)
+                    if ! has_key(header_dict, PARSE_DICTIONARY_HEADER_SERVER_URL)
                         if IsDebugEnabled()
                             WriteToDebug(join(debug_trace_list, "\n"))
                         endif
@@ -668,7 +668,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                               "URL of the LLM service that chats are to be sent to."
                     endif
 
-                    if ! has_key(header_dict, parse_dictionary_header_model_id) && require_model
+                    if ! has_key(header_dict, PARSE_DICTIONARY_HEADER_MODEL_ID) && require_model
                         if IsDebugEnabled()
                             WriteToDebug(join(debug_trace_list, "\n"))
                         endif
@@ -678,7 +678,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                               "LLM model that chats should be submitted to."
                     endif
 
-                    parse_dictionary[parse_dictionary_header_key] = header_dict
+                    parse_dictionary[PARSE_DICTIONARY_HEADER_KEY] = header_dict
 
                     inside_header = false
 
@@ -727,7 +727,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             # the following steps:
                             #
                             #  1). First verify that the 'header_dict' dictionary does NOT have any value already
-                            #      associated with key 'parse_dictionary_header_server_type'; if such a key does
+                            #      associated with key 'PARSE_DICTIONARY_HEADER_SERVER_TYPE'; if such a key does
                             #      exist it means we have found multiple server type declarations in the chat header
                             #      and we'll throw an exception.
                             #
@@ -741,7 +741,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #
                             #  5). Add the extracted and cleaned up value into the 'header_dict' variable.
                             #
-                            if has_key(header_dict, parse_dictionary_header_server_type)
+                            if has_key(header_dict, PARSE_DICTIONARY_HEADER_SERVER_TYPE)
                                 if IsDebugEnabled()
                                     WriteToDebug(join(debug_trace_list, "\n"))
                                 endif
@@ -766,7 +766,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                       "in order to resolve this fault."
                             endif
 
-                            header_dict[parse_dictionary_header_server_type] = trimmed_value
+                            header_dict[PARSE_DICTIONARY_HEADER_SERVER_TYPE] = trimmed_value
 
                             if IsDebugEnabled()
                                 add(debug_trace_list,
@@ -779,7 +779,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             # actions:
                             #
                             #  1). Verify that the 'header_dict' dictionary does NOT have any value already associated
-                            #      with the key 'parse_dictionary_header_server_url'; if such a key does exist it
+                            #      with the key 'PARSE_DICTIONARY_HEADER_SERVER_URL'; if such a key does exist it
                             #      means we have found a duplicate server URL declaration in the chat header and we'll
                             #      throw an exception.
                             #
@@ -793,7 +793,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #
                             #  5). Add the extracted and cleaned value into the 'header_dict' variable.
                             #
-                            if has_key(header_dict, parse_dictionary_header_server_url)
+                            if has_key(header_dict, PARSE_DICTIONARY_HEADER_SERVER_URL)
                                 if IsDebugEnabled()
                                     WriteToDebug(join(debug_trace_list, "\n"))
                                 endif
@@ -818,7 +818,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                       "in order to resolve this fault."
                             endif
 
-                            header_dict[parse_dictionary_header_server_url] = trimmed_value
+                            header_dict[PARSE_DICTIONARY_HEADER_SERVER_URL] = trimmed_value
 
                             if IsDebugEnabled()
                                 add(debug_trace_list,
@@ -831,7 +831,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             # actions:
                             #
                             #  1). Verify that the 'header_dict' dictionary does NOT have any value already associated
-                            #      with the key 'parse_dictionary_header_model_id'; if such a key does exist it means
+                            #      with the key 'PARSE_DICTIONARY_HEADER_MODEL_ID'; if such a key does exist it means
                             #      we have found a duplicate model ID declaration in the chat header and we'll throw an
                             #      exception.
                             #
@@ -850,7 +850,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #
                             #  5). Add the extracted and cleaned value into the 'header_dict' variable.
                             #
-                            if has_key(header_dict, parse_dictionary_header_model_id)
+                            if has_key(header_dict, PARSE_DICTIONARY_HEADER_MODEL_ID)
                                 if IsDebugEnabled()
                                     WriteToDebug(join(debug_trace_list, "\n"))
                                 endif
@@ -878,7 +878,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                           "declaration in order to resolve this fault."
                                 endif
                             else
-                                header_dict[parse_dictionary_header_model_id] = trimmed_value
+                                header_dict[PARSE_DICTIONARY_HEADER_MODEL_ID] = trimmed_value
 
                                 if IsDebugEnabled()
                                     add(debug_trace_list,
@@ -892,7 +892,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             # actions:
                             #
                             #  1). Verify that the 'header_dict' dictionary does NOT have any value already associated
-                            #      with the key 'parse_dictionary_header_use_auth'; if such key does exist it means
+                            #      with the key 'PARSE_DICTIONARY_HEADER_USE_AUTH'; if such key does exist it means
                             #      we have found a duplicate "use auth" declaration in the chat header and we'll throw
                             #      an exception.
                             #
@@ -907,7 +907,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #
                             #  5). Add the extracted and cleaned value into the 'header_dict' variable
                             #
-                            if has_key(header_dict, parse_dictionary_header_use_auth)
+                            if has_key(header_dict, PARSE_DICTIONARY_HEADER_USE_AUTH)
                                 if IsDebugEnabled()
                                     WriteToDebug(join(debug_trace_list, "\n"))
                                 endif
@@ -924,12 +924,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             if trimmed_value ==? "true"
                                 # NOTE: We will always push the lowercase version of the value into the dictionary
                                 #       for ease of processing later on.
-                                header_dict[parse_dictionary_header_use_auth] = "true"
+                                header_dict[PARSE_DICTIONARY_HEADER_USE_AUTH] = "true"
 
                             elseif trimmed_value ==? "false"
                                 # NOTE: We will always push the lowercase version of the value into the dictionary for
                                 #       ease of processing later on.
-                                header_dict[parse_dictionary_header_use_auth] = "false"
+                                header_dict[PARSE_DICTIONARY_HEADER_USE_AUTH] = "false"
 
                             else
                                 if IsDebugEnabled()
@@ -948,7 +948,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             if IsDebugEnabled()
                                 add(debug_trace_list,
                                     "Processed 'Use Auth Token' chat option (line = " .. curr_buffer_line_cntr ..
-                                    ", value = '" .. header_dict[parse_dictionary_header_use_auth] .. "')")
+                                    ", value = '" .. header_dict[PARSE_DICTIONARY_HEADER_USE_AUTH] .. "')")
                             endif
 
                         elseif curr_buff_line =~# '\v^\s*Show Reasoning\:.*$'
@@ -958,7 +958,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             # actions:
                             #
                             #  1). Verify that the 'header_dict' dictionary does NOT have any value already
-                            #      associated with the key 'parse_dictionary_header_show_thinking'; if such key does
+                            #      associated with the key 'PARSE_DICTIONARY_HEADER_SHOW_THINKING'; if such key does
                             #      exist it means we have found a duplicate "show reasoning" declaration in the chat
                             #      header and we'll throw an exception.
                             #
@@ -976,7 +976,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #      ultimately we will let the remote server decide if the provided value is acceptable
                             #      once a chat request is made.
                             #
-                            if has_key(header_dict, parse_dictionary_header_show_thinking)
+                            if has_key(header_dict, PARSE_DICTIONARY_HEADER_SHOW_THINKING)
                                 if IsDebugEnabled()
                                     WriteToDebug(join(debug_trace_list, "\n"))
                                 endif
@@ -1001,7 +1001,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                       "declaration when specifying it within your chat document."
                             endif
 
-                            header_dict[parse_dictionary_header_show_thinking] = trimmed_value
+                            header_dict[PARSE_DICTIONARY_HEADER_SHOW_THINKING] = trimmed_value
 
                             if IsDebugEnabled()
                                 add(debug_trace_list,
@@ -1014,7 +1014,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             # actions:
                             #
                             #  1). Verify that the 'header_dict' dictionary does NOT have any value already associated
-                            #      with the key 'parse_dictionary_header_auth_key'; if such a key does exist it means
+                            #      with the key 'PARSE_DICTIONARY_HEADER_AUTH_KEY'; if such a key does exist it means
                             #      we have found a duplicate authorization token declaration in the chat header and
                             #      we'll throw an exception
                             #
@@ -1038,7 +1038,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #
                             #      Again, for now at least, we'll let it slide and return back later if needed.
                             #
-                            if has_key(header_dict, parse_dictionary_header_auth_key)
+                            if has_key(header_dict, PARSE_DICTIONARY_HEADER_AUTH_KEY)
                                 if IsDebugEnabled()
                                     WriteToDebug(join(debug_trace_list, "\n"))
                                 endif
@@ -1053,7 +1053,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             trimmed_value = substitute(trimmed_value, '\v\s+$', '', '')
 
                             if trimmed_value != ''
-                                header_dict[parse_dictionary_header_auth_key] = trimmed_value
+                                header_dict[PARSE_DICTIONARY_HEADER_AUTH_KEY] = trimmed_value
                             endif
 
                             if IsDebugEnabled()
@@ -1067,7 +1067,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             # the following actions:
                             #
                             #  1). Verify that the 'header_dict' dictionary does NOT have any value already associated
-                            #      with the key 'parse_dictionary_header_system_prompt'; if such a key does exist it
+                            #      with the key 'PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT'; if such a key does exist it
                             #      means we have found a duplicate system message declaration in the chat header and
                             #      we'll throw an exception.
                             #
@@ -1106,7 +1106,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #      'inside_system_msg' to 'true' so that the parsing logic understands we are now within
                             #      the context of processing the system prompt content and begins such collection.
                             #
-                            if has_key(header_dict, parse_dictionary_header_system_prompt)
+                            if has_key(header_dict, PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT)
                                 if IsDebugEnabled()
                                     WriteToDebug(join(debug_trace_list, "\n"))
                                 endif
@@ -1161,7 +1161,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             # this statement by taking the following actions:
                             #
                             #  1). Verify that the 'header_dict' dictionary does NOT have any value already associated
-                            #      with the key 'parse_dictionary_header_max_context'; if such key does exist it means
+                            #      with the key 'PARSE_DICTIONARY_HEADER_MAX_CONTEXT'; if such key does exist it means
                             #      we have found a duplicate max context size declaration in the chat header and we'll
                             #      throw an exception.
                             #
@@ -1175,7 +1175,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #      any number can be considered valid for use we are not concerned with any range
                             #      verifications.
                             #
-                            if has_key(header_dict, parse_dictionary_header_max_context)
+                            if has_key(header_dict, PARSE_DICTIONARY_HEADER_MAX_CONTEXT)
                                 if IsDebugEnabled()
                                     WriteToDebug(join(debug_trace_list, "\n"))
                                 endif
@@ -1210,7 +1210,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                       "this option to resolve the fault."
                             endif
 
-                            header_dict[parse_dictionary_header_max_context] = max_context_size
+                            header_dict[PARSE_DICTIONARY_HEADER_MAX_CONTEXT] = max_context_size
 
                             if IsDebugEnabled()
                                 add(debug_trace_list,
@@ -1228,12 +1228,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             var option_value = option_pair_list[1]
 
                             # Check to see if any options dictionary is currently held by the 'header_dict' variable.
-                            if has_key(header_dict, parse_dictionary_header_options_dict)
+                            if has_key(header_dict, PARSE_DICTIONARY_HEADER_OPTIONS_DICT)
                                 # In this case the 'header_dict' did contain an option dictionary already so we want
                                 # to make sure that such dictionary does NOT contain an entry whose key is equal to
                                 # 'option_name'; if such a key already exists we will throw an exception as defining
                                 # duplicate options is not supported.
-                                if has_key(header_dict[parse_dictionary_header_options_dict], option_name)
+                                if has_key(header_dict[PARSE_DICTIONARY_HEADER_OPTIONS_DICT], option_name)
                                     if IsDebugEnabled()
                                         WriteToDebug(join(debug_trace_list, "\n"))
                                     endif
@@ -1247,13 +1247,13 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                     # In this case the options dictionary held by 'header_dict' did NOT have a key
                                     # that matched to the new option name so we will go ahead and merge the new option
                                     # pairing into the options dictionary.
-                                    header_dict[parse_dictionary_header_options_dict][option_name] = option_value
+                                    header_dict[PARSE_DICTIONARY_HEADER_OPTIONS_DICT][option_name] = option_value
                                 endif
 
                             else
                                 # In this case the 'header_dict' didn't even have an options dictionary yet so
                                 # we'll go ahead and add one that contains the new option pairing.
-                                header_dict[parse_dictionary_header_options_dict] = { [option_name]: option_value }
+                                header_dict[PARSE_DICTIONARY_HEADER_OPTIONS_DICT] = { [option_name]: option_value }
                             endif
 
                             if IsDebugEnabled()
@@ -1268,7 +1268,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             # statement by taking the following actions:
                             #
                             #   1). Verify that the 'header_dict' dictionary does NOT have any value already associated
-                            #       with the key held by constant 'parse_dictionary_header_msg_register'; if such key
+                            #       with the key held by constant 'PARSE_DICTIONARY_HEADER_MSG_REGISTER'; if such key
                             #       does exist it means we have found a duplicate option in the chat header and we'll
                             #       throw an exception.
                             #
@@ -1289,7 +1289,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #
                             #  5). Add the validated value into the 'header_dict' variable for later use.
                             #
-                            if has_key(header_dict, parse_dictionary_header_msg_register)
+                            if has_key(header_dict, PARSE_DICTIONARY_HEADER_MSG_REGISTER)
                                 if IsDebugEnabled()
                                     WriteToDebug(join(debug_trace_list, "\n"))
                                 endif
@@ -1317,7 +1317,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                       "name found at the time of this fault was: '" .. trimmed_value .. "'."
                             endif
 
-                            header_dict[parse_dictionary_header_msg_register] = trimmed_value
+                            header_dict[PARSE_DICTIONARY_HEADER_MSG_REGISTER] = trimmed_value
 
                             if IsDebugEnabled()
                                 add(debug_trace_list,
@@ -1370,7 +1370,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     #          joined value.  Note that trailing whitespace is assumed to have been trimmed when each
                     #          line was added to the 'curr_text_block' so no further such trimming is attempted here.
                     #
-                    #      B). Add a new mapping between the key held by variable 'parse_dictionary_user_msg_key' and
+                    #      B). Add a new mapping between the key held by variable 'PARSE_DICTIONARY_USER_MSG_KEY' and
                     #          the string value obtained during step 'A' into the 'curr_chat_interaction_dict'.  Note
                     #          that we don't check to see if any such key already exists since this check is performed
                     #          when we entered the processing context for the user message (see the portion of the
@@ -1393,7 +1393,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                         var user_message_text = substitute(joined_user_message_text, '\v^\s+', '', '')
 
-                        curr_chat_interaction_dict[parse_dictionary_user_msg_key] = user_message_text
+                        curr_chat_interaction_dict[PARSE_DICTIONARY_USER_MSG_KEY] = user_message_text
 
                         curr_text_block = []
                     endif
@@ -1508,19 +1508,19 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                     #      we assume trailing whitespace is removed from each line as the line is being added to the
                     #      'curr_text_block' so no such trimming is performed here.
                     #
-                    #  3). Add a new mapping between the key held by variable 'parse_dictionary_assistant_msg_key'
+                    #  3). Add a new mapping between the key held by variable 'PARSE_DICTIONARY_ASSISTANT_MSG_KEY'
                     #      and the text block obtained during the previous step into the 'curr_chat_interaction_dict';
                     #      this effectively adds the "assistant" portion of the chat into the dictionary completing its
                     #      content.
                     #
                     #  4). Check to see if the 'parse_dictionary' variable already contains a key that is equal to the
-                    #      value held by variable 'parse_dictionary_messages_key' as this will determine how we add
+                    #      value held by variable 'PARSE_DICTIONARY_MESSAGES_KEY' as this will determine how we add
                     #      information to it in the coming steps.
                     #
                     #  5). If the 'parse_dictionary' already has a key for messages then append the
                     #      'curr_chat_interaction_dict' to the list that is attached to that key.  If no such key exists
                     #      than add the 'curr_chat_interaction_dict' into a new list and then bind that list into the
-                    #      'parse_dictionary' under the key held by variable 'parse_dictionary_messages_key'.
+                    #      'parse_dictionary' under the key held by variable 'PARSE_DICTIONARY_MESSAGES_KEY'.
                     #
                     #  6). Now reset the 'curr_text_block' to an empty list as its content has already been added to
                     #      the parse dictionary and we need to empty it out in prep for further processing.
@@ -1558,12 +1558,12 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                     var assist_msg_text = UnescapeSpecialSequences(joined_assist_text)
 
-                    curr_chat_interaction_dict[parse_dictionary_assistant_msg_key] = assist_msg_text
+                    curr_chat_interaction_dict[PARSE_DICTIONARY_ASSISTANT_MSG_KEY] = assist_msg_text
 
-                    if has_key(parse_dictionary, parse_dictionary_messages_key)
-                        add(parse_dictionary[parse_dictionary_messages_key], curr_chat_interaction_dict)
+                    if has_key(parse_dictionary, PARSE_DICTIONARY_MESSAGES_KEY)
+                        add(parse_dictionary[PARSE_DICTIONARY_MESSAGES_KEY], curr_chat_interaction_dict)
                     else
-                        parse_dictionary[parse_dictionary_messages_key] = [curr_chat_interaction_dict]
+                        parse_dictionary[PARSE_DICTIONARY_MESSAGES_KEY] = [curr_chat_interaction_dict]
                     endif
 
                     curr_text_block = []
@@ -1629,7 +1629,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                         # following actions:
                         #
                         #  1). Check to see if any key equal to the value held by variable
-                        #      'parse_dictionary_user_msg_key' is already present in the dictionary held by variable
+                        #      'PARSE_DICTIONARY_USER_MSG_KEY' is already present in the dictionary held by variable
                         #      'curr_chat_interaction_dict'; if so than we assume that we have a format problem with
                         #      the file as this means two user chats were found back-to-back WITHOUT any LLM response.
                         #      Throw an exception whose message details this fault to effectively abort the parsing
@@ -1642,7 +1642,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                         #  3). Update variable 'inside_user_msg' to have a value of 'true' indicating that we are now
                         #      processing text from within the context of a user chat message.
                         #
-                        if has_key(curr_chat_interaction_dict, parse_dictionary_user_msg_key)
+                        if has_key(curr_chat_interaction_dict, PARSE_DICTIONARY_USER_MSG_KEY)
                             # In this case the key already existed so it seems we have two user messages back-to-back
                             # without any LLM message in-between.  We currently don't support sending messages when an
                             # interaction gap has been found so throw an exception to abort the parse.
@@ -1741,7 +1741,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                         # the following actions:
                         #
                         #  1). Check to see if a key matching to the value held by varible
-                        #      'parse_dictionary_user_msg_key' exists within the 'curr_chat_interaction_dict'.  If NOT
+                        #      'PARSE_DICTIONARY_USER_MSG_KEY' exists within the 'curr_chat_interaction_dict'.  If NOT
                         #      it means that no user message was found to proceed this assistant response and we will
                         #      assume we've got a corrupt or incomplete file.  In such a case output an error message to
                         #      the user then immediately return an empty dictionary to the caller as this effectively
@@ -1753,7 +1753,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                         # 3). Update variable 'inside_llm_msg' to have a value of 'true' indicating that we are now
                         #     processing text from within the context of a user chat message.
                         #
-                        if ! has_key(curr_chat_interaction_dict, parse_dictionary_user_msg_key)
+                        if ! has_key(curr_chat_interaction_dict, PARSE_DICTIONARY_USER_MSG_KEY)
                             # If the logic comes here it means we are wrapping up the parse for the current
                             # user/assisant dialog for a single chat interaction but no user message was found.  The
                             # assistant seems to have responded but we don't know to what.  Throw an exception to abort
@@ -1872,7 +1872,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
         #         not attempt to trim trailing whitespace here as we assume this was already handled when the line
         #         was added to the 'curr_text_block'.
         #
-        #     B). Add a new mapping between the key held by variable 'parse_dictionary_user_msg_key' and the string
+        #     B). Add a new mapping between the key held by variable 'PARSE_DICTIONARY_USER_MSG_KEY' and the string
         #         value obtained during step 'A' into the 'curr_chat_interaction_dict'.  Note that we don't check
         #         to see if any such key already exists since this chack was made when the processing entered the
         #         context of the user message (see the logic that handles the start token for the user message).
@@ -1890,13 +1890,13 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
         # 3). Check to see if the 'curr_chat_interaction_dict' is non-empty and IF SO than take the following steps:
         #
         #     A). Check to see if the 'parse_dictionary' variable already contains a key that is equal to the value
-        #         held by variable 'parse_dictionary_messages_key' as this will determine how we add information to it
+        #         held by variable 'PARSE_DICTIONARY_MESSAGES_KEY' as this will determine how we add information to it
         #         in the next step.
         #
         #     B). If the 'parse_dictionary' already has a key for messages then append the 'curr_chat_interaction_dict'
         #         to the list that is attached to that key.  If no such key exists than add the
         #         'curr_chat_interaction_dict' into a new list then bind that list into the 'parse_dictionary' under the
-        #         key held by variable 'parse_dictionary_messages_key'.
+        #         key held by variable 'PARSE_DICTIONARY_MESSAGES_KEY'.
         #
         #     C). Reset variable 'curr_chat_interaction_dict' to store an empty dictionary as the chat interaction
         #         data it held has now been merged into the main parse dictionary that will be returned.  Note that, as
@@ -1904,16 +1904,16 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
         #         we've taken even if doing this might not be strictly required anymore.
         #
         #     D). Check to see if the 'parse_dictionary' already has a key which matches to the value held by variable
-        #         'parse_dictionary_parse_flags' as this will determine how we insert flag data in the steps that
+        #         'PARSE_DICTIONARY_PARSE_FLAGS' as this will determine how we insert flag data in the steps that
         #         follow.
         #
-        #     E). We now need to add the flag held by variable 'parse_flag_NO_USER_MSG_CLOSE' into the parse dictionary
+        #     E). We now need to add the flag held by variable 'PARSE_FLAG_NO_USER_MSG_CLOSE' into the parse dictionary
         #         flag information so that downstream logic understands the last user message didn't actually have a
         #         proper closing tag (this will need to be added before something like an assistant response is written
         #         to the buffer).  If the 'parse_dictionary' already has a key for flags than we will simply add the new
         #         flag to the existing list that is keyed from the dictionary.  If no such key existed we will create a
         #         new list to hold the flag then will bind this into the 'parse_dictionary' under the
-        #         'parse_flag_NO_USER_MSG_CLOSE' key.
+        #         'PARSE_FLAG_NO_USER_MSG_CLOSE' key.
         #
         # Some closing items for reference...
         #
@@ -1941,7 +1941,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
             var user_message_text = substitute(joined_user_message_text, '\v^\s+', '', '')
 
-            curr_chat_interaction_dict[parse_dictionary_user_msg_key] = user_message_text
+            curr_chat_interaction_dict[PARSE_DICTIONARY_USER_MSG_KEY] = user_message_text
 
             curr_text_block = []
         endif
@@ -1949,18 +1949,18 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
         inside_user_msg = false
 
         if !empty(curr_chat_interaction_dict)
-            if has_key(parse_dictionary, parse_dictionary_messages_key)
-                add(parse_dictionary[parse_dictionary_messages_key], curr_chat_interaction_dict)
+            if has_key(parse_dictionary, PARSE_DICTIONARY_MESSAGES_KEY)
+                add(parse_dictionary[PARSE_DICTIONARY_MESSAGES_KEY], curr_chat_interaction_dict)
             else
-                parse_dictionary[parse_dictionary_messages_key] = [curr_chat_interaction_dict]
+                parse_dictionary[PARSE_DICTIONARY_MESSAGES_KEY] = [curr_chat_interaction_dict]
             endif
 
             curr_chat_interaction_dict = {}
 
-            if has_key(parse_dictionary, parse_dictionary_parse_flags)
-                parse_dictionary[parse_dictionary_parse_flags][parse_flag_NO_USER_MSG_CLOSE] = ''
+            if has_key(parse_dictionary, PARSE_DICTIONARY_PARSE_FLAGS)
+                parse_dictionary[PARSE_DICTIONARY_PARSE_FLAGS][PARSE_FLAG_NO_USER_MSG_CLOSE] = ''
             else
-                parse_dictionary[parse_dictionary_parse_flags] = {[parse_flag_NO_USER_MSG_CLOSE]: ''}
+                parse_dictionary[PARSE_DICTIONARY_PARSE_FLAGS] = {[PARSE_FLAG_NO_USER_MSG_CLOSE]: ''}
             endif
 
         endif
@@ -2002,13 +2002,13 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
         # following actions:
         #
         #  1). Check to see if the 'parse_dictionary' variable already contains a key that is equal to the value
-        #      held by variable 'parse_dictionary_messages_key' as this will determine how we add information to it in
+        #      held by variable 'PARSE_DICTIONARY_MESSAGES_KEY' as this will determine how we add information to it in
         #      the next step.
         #
         #  2). If the 'parse_dictionary' already has a key for messages then append the 'curr_chat_interaction_dict'
         #      to the list that is attached to that key.  If no such key exists then add the
         #      'curr_chat_interaction_dict' into a new list then bind that list into the 'parse_dictionary' under the
-        #      key held by variable 'parse_dictionary_messages_key'.
+        #      key held by variable 'PARSE_DICTIONARY_MESSAGES_KEY'.
         #
         #  3). Reset variable 'curr_chat_interaction_dict' to store an empty dictionary as the chat interaction data
         #      it held has now been merged into the main parse dictionary.  This step isn't fully necessary, from the
@@ -2033,10 +2033,10 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
         # parser changes such that this deduction is wrong than the code here needs to be updated; part of the value in
         # writing all this down is to ensure that the assumption on which this logic is based can be referenced in the
         # future.
-        if has_key(parse_dictionary, parse_dictionary_messages_key)
-            add(parse_dictionary[parse_dictionary_messages_key], curr_chat_interaction_dict)
+        if has_key(parse_dictionary, PARSE_DICTIONARY_MESSAGES_KEY)
+            add(parse_dictionary[PARSE_DICTIONARY_MESSAGES_KEY], curr_chat_interaction_dict)
         else
-            parse_dictionary[parse_dictionary_messages_key] = [curr_chat_interaction_dict]
+            parse_dictionary[PARSE_DICTIONARY_MESSAGES_KEY] = [curr_chat_interaction_dict]
         endif
 
         curr_chat_interaction_dict = {}
@@ -2079,19 +2079,19 @@ export def GetAuthToken(parse_dict: dict<any>): string
     # access.  Note that if the 'parse_dict' given does NOT have a header dictionary we will consider the argument
     # invalid and we will throw an exception.
     var parse_dict_type = type(parse_dict)
-    if parse_dict_type != v:t_dict || ! has_key(parse_dict, parse_dictionary_header_key)
+    if parse_dict_type != v:t_dict || ! has_key(parse_dict, PARSE_DICTIONARY_HEADER_KEY)
         throw "[ERROR] - The 'parse_dict' argument given to this function either (1) was NOT a dictionary or (2) " ..
-              "did not contain an embedded header dictionary for key '" .. parse_dictionary_header_key ..
+              "did not contain an embedded header dictionary for key '" .. PARSE_DICTIONARY_HEADER_KEY ..
               ".  In either case the argument cannot be used by this function to locate any auth token that should " ..
               "be used for requests to the LLM server."
     endif
 
-    var header_dict = parse_dict[parse_dictionary_header_key]
+    var header_dict = parse_dict[PARSE_DICTIONARY_HEADER_KEY]
 
 
     # Check to see if authorization is even necessary before we go through the work of trying to track down an
     # authorization token.  To do this we will check within the 'header_dict' given to see if (1) it contains a key
-    # matching to the value held by constant 'parse_dictionary_header_auth_key' and if so (2) is the value associated
+    # matching to the value held by constant 'PARSE_DICTIONARY_HEADER_AUTH_KEY' and if so (2) is the value associated
     # with such key equal to 'true'.
     #
     # We will also create a variable, 'requires_auth', which we will use to track whether or not an authentication
@@ -2100,13 +2100,13 @@ export def GetAuthToken(parse_dict: dict<any>): string
     var requires_auth = exists("g:llmchat_apikey_file") && g:llmchat_apikey_file != '' ? true : false
 
 
-    if has_key(header_dict, parse_dictionary_header_use_auth)
+    if has_key(header_dict, PARSE_DICTIONARY_HEADER_USE_AUTH)
         # In this case the 'header_dict' contained an entry which details explicitly whether or not authorization is
         # required.  Retrieve the value from the dictionary and it is equal to 'true' then update variable
         # 'requires_auth' to be 'true'; otherwise set 'requires_auth' to be 'false'.  How do we know the else case is
-        # correct?  The value set for key 'parse_dictionary_header_auth_key' may currently only have the values 'true'
+        # correct?  The value set for key 'PARSE_DICTIONARY_HEADER_AUTH_KEY' may currently only have the values 'true'
         # or 'false' so we can reliably infer what the value must be if it was not equal to 'true'.
-        if header_dict[parse_dictionary_header_use_auth] == "true"
+        if header_dict[PARSE_DICTIONARY_HEADER_USE_AUTH] == "true"
             requires_auth = true
         else
             requires_auth = false
@@ -2125,12 +2125,12 @@ export def GetAuthToken(parse_dict: dict<any>): string
         # beat around the bush making the user define the 'Use Auth Token:' declaration just for correctness?  This
         # later viewpoint is what we will be going with so we will check to see if any auth token was defined in the
         # 'header_dict' before assuming we have resolved the value for 'requires_auth' correctly.
-        if has_key(header_dict, parse_dictionary_header_auth_key)
+        if has_key(header_dict, PARSE_DICTIONARY_HEADER_AUTH_KEY)
             # If the logic comes here than we DID find a token given explicitly in the chat.  Note that the token
             # resolution behavior also says that any token defined directly in the chat header will receive precedence
             # over tokens that might be found elsewhere so we already have what we need to resolve.  Go ahead and
             # return the token value held by the 'header_dict' back to the caller.
-            return header_dict[parse_dictionary_header_auth_key]
+            return header_dict[PARSE_DICTIONARY_HEADER_AUTH_KEY]
 
         endif
 
@@ -2160,11 +2160,11 @@ export def GetAuthToken(parse_dict: dict<any>): string
         # ---------------------------------------------------------------
         #  Resolution Step #1 - Look for an explicit token given in the chat headers (in our case this simply means
         #                       checking to see if the 'header_dict' contains a key matching to the value held by
-        #                       constant 'parse_dictionary_header_auth_key').
-        if has_key(header_dict, parse_dictionary_header_auth_key)
+        #                       constant 'PARSE_DICTIONARY_HEADER_AUTH_KEY').
+        if has_key(header_dict, PARSE_DICTIONARY_HEADER_AUTH_KEY)
             # If the logic comes here than we found a token given explicitly in the chat.  Retrieve the provided token
             # from the 'header_dict' and set this as the token to return via variable 'auth_token'.
-            auth_token = header_dict[parse_dictionary_header_auth_key]
+            auth_token = header_dict[PARSE_DICTIONARY_HEADER_AUTH_KEY]
 
         elseif exists('b:llmchat_auth_token') && b:llmchat_auth_token != ''
             #
@@ -2889,23 +2889,23 @@ enddef
 # somewhere but we WILL get such an error if we typo the variable name holding such key; this makes it easier to avoid
 # such bugs).
 #
-export const parse_dictionary_header_key = "header"
-export const parse_dictionary_messages_key = "messages"
-export const parse_dictionary_user_msg_key = "user"
-export const parse_dictionary_assistant_msg_key = "assistant"
-export const parse_dictionary_parse_flags = "flags"
+export const PARSE_DICTIONARY_HEADER_KEY = "header"
+export const PARSE_DICTIONARY_MESSAGES_KEY = "messages"
+export const PARSE_DICTIONARY_USER_MSG_KEY = "user"
+export const PARSE_DICTIONARY_ASSISTANT_MSG_KEY = "assistant"
+export const PARSE_DICTIONARY_PARSE_FLAGS = "flags"
 
 # Header dictionary keys...
-export const parse_dictionary_header_auth_key = "auth key"
-export const parse_dictionary_header_max_context = "max context"
-export const parse_dictionary_header_msg_register = "message register"
-export const parse_dictionary_header_model_id = "model id"
-export const parse_dictionary_header_options_dict = "options"
-export const parse_dictionary_header_server_type = "server type"
-export const parse_dictionary_header_server_url = "server url"
-export const parse_dictionary_header_show_thinking = "show thinking"
-export const parse_dictionary_header_system_prompt = "system prompt"
-export const parse_dictionary_header_use_auth = "use auth"
+export const PARSE_DICTIONARY_HEADER_AUTH_KEY = "auth key"
+export const PARSE_DICTIONARY_HEADER_MAX_CONTEXT = "max context"
+export const PARSE_DICTIONARY_HEADER_MSG_REGISTER = "message register"
+export const PARSE_DICTIONARY_HEADER_MODEL_ID = "model id"
+export const PARSE_DICTIONARY_HEADER_OPTIONS_DICT = "options"
+export const PARSE_DICTIONARY_HEADER_SERVER_TYPE = "server type"
+export const PARSE_DICTIONARY_HEADER_SERVER_URL = "server url"
+export const PARSE_DICTIONARY_HEADER_SHOW_THINKING = "show thinking"
+export const PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT = "system prompt"
+export const PARSE_DICTIONARY_HEADER_USE_AUTH = "use auth"
 
 
     # --------------------------------
@@ -2925,5 +2925,5 @@ export const parse_dictionary_header_use_auth = "use auth"
 
 # This parser flag indicates that the last user message found in the chat buffer had no closing tag so logic updating
 # the buffer with something like an assistant response will need to make sure that such tag is added.
-export const parse_flag_NO_USER_MSG_CLOSE = "no-user-message-close"
+export const PARSE_FLAG_NO_USER_MSG_CLOSE = "no-user-message-close"
 

@@ -32,62 +32,62 @@ vim9script
 # potentially tests using this script.
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_server_type'.
-const default_llm_default_server_type_value = "Ollama"
+const DEFAULT_LLM_DEFAULT_SERVER_TYPE_VALUE = "Ollama"
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_server_url'.
-const default_llmchat_default_server_url_value = "http://localhost:11434"
+const DEFAULT_LLMCHAT_DEFAULT_SERVER_URL_VALUE = "http://localhost:11434"
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_model_id'.
-const default_llmchat_default_model_id_value = ''
+const DEFAULT_LLMCHAT_DEFAULT_MODEL_ID_VALUE = ''
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_system_prompt'.
-const default_llmchat_default_system_prompt_value = ''
+const DEFAULT_LLMCHAT_DEFAULT_SYSTEM_PROMPT_VALUE = ''
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_apikey_file'.
-const default_llmchat_apikey_file_value = ''
+const DEFAULT_LLMCHAT_APIKEY_FILE_VALUE = ''
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_message_register'.
-const default_llmchat_default_msg_register = ''
+const DEFAULT_LLMCHAT_DEFAULT_MSG_REGISTER = ''
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_max_context_messages'.
-const default_llmchat_max_context_messages = 0
+const DEFAULT_LLMCHAT_MAX_CONTEXT_MESSAGES = 0
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_open_splits_in_insert_mode'.
-const default_llmchat_open_new_chats_in_insert_mode_value = 1
+const DEFAULT_LLMCHAT_OPEN_NEW_CHATS_IN_INSERT_MODE_VALUE = 1
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_fully_expand_new_chats'.
-const default_llmchat_fully_expand_new_chats = 1
+const DEFAULT_LLMCHAT_FULLY_EXPAND_NEW_CHATS = 1
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_chat_split_type'.
-const default_llmchat_chat_split_type_value = "horizontal"
+const DEFAULT_LLMCHAT_CHAT_SPLIT_TYPE_VALUE = "horizontal"
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_header_sep_size'.
-const default_llmchat_header_sep_size_value = 28
+const DEFAULT_LLMCHAT_HEADER_SEP_SIZE_VALUE = 28
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_separator_bar_size'.
-const default_llmchat_separator_bar_size_value = 28
+const DEFAULT_LLMCHAT_SEPARATOR_BAR_SIZE_VALUE = 28
 
 # This constant holds the plugin default value that tests expect for variable
 # 'g:llmchat_assistant_message_follow_style'.
-const default_llmchat_assistant_message_follow_style = 0
+const DEFAULT_LLMCHAT_ASSISTANT_MESSAGE_FOLLOW_STYLE = 0
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_h_disp_elem_aug_value'.
-const default_llmchat_h_disp_elem_aug_value = 0
+const DEFAULT_LLMCHAT_H_DISP_ELEM_AUG_VALUE = 0
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_h_win_adjust'.
-const default_llmchat_h_win_adjust = 0
+const DEFAULT_LLMCHAT_H_WIN_ADJUST = 0
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_thousands_sep_char'.
-const default_llmchat_thousands_sep_char = ','
+const DEFAULT_LLMCHAT_THOUSANDS_SEP_CHAR = ','
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_use_streaming_mode'.
-const default_llmchat_use_streaming_mode = 0
+const DEFAULT_LLMCHAT_USE_STREAMING_MODE = 0
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_use_chat_folding'.
-const default_llmchat_use_chat_folding = 1
+const DEFAULT_LLMCHAT_USE_CHAT_FOLDING = 1
 
 # This constant holds the plugin default value that tests expect for variable 'g:llmchat_curl_extra_args'.
-const default_llmchat_curl_extra_args = ''
+const DEFAULT_LLMCHAT_CURL_EXTRA_ARGS = ''
 
 
 # =================================
@@ -617,153 +617,153 @@ export def ResetGlobalVars(): dict<any>
 
     # Check to see if the 'g:llmchat_default_server_type' variable has been set to a non-default value and if so backup
     # its current value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_default_server_type != default_llm_default_server_type_value
+    if g:llmchat_default_server_type != DEFAULT_LLM_DEFAULT_SERVER_TYPE_VALUE
         orig_values_dict["g:llmchat_default_server_type"] = g:llmchat_default_server_type
-        g:llmchat_default_server_type = default_llm_default_server_type_value
+        g:llmchat_default_server_type = DEFAULT_LLM_DEFAULT_SERVER_TYPE_VALUE
     endif
 
 
     # Check to see if the 'g:llmchat_default_server_url' variable has been set to a non-default value and if so backup
     # its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_default_server_url != default_llmchat_default_server_url_value
+    if g:llmchat_default_server_url != DEFAULT_LLMCHAT_DEFAULT_SERVER_URL_VALUE
         orig_values_dict["g:llmchat_default_server_url"] = g:llmchat_default_server_url
-        g:llmchat_default_server_url = default_llmchat_default_server_url_value
+        g:llmchat_default_server_url = DEFAULT_LLMCHAT_DEFAULT_SERVER_URL_VALUE
     endif
 
 
     # Check to see if the 'g:llmchat_default_model_id' variable has been set to a non-default value and if so backup
     # its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_default_model_id != default_llmchat_default_model_id_value
+    if g:llmchat_default_model_id != DEFAULT_LLMCHAT_DEFAULT_MODEL_ID_VALUE
         orig_values_dict["g:llmchat_default_model_id"] = g:llmchat_default_model_id
-        g:llmchat_default_model_id = default_llmchat_default_model_id_value
+        g:llmchat_default_model_id = DEFAULT_LLMCHAT_DEFAULT_MODEL_ID_VALUE
     endif
 
 
     # Check to see if the 'g:llmchat_default_system_prompt' variable has been set to a non-default value and if so
     # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_default_system_prompt != default_llmchat_default_system_prompt_value
+    if g:llmchat_default_system_prompt != DEFAULT_LLMCHAT_DEFAULT_SYSTEM_PROMPT_VALUE
         orig_values_dict["g:llmchat_default_system_prompt"] = g:llmchat_default_system_prompt
-        g:llmchat_default_system_prompt = default_llmchat_default_system_prompt_value
+        g:llmchat_default_system_prompt = DEFAULT_LLMCHAT_DEFAULT_SYSTEM_PROMPT_VALUE
     endif
 
 
     # Check to see if the 'g:llmchat_apikey_file' variable has been set to a non-default value and if so backup its
     # value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_apikey_file != default_llmchat_apikey_file_value
+    if g:llmchat_apikey_file != DEFAULT_LLMCHAT_APIKEY_FILE_VALUE
         orig_values_dict["g:llmchat_apikey_file"] = g:llmchat_apikey_file
-        g:llmchat_apikey_file = default_llmchat_apikey_file_value
+        g:llmchat_apikey_file = DEFAULT_LLMCHAT_APIKEY_FILE_VALUE
     endif
 
 
     # Check to see if the 'g:llmchat_default_message_register' variable has been set to a non-default value and if so
     # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_default_message_register != default_llmchat_default_msg_register
+    if g:llmchat_default_message_register != DEFAULT_LLMCHAT_DEFAULT_MSG_REGISTER
         orig_values_dict["g:llmchat_default_message_register"] = g:llmchat_default_message_register
-        g:llmchat_default_message_register = default_llmchat_default_msg_register
+        g:llmchat_default_message_register = DEFAULT_LLMCHAT_DEFAULT_MSG_REGISTER
     endif
 
 
     # Check to see if the 'g:llmchat_max_context_messages' variable has been set to a non-default value and if so backup
     # its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_max_context_messages != default_llmchat_max_context_messages
+    if g:llmchat_max_context_messages != DEFAULT_LLMCHAT_MAX_CONTEXT_MESSAGES
         orig_values_dict["g:llmchat_max_context_messages"] = g:llmchat_max_context_messages
-        g:llmchat_max_context_messages = default_llmchat_max_context_messages
+        g:llmchat_max_context_messages = DEFAULT_LLMCHAT_MAX_CONTEXT_MESSAGES
     endif
 
 
     # Check to see if the 'g:llmchat_open_splits_in_insert_mode' variable has been set to a non-default value and if so
     # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_open_new_chats_in_insert_mode != default_llmchat_open_new_chats_in_insert_mode_value
+    if g:llmchat_open_new_chats_in_insert_mode != DEFAULT_LLMCHAT_OPEN_NEW_CHATS_IN_INSERT_MODE_VALUE
         orig_values_dict["g:llmchat_open_new_chats_in_insert_mode"] = g:llmchat_open_new_chats_in_insert_mode
-        g:llmchat_open_new_chats_in_insert_mode = default_llmchat_open_new_chats_in_insert_mode_value
+        g:llmchat_open_new_chats_in_insert_mode = DEFAULT_LLMCHAT_OPEN_NEW_CHATS_IN_INSERT_MODE_VALUE
     endif
 
 
     # Check to see if the 'g:llmchat_fully_expand_new_chats' varible has been set to a non-default value and if so
     # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_fully_expand_new_chats != default_llmchat_fully_expand_new_chats
+    if g:llmchat_fully_expand_new_chats != DEFAULT_LLMCHAT_FULLY_EXPAND_NEW_CHATS
         orig_values_dict["g:llmchat_fully_expand_new_chats"] = g:llmchat_fully_expand_new_chats
-        g:llmchat_fully_expand_new_chats = default_llmchat_fully_expand_new_chats
+        g:llmchat_fully_expand_new_chats = DEFAULT_LLMCHAT_FULLY_EXPAND_NEW_CHATS
     endif
 
 
     # Check to see if the 'g:llmchat_chat_split_type' variable has been set a non-default value and if so backup its
     # value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_chat_split_type != default_llmchat_chat_split_type_value
+    if g:llmchat_chat_split_type != DEFAULT_LLMCHAT_CHAT_SPLIT_TYPE_VALUE
         orig_values_dict["g:llmchat_chat_split_type"] = g:llmchat_chat_split_type
-        g:llmchat_chat_split_type = default_llmchat_chat_split_type_value
+        g:llmchat_chat_split_type = DEFAULT_LLMCHAT_CHAT_SPLIT_TYPE_VALUE
     endif
 
 
     # Check to see if the 'g:llmchat_header_sep_size' variable has been set to a non-default value and if so backup its
     # value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_header_sep_size != default_llmchat_header_sep_size_value
+    if g:llmchat_header_sep_size != DEFAULT_LLMCHAT_HEADER_SEP_SIZE_VALUE
         orig_values_dict["g:llmchat_header_sep_size"] = g:llmchat_header_sep_size
-        g:llmchat_header_sep_size = default_llmchat_header_sep_size_value
+        g:llmchat_header_sep_size = DEFAULT_LLMCHAT_HEADER_SEP_SIZE_VALUE
     endif
 
 
     # Check to see if the 'g:llmchat_separator_bar_size' variable has been set to a non-default value and if so backup
     # its value within the 'orig_values_dict' before resetting it to the plugin default
-    if g:llmchat_separator_bar_size != default_llmchat_separator_bar_size_value
+    if g:llmchat_separator_bar_size != DEFAULT_LLMCHAT_SEPARATOR_BAR_SIZE_VALUE
         orig_values_dict["g:llmchat_separator_bar_size"] = g:llmchat_separator_bar_size
-        g:llmchat_separator_bar_size = default_llmchat_separator_bar_size_value
+        g:llmchat_separator_bar_size = DEFAULT_LLMCHAT_SEPARATOR_BAR_SIZE_VALUE
     endif
 
 
     # Check to see if the 'g:llmchat_assistant_message_follow_style' variable has been set to a non-default value and if
     # so backup its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_assistant_message_follow_style != default_llmchat_assistant_message_follow_style
+    if g:llmchat_assistant_message_follow_style != DEFAULT_LLMCHAT_ASSISTANT_MESSAGE_FOLLOW_STYLE
         orig_values_dict["g:llmchat_assistant_message_follow_style"] = g:llmchat_assistant_message_follow_style
-        g:llmchat_assistant_message_follow_style = default_llmchat_assistant_message_follow_style
+        g:llmchat_assistant_message_follow_style = DEFAULT_LLMCHAT_ASSISTANT_MESSAGE_FOLLOW_STYLE
     endif
 
 
     # Check to see if the 'g:llmchat_h_disp_elem_aug_value' variable has been set to a non-default value and if so
     # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_h_disp_elem_aug_value != default_llmchat_h_disp_elem_aug_value
+    if g:llmchat_h_disp_elem_aug_value != DEFAULT_LLMCHAT_H_DISP_ELEM_AUG_VALUE
         orig_values_dict["g:llmchat_h_disp_elem_aug_value"] = g:llmchat_h_disp_elem_aug_value
-        g:llmchat_h_disp_elem_aug_value = default_llmchat_h_disp_elem_aug_value
+        g:llmchat_h_disp_elem_aug_value = DEFAULT_LLMCHAT_H_DISP_ELEM_AUG_VALUE
     endif
 
 
     # Check to see if the 'g:llmchat_h_win_adjust' variable has been set to a non-default value and if so backup its
     # value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_h_win_adjust != default_llmchat_h_win_adjust
+    if g:llmchat_h_win_adjust != DEFAULT_LLMCHAT_H_WIN_ADJUST
         orig_values_dict["g:llmchat_h_win_adjust"] = g:llmchat_h_win_adjust
-        g:llmchat_h_win_adjust = default_llmchat_h_win_adjust
+        g:llmchat_h_win_adjust = DEFAULT_LLMCHAT_H_WIN_ADJUST
     endif
 
 
     # Check to see if the 'g:llmchat_thousands_sep_char' variable has been set to a non-default value and if so backup
     # its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_thousands_sep_char != default_llmchat_thousands_sep_char
+    if g:llmchat_thousands_sep_char != DEFAULT_LLMCHAT_THOUSANDS_SEP_CHAR
         orig_values_dict["g:llmchat_thousands_sep_char"] = g:llmchat_thousands_sep_char
-        g:llmchat_thousands_sep_char  = default_llmchat_thousands_sep_char
+        g:llmchat_thousands_sep_char  = DEFAULT_LLMCHAT_THOUSANDS_SEP_CHAR
     endif
 
 
     # Check to see if the 'g:llmchat_use_streaming_mode' variable has been set to a non-default value and if so backup
     # its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_use_streaming_mode != default_llmchat_use_streaming_mode
+    if g:llmchat_use_streaming_mode != DEFAULT_LLMCHAT_USE_STREAMING_MODE
         orig_values_dict["g:llmchat_use_streaming_mode"] = g:llmchat_use_streaming_mode
-        g:llmchat_use_streaming_mode = default_llmchat_use_streaming_mode
+        g:llmchat_use_streaming_mode = DEFAULT_LLMCHAT_USE_STREAMING_MODE
     endif
 
 
     # Check to see if the 'g:llmchat_use_chat_folding' variable has been set to a non-default value and if so backup
     # its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_use_chat_folding != default_llmchat_use_chat_folding
+    if g:llmchat_use_chat_folding != DEFAULT_LLMCHAT_USE_CHAT_FOLDING
         orig_values_dict["g:llmchat_use_chat_folding"] = g:llmchat_use_chat_folding
-        g:llmchat_use_chat_folding = default_llmchat_fully_expand_new_chats
+        g:llmchat_use_chat_folding = DEFAULT_LLMCHAT_FULLY_EXPAND_NEW_CHATS
     endif
 
 
     # Check to see if the 'g:llmchat_curl_extra_args' variable has been set to a non-default value and if so backup its
     # value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_curl_extra_args != default_llmchat_curl_extra_args
+    if g:llmchat_curl_extra_args != DEFAULT_LLMCHAT_CURL_EXTRA_ARGS
         orig_values_dict["g:llmchat_curl_extra_args"] = g:llmchat_curl_extra_args
-        g:llmchat_curl_extra_args = default_llmchat_curl_extra_args
+        g:llmchat_curl_extra_args = DEFAULT_LLMCHAT_CURL_EXTRA_ARGS
     endif
 
 
@@ -876,25 +876,25 @@ export def GetGlobalVariableDefaults(): dict<any>
     # Create a dictionary that will hold a mapping between the name of each global variable recognized by this plugin
     # and its expected "default" value then return such dictionary back to the caller.
     return {
-             "g:llmchat_default_server_type": default_llm_default_server_type_value,
-             "g:llmchat_default_server_url": default_llmchat_default_server_url_value,
-             "g:llmchat_default_model_id": default_llmchat_default_model_id_value,
-             "g:llmchat_default_system_prompt": default_llmchat_default_system_prompt_value,
-             "g:llmchat_apikey_file": default_llmchat_apikey_file_value,
-             "g:llmchat_default_message_register": default_llmchat_default_msg_register,
-             "g:llmchat_max_context_messages": default_llmchat_max_context_messages,
-             "g:llmchat_open_splits_in_insert_mode": default_llmchat_open_new_chats_in_insert_mode_value,
-             "g:llmchat_fully_expand_new_chats": default_llmchat_fully_expand_new_chats,
-             "g:llmchat_chat_split_type": default_llmchat_chat_split_type_value,
-             "g:llmchat_header_sep_size": default_llmchat_header_sep_size_value,
-             "g:llmchat_separator_bar_size": default_llmchat_separator_bar_size_value,
-             "g:llmchat_assistant_message_follow_style": default_llmchat_assistant_message_follow_style,
-             "g:llmchat_h_disp_elem_aug_value": default_llmchat_h_disp_elem_aug_value,
-             "g:llmchat_h_win_adjust": default_llmchat_h_win_adjust,
-             "g:llmchat_thousands_sep_char": default_llmchat_thousands_sep_char,
-             "g:llmchat_use_streaming_mode": default_llmchat_use_streaming_mode,
-             "g:llmchat_use_chat_folding": default_llmchat_use_chat_folding,
-             "g:llmchat_curl_extra_args": default_llmchat_curl_extra_args
+             "g:llmchat_default_server_type": DEFAULT_LLM_DEFAULT_SERVER_TYPE_VALUE,
+             "g:llmchat_default_server_url": DEFAULT_LLMCHAT_DEFAULT_SERVER_URL_VALUE,
+             "g:llmchat_default_model_id": DEFAULT_LLMCHAT_DEFAULT_MODEL_ID_VALUE,
+             "g:llmchat_default_system_prompt": DEFAULT_LLMCHAT_DEFAULT_SYSTEM_PROMPT_VALUE,
+             "g:llmchat_apikey_file": DEFAULT_LLMCHAT_APIKEY_FILE_VALUE,
+             "g:llmchat_default_message_register": DEFAULT_LLMCHAT_DEFAULT_MSG_REGISTER,
+             "g:llmchat_max_context_messages": DEFAULT_LLMCHAT_MAX_CONTEXT_MESSAGES,
+             "g:llmchat_open_splits_in_insert_mode": DEFAULT_LLMCHAT_OPEN_NEW_CHATS_IN_INSERT_MODE_VALUE,
+             "g:llmchat_fully_expand_new_chats": DEFAULT_LLMCHAT_FULLY_EXPAND_NEW_CHATS,
+             "g:llmchat_chat_split_type": DEFAULT_LLMCHAT_CHAT_SPLIT_TYPE_VALUE,
+             "g:llmchat_header_sep_size": DEFAULT_LLMCHAT_HEADER_SEP_SIZE_VALUE,
+             "g:llmchat_separator_bar_size": DEFAULT_LLMCHAT_SEPARATOR_BAR_SIZE_VALUE,
+             "g:llmchat_assistant_message_follow_style": DEFAULT_LLMCHAT_ASSISTANT_MESSAGE_FOLLOW_STYLE,
+             "g:llmchat_h_disp_elem_aug_value": DEFAULT_LLMCHAT_H_DISP_ELEM_AUG_VALUE,
+             "g:llmchat_h_win_adjust": DEFAULT_LLMCHAT_H_WIN_ADJUST,
+             "g:llmchat_thousands_sep_char": DEFAULT_LLMCHAT_THOUSANDS_SEP_CHAR,
+             "g:llmchat_use_streaming_mode": DEFAULT_LLMCHAT_USE_STREAMING_MODE,
+             "g:llmchat_use_chat_folding": DEFAULT_LLMCHAT_USE_CHAT_FOLDING,
+             "g:llmchat_curl_extra_args": DEFAULT_LLMCHAT_CURL_EXTRA_ARGS
            }
 
 enddef

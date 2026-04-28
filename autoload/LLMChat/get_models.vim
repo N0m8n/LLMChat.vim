@@ -82,7 +82,7 @@ function LLMChat#get_models#FetchModels(register_name = '"')
         " connection settings we need for the request.  Note that while it is not strictly necessary to store this in
         " a local variable it will shorten the code lines that follow and avoid redundant drill down to reach the same
         " nested dictionary.
-        let l:header_dict = l:parse_dict[s:util.parse_dictionary_header_key]
+        let l:header_dict = l:parse_dict[s:util.PARSE_DICTIONARY_HEADER_KEY]
 
 
         " Determine what the API path will be for the call based on the type of server that we are interacting with.
@@ -90,7 +90,7 @@ function LLMChat#get_models#FetchModels(register_name = '"')
         " NOTE: To be more user friendly we will use case insensitive comparisons to determine the server type and we
         "       will tolerate some variation on how "open webui" is specified (for example by allowing either a space or
         "       a dash in the server type value).
-        let l:server_type = l:header_dict[s:util.parse_dictionary_header_server_type]
+        let l:server_type = l:header_dict[s:util.PARSE_DICTIONARY_HEADER_SERVER_TYPE]
 
         if l:server_type ==? "ollama"
             " If the logic comes here than it looks like we'll be submitting our model listing request to an Ollama
@@ -167,7 +167,7 @@ function LLMChat#get_models#FetchModels(register_name = '"')
 
         endif
 
-        let l:curl_command = l:curl_command .. l:header_dict[s:util.parse_dictionary_header_server_url] .. l:api_path
+        let l:curl_command = l:curl_command .. l:header_dict[s:util.PARSE_DICTIONARY_HEADER_SERVER_URL] .. l:api_path
 
 
         " If debug mode is enabled then create a debug message that details the curl call we're about to run.
@@ -183,16 +183,16 @@ function LLMChat#get_models#FetchModels(register_name = '"')
         " processing.  This is done primarily to avoid the adjustment of parameter lists each time a new tweak is
         " made to the functionality for fetching model names.
         let l:model_listing_info_dict = {
-                                      \   s:model_list_info_dict_register_name: a:register_name,
-                                      \   s:model_list_info_dict_response_file: l:response_payload_filename,
-                                      \   s:model_list_info_dict_server_type: l:server_type
+                                      \   s:MODEL_LIST_INFO_DICT_REGISTER_NAME: a:register_name,
+                                      \   s:MODEL_LIST_INFO_DICT_RESPONSE_FILE: l:response_payload_filename,
+                                      \   s:MODEL_LIST_INFO_DICT_SERVER_TYPE: l:server_type
                                       \ }
 
         if s:util.IsDebugEnabled()
             " In this case debug mode was enabled so the curl command to be executed was also setup to dump headers
             " from any returned response to a temporary file.  Add the name and path of the allocated temporary file
             " to the model information dictionary so that downstream processing logic can reference it.
-            let l:model_listing_info_dict[s:model_list_info_dict_response_headers_file] = l:response_header_filename
+            let l:model_listing_info_dict[s:MODEL_LIST_INFO_DICT_RESPONSE_HEADERS_FILE] = l:response_header_filename
         endif
 
 
@@ -281,11 +281,11 @@ function LLMChat#get_models#RequestModelList(curl_cmd, model_listing_info_dict)
         " Set the "standard output stream" content we stored into variable 'l:std_out_data' as the http status code.
         " We do this because we assume that the curl call given to us was setup to return its response status on the
         " standard output stream when run.
-        let l:info_dict[s:model_list_info_dict_http_code] = l:std_out_data
+        let l:info_dict[s:MODEL_LIST_INFO_DICT_HTTP_CODE] = l:std_out_data
 
         " Push the exit status for the curl command into the 'l:info_dict' as well so that downstream logic can
         " validate it.
-        let l:info_dict[s:model_list_info_dict_exit_status] = v:shell_error
+        let l:info_dict[s:MODEL_LIST_INFO_DICT_EXIT_STATUS] = v:shell_error
 
         " Finally call the downstream function responsible for processing the response.
         call LLMChat#get_models#ProcessModelListingResponse(l:info_dict)
@@ -305,11 +305,11 @@ endfunction
 "                             By the time this function is invoked such dictionary MUST information for all the
 "                             following fields:
 "
-"                               - s:model_list_info_dict_http_code
-"                               - s:model_list_info_dict_exit_status
-"                               - s:model_list_info_dict_response_file
-"                               - s:model_list_info_dict_server_type
-"                               - s:model_list_info_dict_response_headers_file (only if debug mode is enabled)
+"                               - s:MODEL_LIST_INFO_DICT_HTTP_CODE
+"                               - s:MODEL_LIST_INFO_DICT_EXIT_STATUS
+"                               - s:MODEL_LIST_INFO_DICT_RESPONSE_FILE
+"                               - s:MODEL_LIST_INFO_DICT_SERVER_TYPE
+"                               - s:MODEL_LIST_INFO_DICT_RESPONSE_HEADERS_FILE (only if debug mode is enabled)
 "
 " Throws: An exception will be thrown by this function if any of the following conditions are encountered:
 "
@@ -323,14 +323,14 @@ function LLMChat#get_models#ProcessModelListingResponse(model_listing_info_dict)
         " 'model_listing_info_dict' argument.  Note tht while this step isn't fully necessary it does help to
         " reduce the length of code lines in the logic that follows and avoids redundant drill downs for the same
         " values.
-        let l:http_status_code = a:model_listing_info_dict[s:model_list_info_dict_http_code]
-        let l:curl_exit_code = a:model_listing_info_dict[s:model_list_info_dict_exit_status]
-        let l:response_file = a:model_listing_info_dict[s:model_list_info_dict_response_file]
-        let l:server_type = a:model_listing_info_dict[s:model_list_info_dict_server_type]
+        let l:http_status_code = a:model_listing_info_dict[s:MODEL_LIST_INFO_DICT_HTTP_CODE]
+        let l:curl_exit_code = a:model_listing_info_dict[s:MODEL_LIST_INFO_DICT_EXIT_STATUS]
+        let l:response_file = a:model_listing_info_dict[s:MODEL_LIST_INFO_DICT_RESPONSE_FILE]
+        let l:server_type = a:model_listing_info_dict[s:MODEL_LIST_INFO_DICT_SERVER_TYPE]
 
         " If debug messaging was enabled then write out the full response received; headers and payload.
         if s:util.IsDebugEnabled()
-            let l:response_header_filename = a:model_listing_info_dict[s:model_list_info_dict_response_headers_file]
+            let l:response_header_filename = a:model_listing_info_dict[s:MODEL_LIST_INFO_DICT_RESPONSE_HEADERS_FILE]
 
             let l:debug_message = "Response Data Received:" ..
                               \ "\n  Headers:" ..
@@ -435,7 +435,7 @@ function LLMChat#get_models#ProcessModelListingResponse(model_listing_info_dict)
 
         " Append the extracted model list information to the 's:model_list_info_dict' so that this is available later
         " to the callback function used with our popup menu.
-        let s:model_list_info_dict[s:model_list_info_dict_model_list] = l:model_list
+        let s:model_list_info_dict[s:MODEL_LIST_INFO_DICT_MODEL_LIST] = l:model_list
 
 
         " Now create a VIM popup menu that will display the extracted model information for the user to review and
@@ -453,7 +453,7 @@ function LLMChat#get_models#ProcessModelListingResponse(model_listing_info_dict)
         let l:longest_desc_line = 0
 
         for l:curr_model_dict in l:model_list
-            let l:curr_model_desc = l:curr_model_dict[s:model_info_list_model_display]
+            let l:curr_model_desc = l:curr_model_dict[s:MODEL_INFO_LIST_MODEL_DISPLAY]
             let l:curr_desc_len = len(l:curr_model_desc)
 
             call add(l:model_display_list, l:curr_model_desc)
@@ -586,9 +586,9 @@ function LLMChat#get_models#ProcessOllamaModelListing(response_file)
         " information and presentation looks the same to the invoking logic regardless of the underlying format and
         " content of the received model listing response.
         let l:curr_model_info_dict = {
-                                   \   s:model_info_list_model_id: l:curr_model_obj["name"],
-                                   \   s:model_info_list_model_display: l:curr_model_obj["name"],
-                                   \   s:model_info_list_details_dict: l:curr_model_obj
+                                   \   s:MODEL_INFO_LIST_MODEL_ID: l:curr_model_obj["name"],
+                                   \   s:MODEL_INFO_LIST_MODEL_DISPLAY: l:curr_model_obj["name"],
+                                   \   s:MODEL_INFO_LIST_DETAILS_DICT: l:curr_model_obj
                                    \ }
 
         " Add the finished model information dictionary to the end of the 'model_info_list'.
@@ -677,9 +677,9 @@ function LLMChat#get_models#ProcessOpenWebUIModelListing(response_file)
         " information and presentation looks the same to the invoking logic regardless of the underlying server that
         " provided back the model listing.
         let l:curr_model_info_dict = {
-                                   \   s:model_info_list_model_id: l:curr_model_obj["id"],
-                                   \   s:model_info_list_model_display: l:curr_model_obj["name"],
-                                   \   s:model_info_list_details_dict: l:curr_model_obj
+                                   \   s:MODEL_INFO_LIST_MODEL_ID: l:curr_model_obj["id"],
+                                   \   s:MODEL_INFO_LIST_MODEL_DISPLAY: l:curr_model_obj["name"],
+                                   \   s:MODEL_INFO_LIST_DETAILS_DICT: l:curr_model_obj
                                    \ }
 
         " Add the finished model information dictionary to the end of the 'model_info_list'.
@@ -719,10 +719,10 @@ function LLMChat#get_models#HandleModelSelection(id, result)
     " 's:model_list_info_dict' and then load it with the selected model ID.  Note that 'result' is simply a selection
     " index so to get the associated model ID we will need to fetch the model information list (also stored inside
     " the 's:model_list_info_dict' variable) and use the index to locate the model dictionary whose ID was selected.
-    let l:register_name = s:model_list_info_dict[s:model_list_info_dict_register_name]
-    let l:model_info_list = s:model_list_info_dict[s:model_list_info_dict_model_list]
+    let l:register_name = s:model_list_info_dict[s:MODEL_LIST_INFO_DICT_REGISTER_NAME]
+    let l:model_info_list = s:model_list_info_dict[s:MODEL_LIST_INFO_DICT_MODEL_LIST]
 
-    let l:model_id = l:model_info_list[a:result - 1][s:model_info_list_model_id]
+    let l:model_id = l:model_info_list[a:result - 1][s:MODEL_INFO_LIST_MODEL_ID]
     call setreg(l:register_name, l:model_id)
 
 
@@ -774,12 +774,12 @@ function LLMChat#get_models#HandleModelSelectionKeyPress(winid, key)
 
         " Lookup the model dictionary at the provided index from within the "model information list" held by script
         " variable 's:model_list_info_dict'.
-        let l:model_dict = s:model_list_info_dict[s:model_list_info_dict_model_list][l:model_index]
+        let l:model_dict = s:model_list_info_dict[s:MODEL_LIST_INFO_DICT_MODEL_LIST][l:model_index]
 
 
         " Retrieve the model detail information dictionary from the 'l:model_dict' then call out to a utility function
         " that will format this information into a series of text lines appropriate for display to a user.
-        let l:model_detail_dict = l:model_dict[s:model_info_list_details_dict]
+        let l:model_detail_dict = l:model_dict[s:MODEL_INFO_LIST_DETAILS_DICT]
         let l:model_detail_desc = s:util.FormatDictionaryToText(l:model_detail_dict, 2)
 
 
@@ -799,8 +799,8 @@ function LLMChat#get_models#HandleModelSelectionKeyPress(winid, key)
 
         " Create a popup dialog that will display over the current popup and which will show the requested detail
         " information.
-        let l:model_dict = s:model_list_info_dict[s:model_list_info_dict_model_list][l:model_index]
-        let l:model_name = model_dict[s:model_info_list_model_display]
+        let l:model_dict = s:model_list_info_dict[s:MODEL_LIST_INFO_DICT_MODEL_LIST][l:model_index]
+        let l:model_name = model_dict[s:MODEL_INFO_LIST_MODEL_DISPLAY]
 
         let l:popup_options = {
                             \   "title": " Model '" .. l:model_name .. "' Details ",
@@ -872,8 +872,8 @@ endfunction
 "
 function LLMChat#get_models#CompareModelDictionaries(first_dict, second_dict)
     " Base the sorting entirely on the display name held by both models.
-    let first_model_display = a:first_dict[s:model_info_list_model_display]
-    let second_model_display = a:second_dict[s:model_info_list_model_display]
+    let first_model_display = a:first_dict[s:MODEL_INFO_LIST_MODEL_DISPLAY]
+    let second_model_display = a:second_dict[s:MODEL_INFO_LIST_MODEL_DISPLAY]
 
     let sort_code = 0     " Assume the equality case by default.
     if first_model_display < second_model_display
@@ -938,13 +938,13 @@ let s:model_list_info_dict = { }
 " current dictionary used for this information is one level and contains entries whose names correspond to one of
 " the constants listed below (constants are used for consistenty and to introduce an immediate execution fault on typo
 " which a string literal won't do).
-const s:model_list_info_dict_register_name = "register name"
-const s:model_list_info_dict_response_file = "response payload file"
-const s:model_list_info_dict_response_headers_file = "response headers file"
-const s:model_list_info_dict_http_code = "http response code"
-const s:model_list_info_dict_exit_status = "exit status"
-const s:model_list_info_dict_server_type = "server type"
-const s:model_list_info_dict_model_list = "model list"
+const s:MODEL_LIST_INFO_DICT_REGISTER_NAME = "register name"
+const s:MODEL_LIST_INFO_DICT_RESPONSE_FILE = "response payload file"
+const s:MODEL_LIST_INFO_DICT_RESPONSE_HEADERS_FILE = "response headers file"
+const s:MODEL_LIST_INFO_DICT_HTTP_CODE = "http response code"
+const s:MODEL_LIST_INFO_DICT_EXIT_STATUS = "exit status"
+const s:MODEL_LIST_INFO_DICT_SERVER_TYPE = "server type"
+const s:MODEL_LIST_INFO_DICT_MODEL_LIST = "model list"
 
 
     " --------------------------------
@@ -968,7 +968,7 @@ const s:model_list_info_dict_model_list = "model list"
 "       this information is kept fully in its original form it is only suitable for (1) display to users as full
 "       detail data or (2) consumption through functions that are aware of the remote server type.
 "
-const s:model_info_list_model_id = "model id"
-const s:model_info_list_model_display = "model display"
-const s:model_info_list_details_dict = "details"
+const s:MODEL_INFO_LIST_MODEL_ID = "model id"
+const s:MODEL_INFO_LIST_MODEL_DISPLAY = "model display"
+const s:MODEL_INFO_LIST_DETAILS_DICT = "details"
 

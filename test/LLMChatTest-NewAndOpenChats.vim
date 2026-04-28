@@ -54,12 +54,17 @@ function s:BeforeAll()
 endfunction
 
 
-" This function executes immediately before each test function in this suite and takes the following actions:
-"
-"   1). Reset all global plugin variables back to their "default" values.  This ensures that any changes made to the
-"       values held by such variables are cleared before the next test execution takes place.
-"
-function! s:Setup()
+" This function is responsible for executing pre-testing setup tasks that are in common to all test executions in this
+" script.  Note that logic within this script will be executed just prior to running each test (unlike the BeforeAll()
+" function which will run once before any test).
+function s:Setup()
+    " If the 'g:llmchat_debug_mode_target' variable has been set than save this into a script local variable for
+    " later restoration.
+    if exists("g:llmchat_debug_mode_target") && g:llmchat_debug_mode_target != ''
+        let s:llmchat_debug_mode_target = g:llmchat_debug_mode_target
+    endif
+
+
     " Reset all global plugin variables back to the default values expected by this testing script.  Why are we doing
     " this here when we already to it in the BeforeAll() function?  The reason is that we may have a test failure that
     " changed one of these values and if we don't reset before the next test execution we may impact the expected
@@ -750,9 +755,17 @@ endfunction
 "       Opening a split for testing will switch the mode to insert and we should not assume that tests are always able
 "       to clean this up before they terminate.
 "
+"   2). Restore any value that was being saved in the script for variable 'g:llmchat_debug_mode_target'.
+"
 function s:Teardown()
     " Make sure that we've switched the editor back to normal mode before we move forward with the next test.
     silent! stopinsert
+
+    " Check to see if a value was being stored within the script for global variable 'g:llmchat_debug_mode_target' and
+    " if so than restore it.
+    if exists("s:llmchat_debug_mode_target")
+        let g:llmchat_debug_mode_target = s:llmchat_debug_mode_target
+    endif
 
 endfunction
 

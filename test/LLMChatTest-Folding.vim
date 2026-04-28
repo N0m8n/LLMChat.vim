@@ -56,6 +56,19 @@ function s:BeforeAll()
 endfunction
 
 
+" This function is responsible for executing pre-testing setup tasks that are in common to all test executions in this
+" script.  Note that logic within this script will be executed just prior to running each test (unlike the BeforeAll()
+" function which will run once before any test).
+function s:Setup()
+    " If the 'g:llmchat_debug_mode_target' variable has been set than save this into a script local variable for
+    " later restoration.
+    if exists("g:llmchat_debug_mode_target") && g:llmchat_debug_mode_target != ''
+        let s:llmchat_debug_mode_target = g:llmchat_debug_mode_target
+    endif
+
+endfunction
+
+
 "
 " =========================================  Start Standalone Tests  =========================================
 "
@@ -416,6 +429,13 @@ function s:Teardown()
     " Check to see if global variable 'g:llmchat_test_bypass_mode' is set and if so than remove it.
     if exists("g:llmchat_test_bypass_mode")
         unlet g:llmchat_test_bypass_mode
+    endif
+
+
+    " Check to see if a value was being stored within the script for global variable 'g:llmchat_debug_mode_target' and
+    " if so than restore it.
+    if exists("s:llmchat_debug_mode_target")
+        let g:llmchat_debug_mode_target = s:llmchat_debug_mode_target
     endif
 
 endfunction
