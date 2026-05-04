@@ -31,63 +31,98 @@ vim9script
 # The following declarations represent constants that are needed by the utilities within this script as well as
 # potentially tests using this script.
 
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_server_type'.
-const DEFAULT_LLM_DEFAULT_SERVER_TYPE_VALUE = "Ollama"
 
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_server_url'.
-const DEFAULT_LLMCHAT_DEFAULT_SERVER_URL_VALUE = "http://localhost:11434"
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_model_id'.
-const DEFAULT_LLMCHAT_DEFAULT_MODEL_ID_VALUE = ''
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_system_prompt'.
-const DEFAULT_LLMCHAT_DEFAULT_SYSTEM_PROMPT_VALUE = ''
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_apikey_file'.
-const DEFAULT_LLMCHAT_APIKEY_FILE_VALUE = ''
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_default_message_register'.
-const DEFAULT_LLMCHAT_DEFAULT_MSG_REGISTER = ''
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_max_context_messages'.
-const DEFAULT_LLMCHAT_MAX_CONTEXT_MESSAGES = 0
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_open_splits_in_insert_mode'.
-const DEFAULT_LLMCHAT_OPEN_NEW_CHATS_IN_INSERT_MODE_VALUE = 1
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_fully_expand_new_chats'.
-const DEFAULT_LLMCHAT_FULLY_EXPAND_NEW_CHATS = 1
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_chat_split_type'.
-const DEFAULT_LLMCHAT_CHAT_SPLIT_TYPE_VALUE = "horizontal"
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_header_sep_size'.
-const DEFAULT_LLMCHAT_HEADER_SEP_SIZE_VALUE = 28
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_separator_bar_size'.
-const DEFAULT_LLMCHAT_SEPARATOR_BAR_SIZE_VALUE = 28
-
-# This constant holds the plugin default value that tests expect for variable
-# 'g:llmchat_assistant_message_follow_style'.
-const DEFAULT_LLMCHAT_ASSISTANT_MESSAGE_FOLLOW_STYLE = 0
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_h_disp_elem_aug_value'.
-const DEFAULT_LLMCHAT_H_DISP_ELEM_AUG_VALUE = 0
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_h_win_adjust'.
-const DEFAULT_LLMCHAT_H_WIN_ADJUST = 0
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_thousands_sep_char'.
-const DEFAULT_LLMCHAT_THOUSANDS_SEP_CHAR = ','
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_use_streaming_mode'.
-const DEFAULT_LLMCHAT_USE_STREAMING_MODE = 0
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_use_chat_folding'.
-const DEFAULT_LLMCHAT_USE_CHAT_FOLDING = 1
-
-# This constant holds the plugin default value that tests expect for variable 'g:llmchat_curl_extra_args'.
-const DEFAULT_LLMCHAT_CURL_EXTRA_ARGS = ''
+# Define a constant list that contains information about the global variables used by this plugin.  Each entry in this
+# list will be a dictionary that has the following format:
+#
+#   {
+#     "name":      <-- The name of the global variable ("g:" prefix included).
+#     "default":   <-- The testing default that should be assumed for the variable.
+#   }
+#
+# Ultimately the information within this list will be used to drive test utilities that can reset global variables to
+# expected "testing defaults" and then restore the original values to those variables upon completion of testing.
+# Consolidating the information needed to do this within a single, constant datastructure greatly simplifies not only
+# the testing utility functions but also the process of adding or changing the global variables themselves.
+const GLOBAL_VARS_DICT =
+      [
+          {
+              "name": "g:llmchat_default_server_type",
+              "default": "Ollama"
+          },
+          {
+              "name": "g:llmchat_default_server_url",
+              "default": "http://localhost:11434"
+          },
+          {
+              "name": "g:llmchat_default_model_id",
+              "default": ""
+          },
+          {
+              "name": "g:llmchat_default_system_prompt",
+              "default": ""
+          },
+          {
+              "name": "g:llmchat_apikey_file",
+              "default": ""
+          },
+          {
+              "name": "g:llmchat_default_message_register",
+              "default": ""
+          },
+          {
+              "name": "g:llmchat_max_context_messages",
+              "default": 0
+          },
+          {
+              "name": "g:llmchat_open_new_chats_in_insert_mode",
+              "default": 1
+          },
+          {
+              "name": "g:llmchat_fully_expand_new_chats",
+              "default": 1
+          },
+          {
+              "name": "g:llmchat_chat_split_type",
+              "default": "horizontal"
+          },
+          {
+              "name": "g:llmchat_header_sep_size",
+              "default": 28
+          },
+          {
+              "name": "g:llmchat_separator_bar_size",
+              "default": 28
+          },
+          {
+              "name": "g:llmchat_assistant_message_follow_style",
+              "default": 0
+          },
+          {
+              "name": "g:llmchat_h_disp_elem_aug_value",
+              "default": 0
+          },
+          {
+              "name": "g:llmchat_h_win_adjust",
+              "default": 0
+          },
+          {
+              "name": "g:llmchat_thousands_sep_char",
+              "default": ","
+          },
+          {
+              "name": "g:llmchat_use_streaming_mode",
+              "default": 0
+          },
+          {
+              "name": "g:llmchat_use_chat_folding",
+              "default": 1
+          },
+          {
+              "name": "g:llmchat_curl_extra_args",
+              "default": ""
+          }
+      ]
 
 
 # =================================
@@ -615,162 +650,67 @@ export def ResetGlobalVars(): dict<any>
     # caller and may be given to function RestoreGlobalVars() later on to restore back the values.
     var orig_values_dict = {}
 
-    # Check to see if the 'g:llmchat_default_server_type' variable has been set to a non-default value and if so backup
-    # its current value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_default_server_type != DEFAULT_LLM_DEFAULT_SERVER_TYPE_VALUE
-        orig_values_dict["g:llmchat_default_server_type"] = g:llmchat_default_server_type
-        g:llmchat_default_server_type = DEFAULT_LLM_DEFAULT_SERVER_TYPE_VALUE
-    endif
+    # Loop over all global variable dictionaries declared by constant GLOBAL_VARS_DICT.
+    var global_vars_length = len(GLOBAL_VARS_DICT)
+    for curr_index in range(0, global_vars_length - 1)
+        # Retrieve the dictionary of information pertaining to the current global variable and store this locally.
+        var curr_global_dict = GLOBAL_VARS_DICT[curr_index]
 
+        # Retrieve the current value for the global variable whose name is held by the 'curr_global_dict'.  Note that
+        # to indirectly do this we will need to leverage the eval() function and then save the returned result into
+        # our own local variable.
+        var global_var_value = eval(curr_global_dict["name"])
 
-    # Check to see if the 'g:llmchat_default_server_url' variable has been set to a non-default value and if so backup
-    # its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_default_server_url != DEFAULT_LLMCHAT_DEFAULT_SERVER_URL_VALUE
-        orig_values_dict["g:llmchat_default_server_url"] = g:llmchat_default_server_url
-        g:llmchat_default_server_url = DEFAULT_LLMCHAT_DEFAULT_SERVER_URL_VALUE
-    endif
+        # Now check to see if the global variable value held by 'global_var_value' is equal to the test expected
+        # default and if NOT than (1) store the value into the 'orig_values_dict' for preservation then (2) reset the
+        # global variable to its test expected default.
+        if global_var_value != curr_global_dict["default"]
+            orig_values_dict[curr_global_dict["name"]] = global_var_value
 
+            # NOTE: [Ugly] There does not seem to be a way to set a variable in vim9script and then reference that
+            #       variable when running a legacy statement.  This has been attempted multiple different ways (using
+            # 'l' and 's' prefixes within the legacy line, using no prefix, elevating the variable definition from local
+            # to script local and then trying to reference the variable as script local, etc).  The cleanest workaround
+            # thus far has been to shove the legacy script to its own function and then invoke it from the code within
+            # the vim9 function (so that the variables are passed as arguments and don't need to be directly
+            # referenced).  Note that this is itself working around the seeming omission of any way to indirectly set a
+            # variable in vim9 script which necessitated the use of a "curly brace name" in the first place (see the
+            # definition of function SetVariable() in this script file for details).
+            #
+            # Should either problem be resolved (either how to set a variable indirectly in vim9 OR how to access the
+            # value of a variable created by vim9 script inside a legacy statement) than this code can be cleaned up
+            # further and the SetVariable() function can be removed.
+            SetVariable(curr_global_dict["name"], curr_global_dict["default"])
+        endif
 
-    # Check to see if the 'g:llmchat_default_model_id' variable has been set to a non-default value and if so backup
-    # its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_default_model_id != DEFAULT_LLMCHAT_DEFAULT_MODEL_ID_VALUE
-        orig_values_dict["g:llmchat_default_model_id"] = g:llmchat_default_model_id
-        g:llmchat_default_model_id = DEFAULT_LLMCHAT_DEFAULT_MODEL_ID_VALUE
-    endif
-
-
-    # Check to see if the 'g:llmchat_default_system_prompt' variable has been set to a non-default value and if so
-    # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_default_system_prompt != DEFAULT_LLMCHAT_DEFAULT_SYSTEM_PROMPT_VALUE
-        orig_values_dict["g:llmchat_default_system_prompt"] = g:llmchat_default_system_prompt
-        g:llmchat_default_system_prompt = DEFAULT_LLMCHAT_DEFAULT_SYSTEM_PROMPT_VALUE
-    endif
-
-
-    # Check to see if the 'g:llmchat_apikey_file' variable has been set to a non-default value and if so backup its
-    # value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_apikey_file != DEFAULT_LLMCHAT_APIKEY_FILE_VALUE
-        orig_values_dict["g:llmchat_apikey_file"] = g:llmchat_apikey_file
-        g:llmchat_apikey_file = DEFAULT_LLMCHAT_APIKEY_FILE_VALUE
-    endif
-
-
-    # Check to see if the 'g:llmchat_default_message_register' variable has been set to a non-default value and if so
-    # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_default_message_register != DEFAULT_LLMCHAT_DEFAULT_MSG_REGISTER
-        orig_values_dict["g:llmchat_default_message_register"] = g:llmchat_default_message_register
-        g:llmchat_default_message_register = DEFAULT_LLMCHAT_DEFAULT_MSG_REGISTER
-    endif
-
-
-    # Check to see if the 'g:llmchat_max_context_messages' variable has been set to a non-default value and if so backup
-    # its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_max_context_messages != DEFAULT_LLMCHAT_MAX_CONTEXT_MESSAGES
-        orig_values_dict["g:llmchat_max_context_messages"] = g:llmchat_max_context_messages
-        g:llmchat_max_context_messages = DEFAULT_LLMCHAT_MAX_CONTEXT_MESSAGES
-    endif
-
-
-    # Check to see if the 'g:llmchat_open_splits_in_insert_mode' variable has been set to a non-default value and if so
-    # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_open_new_chats_in_insert_mode != DEFAULT_LLMCHAT_OPEN_NEW_CHATS_IN_INSERT_MODE_VALUE
-        orig_values_dict["g:llmchat_open_new_chats_in_insert_mode"] = g:llmchat_open_new_chats_in_insert_mode
-        g:llmchat_open_new_chats_in_insert_mode = DEFAULT_LLMCHAT_OPEN_NEW_CHATS_IN_INSERT_MODE_VALUE
-    endif
-
-
-    # Check to see if the 'g:llmchat_fully_expand_new_chats' varible has been set to a non-default value and if so
-    # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_fully_expand_new_chats != DEFAULT_LLMCHAT_FULLY_EXPAND_NEW_CHATS
-        orig_values_dict["g:llmchat_fully_expand_new_chats"] = g:llmchat_fully_expand_new_chats
-        g:llmchat_fully_expand_new_chats = DEFAULT_LLMCHAT_FULLY_EXPAND_NEW_CHATS
-    endif
-
-
-    # Check to see if the 'g:llmchat_chat_split_type' variable has been set a non-default value and if so backup its
-    # value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_chat_split_type != DEFAULT_LLMCHAT_CHAT_SPLIT_TYPE_VALUE
-        orig_values_dict["g:llmchat_chat_split_type"] = g:llmchat_chat_split_type
-        g:llmchat_chat_split_type = DEFAULT_LLMCHAT_CHAT_SPLIT_TYPE_VALUE
-    endif
-
-
-    # Check to see if the 'g:llmchat_header_sep_size' variable has been set to a non-default value and if so backup its
-    # value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_header_sep_size != DEFAULT_LLMCHAT_HEADER_SEP_SIZE_VALUE
-        orig_values_dict["g:llmchat_header_sep_size"] = g:llmchat_header_sep_size
-        g:llmchat_header_sep_size = DEFAULT_LLMCHAT_HEADER_SEP_SIZE_VALUE
-    endif
-
-
-    # Check to see if the 'g:llmchat_separator_bar_size' variable has been set to a non-default value and if so backup
-    # its value within the 'orig_values_dict' before resetting it to the plugin default
-    if g:llmchat_separator_bar_size != DEFAULT_LLMCHAT_SEPARATOR_BAR_SIZE_VALUE
-        orig_values_dict["g:llmchat_separator_bar_size"] = g:llmchat_separator_bar_size
-        g:llmchat_separator_bar_size = DEFAULT_LLMCHAT_SEPARATOR_BAR_SIZE_VALUE
-    endif
-
-
-    # Check to see if the 'g:llmchat_assistant_message_follow_style' variable has been set to a non-default value and if
-    # so backup its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_assistant_message_follow_style != DEFAULT_LLMCHAT_ASSISTANT_MESSAGE_FOLLOW_STYLE
-        orig_values_dict["g:llmchat_assistant_message_follow_style"] = g:llmchat_assistant_message_follow_style
-        g:llmchat_assistant_message_follow_style = DEFAULT_LLMCHAT_ASSISTANT_MESSAGE_FOLLOW_STYLE
-    endif
-
-
-    # Check to see if the 'g:llmchat_h_disp_elem_aug_value' variable has been set to a non-default value and if so
-    # backup its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_h_disp_elem_aug_value != DEFAULT_LLMCHAT_H_DISP_ELEM_AUG_VALUE
-        orig_values_dict["g:llmchat_h_disp_elem_aug_value"] = g:llmchat_h_disp_elem_aug_value
-        g:llmchat_h_disp_elem_aug_value = DEFAULT_LLMCHAT_H_DISP_ELEM_AUG_VALUE
-    endif
-
-
-    # Check to see if the 'g:llmchat_h_win_adjust' variable has been set to a non-default value and if so backup its
-    # value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_h_win_adjust != DEFAULT_LLMCHAT_H_WIN_ADJUST
-        orig_values_dict["g:llmchat_h_win_adjust"] = g:llmchat_h_win_adjust
-        g:llmchat_h_win_adjust = DEFAULT_LLMCHAT_H_WIN_ADJUST
-    endif
-
-
-    # Check to see if the 'g:llmchat_thousands_sep_char' variable has been set to a non-default value and if so backup
-    # its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_thousands_sep_char != DEFAULT_LLMCHAT_THOUSANDS_SEP_CHAR
-        orig_values_dict["g:llmchat_thousands_sep_char"] = g:llmchat_thousands_sep_char
-        g:llmchat_thousands_sep_char  = DEFAULT_LLMCHAT_THOUSANDS_SEP_CHAR
-    endif
-
-
-    # Check to see if the 'g:llmchat_use_streaming_mode' variable has been set to a non-default value and if so backup
-    # its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_use_streaming_mode != DEFAULT_LLMCHAT_USE_STREAMING_MODE
-        orig_values_dict["g:llmchat_use_streaming_mode"] = g:llmchat_use_streaming_mode
-        g:llmchat_use_streaming_mode = DEFAULT_LLMCHAT_USE_STREAMING_MODE
-    endif
-
-
-    # Check to see if the 'g:llmchat_use_chat_folding' variable has been set to a non-default value and if so backup
-    # its value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_use_chat_folding != DEFAULT_LLMCHAT_USE_CHAT_FOLDING
-        orig_values_dict["g:llmchat_use_chat_folding"] = g:llmchat_use_chat_folding
-        g:llmchat_use_chat_folding = DEFAULT_LLMCHAT_FULLY_EXPAND_NEW_CHATS
-    endif
-
-
-    # Check to see if the 'g:llmchat_curl_extra_args' variable has been set to a non-default value and if so backup its
-    # value within the 'orig_values_dict' before resetting it to the plugin default.
-    if g:llmchat_curl_extra_args != DEFAULT_LLMCHAT_CURL_EXTRA_ARGS
-        orig_values_dict["g:llmchat_curl_extra_args"] = g:llmchat_curl_extra_args
-        g:llmchat_curl_extra_args = DEFAULT_LLMCHAT_CURL_EXTRA_ARGS
-    endif
-
+    endfor
 
     # Return the 'orig_values_dict' back to the caller.
     return orig_values_dict
 
 enddef
+
+
+# This function is a legacy solution workaround to the seeming omission of a way to indirectly set a variable using
+# accepted Vim9script syntax.  By "indirect setting" we mean that we don't actually know the name of the variable
+# within the script logic itself; this information is passed to us in another variable at runtime.  This means that
+# basic variable assignment statements cannot be used directly as we don't have the information need to complete the
+# left side of the assignment.
+#
+# Arguments:
+#   name - The name of the variable that is to be set (note that since this function is legacy Vimscript such
+#          variable must be prefixed with the appropriate scope modifier).
+#   value - The value that the variable should be set to.
+#
+legacy function! s:SetVariable(name, value)
+   " Indirect Variable Setting - Here we have a case where we need to set a variable but we do not know ahead of time
+   "                             (i.e., in the code) what the name of that variable will be; instead we will be given
+   " the name of the variable at runtime.  In order to perform this task we will use a so called "curly braces name"
+   " (see ":help curly-braces-named) in our 'let' statement.  This effectively expands to the value of the variable
+   " within the curly braces (argument 'a:name' in this case), replaces the curly brace notation with the expansion,
+   " then evaluates the line.
+   let {a:name} = a:value
+endfunction
 
 
 # This function will handle restoration of the value for any global variable recognized by this plugin whose value may
@@ -783,84 +723,39 @@ enddef
 #                  held (i.e., the value that this function should restore).
 #
 export def RestoreGlobalVars(restore_dict: dict<any>)
-    # Check for the existence of a dictionary entry whose name matches to a global variable that "might" have been
-    # reset to a plugin default value.  If such an entry is found than we will restore the value it holds to the
-    # corresponding global variable.
-    if has_key(restore_dict, "g:llmchat_default_server_type")
-        g:llmchat_default_server_type = restore_dict["g:llmchat_default_server_type"]
-    endif
+    # Loop through all global variables defined by constant 'GLOBAL_VARS_DICT'.
+    var global_vars_length = len(GLOBAL_VARS_DICT)
+    for curr_var_index in range(0, global_vars_length - 1)
+        var curr_var_dict = GLOBAL_VARS_DICT[curr_var_index]
 
-    if has_key(restore_dict, "g:llmchat_default_server_url")
-        g:llmchat_default_server_url = restore_dict["g:llmchat_default_server_url"]
-    endif
+        # Check for the existence of an entry within the given 'restore_dict' whose name matches to the global variable
+        # in the 'curr_var_dict' dictionary and which "might" have been reset to a plugin default value.  If such an
+        # entry is found than we will restore the value it holds to the corresponding global variable.
+        #
+        # Syntax Note:  The {name} syntax allows the indirect setting of a variable value.  This means that rather
+        #               than setting the value of variable "name" it will set the value of a variable whose name is
+        #               being held by variable "name".  Unfortunately there does not seem to be any way to achive
+        #               indirect variable setting using pure vim9script syntax so we have to run this command as
+        #               legacy
+        #
+        if has_key(restore_dict, curr_var_dict["name"])
+            # NOTE: [Ugly] There does not seem to be a way to set a variable in vim9script and then reference that
+            #       variable when running a legacy statement.  This has been attempted multiple different ways (using
+            # 'l' and 's' prefixes within the legacy line, using no prefix, elevating the variable definition from local
+            # to script local and then trying to reference the variable as script local, etc).  The cleanest workaround
+            # thus far has been to shove the legacy script to its own function and then invoke it from the code within
+            # the vim9 function (so that the variables are passed as arguments and don't need to be directly
+            # referenced).  Note that this is itself working around the seeming omission of any way to indirectly set a
+            # variable in vim9 script which necessitated the use of a "curly brace name" in the first place (see the
+            # definition of function SetVariable() in this script file for details).
+            #
+            # Should either problem be resolved (either how to set a variable indirectly in vim9 OR how to access the
+            # value of a variable created by vim9 script inside a legacy statement) than this code can be cleaned up
+            # further and the SetVariable() function can be removed.
+            SetVariable(curr_var_dict["name"], restore_dict[curr_var_dict["name"]])
+        endif
 
-    if has_key(restore_dict, "g:llmchat_default_model_id")
-        g:llmchat_default_model_id = restore_dict["g:llmchat_default_model_id"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_default_system_prompt")
-        g:llmchat_default_system_prompt = restore_dict["g:llmchat_default_system_prompt"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_apikey_file")
-        g:llmchat_apikey_file = restore_dict["g:llmchat_apikey_file"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_default_message_register")
-        g:llmchat_default_message_register = restore_dict["g:llmchat_default_message_register"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_max_context_messages")
-        g:llmchat_max_context_messages = restore_dict["g:llmchat_max_context_messages"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_open_new_chats_in_insert_mode")
-        g:llmchat_open_new_chats_in_insert_mode = restore_dict["g:llmchat_open_new_chats_in_insert_mode"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_fully_expand_new_chats")
-        g:llmchat_fully_expand_new_chats = restore_dict["g:llmchat_fully_expand_new_chats"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_chat_split_type")
-        g:llmchat_chat_split_type = restore_dict["g:llmchat_chat_split_type"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_header_sep_size")
-        g:llmchat_header_sep_size = restore_dict["g:llmchat_header_sep_size"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_separator_bar_size")
-        g:llmchat_separator_bar_size = restore_dict["g:llmchat_separator_bar_size"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_assistant_message_follow_style")
-        g:llmchat_assistant_message_follow_style = restore_dict["g:llmchat_assistant_message_follow_style"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_h_disp_elem_aug_value")
-        g:llmchat_h_disp_elem_aug_value = restore_dict["g:llmchat_h_disp_elem_aug_value"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_h_win_adjust")
-        g:llmchat_h_win_adjust = restore_dict["g:llmchat_h_win_adjust"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_thousands_sep_char")
-        g:llmchat_thousands_sep_char = restore_dict["g:llmchat_thousands_sep_char"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_use_streaming_mode")
-        g:llmchat_use_streaming_mode = restore_dict["g:llmchat_use_streaming_mode"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_use_chat_folding")
-        g:llmchat_use_chat_folding = restore_dict["g:llmchat_use_chat_folding"]
-    endif
-
-    if has_key(restore_dict, "g:llmchat_curl_extra_args")
-        g:llmchat_curl_extra_args = restore_dict["g:llmchat_curl_extra_args"]
-    endif
+    endfor
 
 enddef
 
@@ -874,28 +769,19 @@ enddef
 #
 export def GetGlobalVariableDefaults(): dict<any>
     # Create a dictionary that will hold a mapping between the name of each global variable recognized by this plugin
-    # and its expected "default" value then return such dictionary back to the caller.
-    return {
-             "g:llmchat_default_server_type": DEFAULT_LLM_DEFAULT_SERVER_TYPE_VALUE,
-             "g:llmchat_default_server_url": DEFAULT_LLMCHAT_DEFAULT_SERVER_URL_VALUE,
-             "g:llmchat_default_model_id": DEFAULT_LLMCHAT_DEFAULT_MODEL_ID_VALUE,
-             "g:llmchat_default_system_prompt": DEFAULT_LLMCHAT_DEFAULT_SYSTEM_PROMPT_VALUE,
-             "g:llmchat_apikey_file": DEFAULT_LLMCHAT_APIKEY_FILE_VALUE,
-             "g:llmchat_default_message_register": DEFAULT_LLMCHAT_DEFAULT_MSG_REGISTER,
-             "g:llmchat_max_context_messages": DEFAULT_LLMCHAT_MAX_CONTEXT_MESSAGES,
-             "g:llmchat_open_splits_in_insert_mode": DEFAULT_LLMCHAT_OPEN_NEW_CHATS_IN_INSERT_MODE_VALUE,
-             "g:llmchat_fully_expand_new_chats": DEFAULT_LLMCHAT_FULLY_EXPAND_NEW_CHATS,
-             "g:llmchat_chat_split_type": DEFAULT_LLMCHAT_CHAT_SPLIT_TYPE_VALUE,
-             "g:llmchat_header_sep_size": DEFAULT_LLMCHAT_HEADER_SEP_SIZE_VALUE,
-             "g:llmchat_separator_bar_size": DEFAULT_LLMCHAT_SEPARATOR_BAR_SIZE_VALUE,
-             "g:llmchat_assistant_message_follow_style": DEFAULT_LLMCHAT_ASSISTANT_MESSAGE_FOLLOW_STYLE,
-             "g:llmchat_h_disp_elem_aug_value": DEFAULT_LLMCHAT_H_DISP_ELEM_AUG_VALUE,
-             "g:llmchat_h_win_adjust": DEFAULT_LLMCHAT_H_WIN_ADJUST,
-             "g:llmchat_thousands_sep_char": DEFAULT_LLMCHAT_THOUSANDS_SEP_CHAR,
-             "g:llmchat_use_streaming_mode": DEFAULT_LLMCHAT_USE_STREAMING_MODE,
-             "g:llmchat_use_chat_folding": DEFAULT_LLMCHAT_USE_CHAT_FOLDING,
-             "g:llmchat_curl_extra_args": DEFAULT_LLMCHAT_CURL_EXTRA_ARGS
-           }
+    # and its expected "testing default" value then return such dictionary back to the caller.
+    var return_dict = { }
+    var global_vars_count = len(GLOBAL_VARS_DICT)
+    for curr_vars_index in range(0, global_vars_count - 1)
+        # Retrieve the dictionary of information associated with the current global variable.
+        var curr_var_dict = GLOBAL_VARS_DICT[curr_vars_index]
+
+        # Add an entry to the 'return_dict' whose key is the name of the global variable and whose value is the
+        # default value.
+        return_dict[curr_var_dict["name"]] = curr_var_dict["default"]
+    endfor
+
+    return return_dict
 
 enddef
 
