@@ -266,6 +266,68 @@ if ! exists("g:llmchat_curl_extra_args")
 endif
 
 
+" This variable declares a "supplementary dictionary" that should be used to insert additional values into the JSON
+" request bodies for ALL chats being submitted through this plugin.  The content of this dictionary will be recursively
+" merged, in tree fashion, to the content of each chat request JSON before the request is sent to the remote LLM.  Such
+" merging essentially means that child structures such as lists and dictionaries found within this dictionary, and which
+" correspond to lists or dictionaries for the same key in the request, will then be merged together as well in the
+" request content.
+"
+" The general use case for this variable is in the injection of setup specific content that would otherwise be too
+" niche for the plugin itself to inject into requests.  As an example of this consider the keep-alive value provided
+" by Ollama which defines how long a model should remain loaded in the GPU for use.  There is currently no chat option
+" available to manipulate such value because (1) the option is actually limited to Ollama and (2) for Ollama requests
+" being routed through Open WebUI it requires the plugin be knowledgable of that routing.  By enabling the use of
+" supplementary values from an arbitrarily defined dictionary it is now possible to inject such configuration into
+" chat requests in a manner consistent with the system the chat request will go to.
+"
+" Some caveats related to the use of this value are provided below for awareness:
+"
+"   1). Overrides are NOT ALLOWED - This means that if a value declared within the dictionary held by this variable is
+"                                   found to collide with a value already defined in the request JSON than the value
+"           declared here will be ignored.  As an example of this let us assume that we try to override the
+"           'stream' setting defined in the request so that we can control whether or not response streaming will be
+"           employed (rather than using the correct method of setting this via global variable
+"           'llmchat_use_streaming_mode').  In such a case the stream setting defined here will be ignored as that
+"           value is already populated into the request JSON before merging with this dictionary takes place.  This
+"           example is also meant to illustrate why such overrides are not allowed since, if we could override things
+"           like the stream setting here, we could implicitly break logic within the plugin that was expecting the
+"           setting it provided already to be used.
+"
+"  2). Be Aware of Vim Type Idiosyncrasies - Vim uses a simplified series of types which do not align cleanly with
+"                                            the types used in JSON documents.  Since the dictionary declared here
+"           uses Vim types you need to be aware of how these will be translated into the JSON request document so that
+"           your injected values are intepreted properly.  The most notable of these idiosyncrasies are boolean
+"           values, which must be defined using v:true or v:false, and null, which must be defined using v:null.  For
+"           full details on the type mapping used please see ":help json_encode()".
+"
+"  3). This Variable is Intended for Static Injections - The intended use case for this variable is in the injection
+"                                                        of niche, custom settings during a chat request where such
+"           settings occupy a static position within the request JSON.  This variable does not work well when trying
+"           to inject content into parts of the request document that are dynamically changing (for example into the
+"           ever-growing list of messages being created).  A more practical, if still tedious, alternative would be
+"           to use the 'Chat Request Supplement Dict' chat option so at least the supplementary dictionary could be
+"           defined within the same chat it needs to be modified from.  For more information on this option see
+"           ":help LLMChat_ChatOptions".
+"
+"  4). Special Note: Injecting into Specific Elements for Child Lists - The merging of values into child lists has a
+"                                                                       unique issue since it is sometimes necessary to
+"           specifically locate the value merge to specific elements in the list (for instance adding a value to
+"           elements 3 and 4 but not to elements 0, 1, or 2).  In order to do such a merge you would need to fill in
+"           "dummy" values for elements 0, 1, and 2 within the child list held by this dictionary so that the real
+"           values to be injected can be located at the proper index position.  In general, dummy values should be
+"           selected so that if they DO NOT collide with information already found in the request JSON than they don't
+"           cause any issue; obviously since overwrites are not allowed the selection of values that WILL collide is
+"           not of concern outside of configuration readability.
+"
+" As mentioned earlier in this documentation, the definition of this variable effects ALL chats being managed by this
+" plugin; to add a supplementary dictionary to only a specific chat use the 'Chat Request Supplement Dict' chat option
+" instead; see ":help LLMChat_ChatOptions" for more details.
+"
+if ! exists("g:llmchat_chat_request_supplement_dict")
+    let g:llmchat_chat_request_supplement_dict = { }
+endif
+
 
 " ================================================
 " ====                                        ====

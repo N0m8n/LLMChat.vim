@@ -927,6 +927,15 @@ function LLMChat#send_chat#CreateOllamaChatRequestPayload(parse_dictionary, outp
     endif
 
 
+    " Check to see if a supplementary dictionary was defined for use with this chat request and if so merge its
+    " content into the 'l:json_dict'.  Note that since any such dictionary is intended to "supplement" we will not
+    " allow conflicting values found within it to override content in the 'l:json_dict'.
+    let l:supplement_dict = GetChatRequestSupplementDict(l:header_dict)
+    if !empty(l:supplement_dict)
+        call s:util.RecursiveDictionaryMerge(l:json_dict, l:supplement_dict, v:false)
+    endif
+
+
     " Now convert the content held by the 'json_dict' variable into a JSON string and write the result out to the
     " file whose name was given to this function call.
     call writefile([json_encode(l:json_dict)], a:output_filename)
@@ -1022,114 +1031,19 @@ function LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(parse_dictionary, o
     endif
 
 
+    " Check to see if a supplementary dictionary was defined for use with this chat request and if so merge its
+    " content into the 'l:json_dict'.  Note that since any such dictionary is intended to "supplement" we will not
+    " allow conflicting values found within it to override content in the 'l:json_dict'.
+    let l:supplement_dict = GetChatRequestSupplementDict(l:header_dict)
+    if !empty(l:supplement_dict)
+        call s:util.RecursiveDictionaryMerge(l:json_dict, l:supplement_dict, v:false)
+    endif
+
+
     " Now convert the content held by the 'json_dict' variable into a JSON string and write the result out to the
     " file whose name was given to this function call.
     call writefile([json_encode(l:json_dict)], a:output_filename)
 
-
-    " ======= OLD CODE STARTS HERE =====
-"    let l:encoded_model_id = json_encode(l:header_dict[s:util.PARSE_DICTIONARY_HEADER_MODEL_ID])
-"    let l:request_message = "{" ..
-"                        \ "\n  \"model\": " .. l:encoded_model_id .. "," ..
-"                        \ "\n  \"stream\": " .. (g:llmchat_use_streaming_mode ? "true" : "false") .."," ..
-"                        \ "\n  \"messages\":" ..
-"                        \ "\n    ["
-"
-"    let l:is_first_message = 1   " Will be used to control when commas are inserted after array elements.
-"    if has_key(l:header_dict, s:util.PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT)
-"        " NOTE: Make sure to retrieve the system prompt text and escape any " characters it might contain with \" before
-"        "       appending the text to the JSON request payload.
-"        let l:escaped_system_prompt = json_encode(l:header_dict[s:util.PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT])
-"        let l:request_message = l:request_message ..
-"                     \ "\n      {" ..
-"                     \ "\n        \"role\": \"system\"," ..
-"                     \ "\n        \"content\": " .. l:escaped_system_prompt ..
-"                     \ "\n      }"
-"
-"        " Set the 'l:is_first_message' variable to 0 since our first message was the system prompt.
-"        let l:is_first_message = 0
-"
-"    endif
-"
-"    for l:curr_message_dict in l:message_array
-"        " Use the 'l:is_first_message' flag to determine whether or not we append a trailing comma character to the
-"        " message block being created.  When set to 1 we will skip adding the comma and will instead just change the
-"        " value to 0; when the value is 0 we will add a comma BEFORE the next message block.
-"        if l:is_first_message
-"            let l:is_first_message = 0
-"        else
-"            let l:request_message = l:request_message .. ","
-"        endif
-"
-"        " NOTE: Make sure to retrieve the user message text and escape any " characters it might contain with \" before
-"        "       appending the text to the JSON request payload.
-"        let l:escaped_user_msg = json_encode(l:curr_message_dict[s:util.PARSE_DICTIONARY_USER_MSG_KEY])
-"        let l:request_message = l:request_message ..
-"                     \ "\n      {" ..
-"                     \ "\n        \"role\": \"user\"," ..
-"                     \ "\n        \"content\": " .. l:escaped_user_msg ..
-"                     \ "\n      }"
-"
-"        if has_key(l:curr_message_dict, s:util.PARSE_DICTIONARY_ASSISTANT_MSG_KEY)
-"            " NOTE: Make sure to retrieve the assistant message text and escape any " characters it might contain with
-"            "       \" before appending the text to the JSON request payload.
-"            let l:escaped_assistant_msg = json_encode(l:curr_message_dict[s:util.PARSE_DICTIONARY_ASSISTANT_MSG_KEY])
-"            let l:request_message = l:request_message .. "," ..
-"                         \ "\n      {" ..
-"                         \ "\n        \"role\": \"assistant\"," ..
-"                         \ "\n        \"content\": " .. l:escaped_assistant_msg ..
-"                         \ "\n      }"
-"        endif
-"
-"    endfor
-"
-"    let l:request_message = l:request_message .. "\n    ]"
-"
-"    if has_key(l:header_dict, s:util.PARSE_DICTIONARY_HEADER_OPTIONS_DICT)
-"        let l:request_message = l:request_message .. "," ..
-"                         \ "\n  \"options\":" ..
-"                         \ "\n    {"
-"
-"        " NOTE: Iterating through a dictionary in Vim does not seem to have a defined ordering and this makes it
-"        "       difficult to reliably verify behavior in testing.  To combat this we will always apply options in sorted
-"        "       order of the keys held by the option dictionary and that way the addition of options to the output
-"        "       document should always be consistent.
-"        let l:first_option = 1
-"
-"        let l:options_dict = l:header_dict[s:util.PARSE_DICTIONARY_HEADER_OPTIONS_DICT]
-"        let l:sorted_option_keys = sort(keys(l:options_dict))
-"
-"        for l:option_key in l:sorted_option_keys
-"            let l:option_value = l:options_dict[l:option_key]
-"
-"            " Use the 'l:first_option' variable to determine when we should insert a comma character.  When this
-"            " variable is set to 1 we won't add a comma and will instead just flip its value to 0; when set to 0 we will
-"            " add a comma BEFORE the next option field.
-"            if l:first_option
-"                let l:first_option = 0
-"            else
-"                let l:request_message = l:request_message .. ','
-"            endif
-"
-"            " NOTE: We do NOT surround the 'l:option_value' with quotes because we don't know what type of option
-"            "       we've got.  For instance options whose data type is number or boolean should be written to the
-"            "       document verbatim whereas strings should be quoted.  We assume that if the value is supposed to be a
-"            "       string type than the option value is already quoted (meaning the user quotes this inside the chat
-"            "       document header when they define the option; eg. 'Option: name="value"').
-"            let l:request_message = l:request_message ..
-"                                  \ "\n      \"" .. l:option_key .. "\": " .. l:option_value
-"
-"        endfor
-"
-"        let l:request_message = l:request_message .. "\n    }"
-"
-"    endif
-"
-"    let l:request_message = l:request_message .. "\n}"
-"
-"    " Output the request payload to the specified file and return.
-"    call writefile(split(l:request_message, "\n"), a:output_filename)
-"
 endfunction
 
 
@@ -1764,9 +1678,9 @@ endfunction
 "   header_dict - The header dictionary that may (or may not) contain an options dictionary to be converted.  Note
 "                 that the conversion process does not change the original dictionary in any way.
 "
-" Return: A new dictionary that contains all extracted option name/value pairings but defined with the proper Vim types.
-"         Note that if no child options dictionary was found within the 'header_dict' argument supplied than an empty
-"         dictionary will be returned.
+" Returns: A new dictionary that contains all extracted option name/value pairings but defined with the proper Vim
+"          types.  Note that if no child options dictionary was found within the 'header_dict' argument supplied than an
+"          empty dictionary will be returned.
 "
 function GetOptionsDictForJSONOutput(header_dict)
     " Create an empty dictionary that we will add processed key value pairs into.  Ultimately this will become the
@@ -1828,6 +1742,51 @@ function GetOptionsDictForJSONOutput(header_dict)
     return l:json_options_dict
 
 endfunction
+
+
+" This function resolves any "supplementary dictionary" that should be used by the chat request process that invoked
+" it.  A supplementary dictionary is responsible for providing back a series of name/value pairs (or even more complex
+" nested structures such as child dictionaries and lists) whose information should be merged into a chat request before
+" it is submitted to the remote LLM.  When invoked, this function will attempt to resolve the content for any
+" supplementary dictionary to use and will return the result (as a dictionary) back to the caller.  If no supplementary
+" dictionary content should be used than a empty dictionary will be returned instead.
+"
+" Arguments:
+"   header_dict - The header dictionary found in the main parse dictionary representing the chat document content that
+"                 the request is being made from.
+"
+" Returns: A dictionary containing any supplementary content that should be merged into a chat request JSON before
+"          such request is submitted.
+"
+function GetChatRequestSupplementDict(header_dict)
+    " Define a variable that will hold the dictionary we will ultimately return back to the caller.  By default this
+    " will be the empty dictionary which is the appropriate return when no other supplementary dictionary can be
+    " found.
+    let l:resolved_dict = { }
+
+
+    " Check to see if any of the following apply (in the order of precidence shown):
+    "
+    "   1). If the 'header_dict' argument given to this function contains an entry for a chat request supplementary
+    "       dictionary than set the value of such entry as the dictionary to be returned.
+    "
+    "   2). If the 'g:llmchat_chat_request_supplement_dict' global variable is set than set the value it holds as the
+    "       supplementary dictionary to be returned.
+    "
+    if has_key(a:header_dict, s:util.PARSE_DICTIONARY_HEADER_CHAT_REQ_SUPP_DICT)
+        let l:resolved_dict = a:header_dict[s:util.PARSE_DICTIONARY_HEADER_CHAT_REQ_SUPP_DICT]
+
+    elseif exists("g:llmchat_chat_request_supplement_dict")
+        let l:resolved_dict = g:llmchat_chat_request_supplement_dict
+
+    endif
+
+
+    " Return the resolved dictionary back to the caller.
+    return l:resolved_dict
+
+endfunction
+
 
 
 " ============================

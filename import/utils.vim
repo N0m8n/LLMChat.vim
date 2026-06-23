@@ -367,12 +367,16 @@ enddef
 #    |    PARSE_DICTIONARY_HEADER_SERVER_URL: "https://remote.server.url",
 #    |    PARSE_DICTIONARY_HEADER_MODEL_ID: "model id",
 #    |    PARSE_DICTIONARY_HEADER_AUTH_KEY: "auth key",
-#    |    parse_dictionary_header_user_auth: 'true' or 'false'
+#    |    PARSE_DICTIONARY_HEADER_USER_AUTH: 'true' or 'false'
 #    |    PARSE_DICTIONARY_HEADER_SYSTEM_PROMPT: "system message",
 #    |    PARSE_DICTIONARY_HEADER_SHOW_THINKING: "thinking value",
 #    |    PARSE_DICTIONARY_HEADER_MAX_CONTEXT: *Integer indicating number of message pairs to keep in chat submissions
 #    |    PARSE_DICTIONARY_HEADER_MSG_REGISTER: *A-Z, a-z, or "
-#    |    parse_dicitonary_header_options_dict:
+#    |    PARSE_DICTIONARY_HEADER_CHAT_REQ_SUPP_DICT:
+#    |    {
+#    |       //Arbitrary dictionary used to supplement chat request payload JSON
+#    |    },
+#    |    PARSE_DICITONARY_HEADER_OPTIONS_DICT:
 #    |      {
 #    |        "option_name_1": "option_value_1",
 #    |        "option_name_2": "option_value_2",
@@ -490,6 +494,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
     var inside_user_msg = false
     var inside_llm_msg = false
     var inside_system_msg = false
+    var inside_chat_req_supp_dict = false
 
     # Variables used for tracking our parse through all lines in the buffer
     var curr_buffer_line_cntr = 1
@@ -519,8 +524,8 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
             # for the parsing process.
             if inside_system_msg
                 # If the logic comes here than we are processing within the context of the multi-line "system message"
-                # found within the header.  Check to see if the 'curr_buff_line' contains only whitespace as this
-                # would indicate the delimiting line used to end such declaration.
+                # option found within the header.  Check to see if the 'curr_buff_line' is empty or contains only
+                # whitespace as this would indicate the delimiting line used to end such option declaration.
                 if curr_buff_line =~ '\v^\s*$'
                     # In this case we've found the "empty line" that will terminate the system message declaration; now
                     # take the following actions:
@@ -618,6 +623,66 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                     endif
 
+                endif
+
+            elseif inside_chat_req_supp_dict
+                # If the logic comes here than we are processing within the context of the multi-line
+                # "chat request supplementary dictionary" option found within the header.  Check to see if the
+                # 'curr_buff_line' is empty or contains only whitespace as this would indicate the delimiting line
+                # used to end such option declaration.
+                if curr_buff_line =~ '\v^\s*$'
+                    # In this case we have encountered an empty or whitespace only line so we assume that we have
+                    # found the end of the dictionary definition.  Use the eval() function to parse all string
+                    # data collected by variable 'curr_text_block' into a dictionary and then bind such dictionary
+                    # into the 'header_dict' variable.
+                    var chat_req_supp_dict = {}
+                    try
+                        chat_req_supp_dict = eval(join(curr_text_block, " "))
+
+                    catch /\v.*/
+                        # If the logic comes here than we assume parsing of the 'curr_text_block' into a Vim
+                        # data type was not successful.  Create a new exception that contains additional detail about
+                        # the fault then throw it.
+                        if IsDebugEnabled()
+                            WriteToDebug(join(debug_trace_list, "\n"))
+                        endif
+
+                        throw "[ERROR] - An unexpected fault was encountered while trying to parse the chat " ..
+                              "request supplementary dictionary definition that ended on line " ..
+                              curr_buffer_line_cntr .. " into a Vim dictionary.  The original exception message " ..
+                              "associated with this fault was: " .. v:exception
+                    endtry
+
+                    header_dict[PARSE_DICTIONARY_HEADER_CHAT_REQ_SUPP_DICT] = chat_req_supp_dict
+
+
+                    # Set variable 'inside_chat_req_supp_dict' to false as processing of the supplementary dictionary
+                    # is now complete.
+                    inside_chat_req_supp_dict = false
+
+
+                    # Remove all content from variable 'curr_text_block' so it is ready for re-use by the parsing
+                    # operation.
+                    curr_text_block = [ ]
+
+                    if IsDebugEnabled()
+                        var new_trace_lines =
+                            [
+                              "Exiting processing mode for chat request supplement dictionary chat option (line = " ..
+                              curr_buffer_line_cntr .. ")",
+                              "Extracted dictionary:",
+                              " ",
+                              string(chat_req_supp_dict),
+                              " "
+                            ]
+                        extend(debug_trace_list, new_trace_lines)
+                    endif
+
+                else
+                    # In this case we have encountered a non-empty line so we will assume this line to be part of the
+                    # supplementary dictionary definition.  Simply add the line, verbatim, to the 'curr_text_block'
+                    # variable and proceed on.
+                    add(curr_text_block, curr_buff_line)
                 endif
 
             else
@@ -1102,7 +1167,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                             #      B). Add the unescaped value into the list held by variable 'curr_text_block'.
                             #
                             #  6). System prompts may span multiple lines so we'll need to continue collecting text
-                            #      until we find the next empty line that follows this prompt.  Set variable
+                            #      until we find the next empty line that follows this declaration.  Set variable
                             #      'inside_system_msg' to 'true' so that the parsing logic understands we are now within
                             #      the context of processing the system prompt content and begins such collection.
                             #
@@ -1113,7 +1178,7 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
 
                                 throw "[ERROR] - A duplicate 'System Prompt:' declaration was found within the " ..
                                       "header segment of the current chat buffer on line " .. curr_buffer_line_cntr ..
-                                      ".  This declaration may be given only once per chat document; to resovle " ..
+                                      ".  This declaration may be given only once per chat document; to resolve " ..
                                       "this issue you will need to remove the duplicate definition."
                             endif
 
@@ -1154,6 +1219,58 @@ export def ParseChatBufferToBlocks(header_only_parse = false, chat_buff_num = bu
                                 add(debug_trace_list,
                                     "Entering processing mode for system prompt chat option (line = " ..
                                     curr_buffer_line_cntr .. ")")
+                            endif
+
+                        elseif curr_buff_line =~# '\v^\s*Chat Request Supplement Dict\:.*$'
+                            # In this case we've found a supplementary dictionary definition that should be used when
+                            # we submit chat requests to the remote LLM.  Take the following actions to process the
+                            # declaration:
+                            #
+                            #   1). Verify that the 'header_dict' dictionary does NOT have any value already associated
+                            #       with the key 'PARSE_DICTIONARY_HEADER_CHAT_REQ_SUPP_DICT'; if such a key does exist
+                            #       it means we have found a duplicate system message declaration in the chat header and
+                            #       we'll throw an exception.
+                            #
+                            #   2). Strip the 'Chat Request Supplement Dict:' keyword from the front of the line along
+                            #       with any leading or trailing whitespace around it.
+                            #
+                            #   3). Remove any trailing whitespace from the end of the remaining value and if such
+                            #       value is non-empty than append it to the list held by variable 'curr_text_block'.
+                            #
+                            #   4). Supplementary dictionaries may span multiple lines so we'll need to continue
+                            #       collecting text until we find the next empty line that follows this declaration.
+                            #       Set variable 'inside_chat_req_supp_dict' to 'true' so that the parsing logic
+                            #       understands we are now within the context of processing the supplementary dictionary
+                            #       definition and it begins such collection.
+                            #
+                            if has_key(header_dict, PARSE_DICTIONARY_HEADER_CHAT_REQ_SUPP_DICT)
+                                if IsDebugEnabled()
+                                    WriteToDebug(join(debug_trace_list, "\n"))
+                                endif
+
+                                throw "[ERROR] - A duplicate 'Chat Request Supplement Dict:' declaration was found " ..
+                                      "within the header segment of the current chat buffer on line " ..
+                                      curr_buffer_line_cntr .. ".  This declaration may be given only once per " ..
+                                      "chat document; to resolve this issue you will need to remove the duplicate " ..
+                                      "definition."
+                            endif
+
+                            var trimmed_value = substitute(curr_buff_line,
+                                                           '\v\s*Chat Request Supplement Dict\:\s*',
+                                                           '',
+                                                           '')
+                            trimmed_value = substitute(trimmed_value, '\v\s+$', '', '')
+
+                            if !empty(trimmed_value)
+                                add(curr_text_block, trimmed_value)
+                            endif
+
+                            inside_chat_req_supp_dict = true
+
+                            if IsDebugEnabled()
+                                add(debug_trace_list,
+                                    "Entering processing mode for chat request supplementary dictionary chat " ..
+                                    "option (line = " ..  curr_buffer_line_cntr .. ")")
                             endif
 
                         elseif curr_buff_line =~# '\v^\s*Max Context Messages\:.*$'
@@ -2788,6 +2905,238 @@ export def ProcessDynamicEmbedding(tag_value: string): list<any>
 enddef
 
 
+# This function handles the recursive merge of one dictionary into another.  This means that, unlike the extend()
+# function available in Vim, it will detect when conflicting keys have dictionaries (or lists) as their values and then
+# recursively merge the content of those structures as opposed to replacing one nested structure with the other.  When
+# at least one conflicting key has an associated value that is NOT a nested data structure of the same type than the
+# merge behavior will be determined by the value of the 'allow_overwrite' flag provided.  For details on how child lists
+# are merged please refer to the documentation accompanying function RecursiveListMerge().
+#
+# Note that merges always occur into the 'merge_to_dict' argument provided which means that the content of such
+# dictionary will be modified by the function execution.  If changes to such argument are not desired than the caller
+# should make a deep copy of such dictionary (via function deepcopy()) and then pass the copy to this function instead.
+#
+# Arguments:
+#   merge_to_dict - The dictionary that the merge operation will take place into meaning that the dictionary given
+#                   for this argument will ultimately hold the result of the merge operation.  If modification of the
+#                   provided dictionary is unwanted than a copy should be made via function deepcopy() and the copy
+#                   passed instead.
+#
+#   to_merge_dict - The dictionary whose key/value pairings should be merged INTO the 'merge_to_dict' argument given.
+#
+#   allow_overwrite - This is a boolean argument indicating how the merge should behave when the 'merge_to_dict' already
+#                     contains a key/value pair whose key is identical to a key found in the 'to_merge_dict' argument.
+#                     If provided as a value of 'true' than any conflicting key/value pair found to already reside in
+#                     argument 'merge_to_dict' will be overwritten with the key/value pairing found in the
+#                     'to_merge_dict' argument.  When this argument is provided as 'false' than NO key/value pairs
+#                     will be overwritten in the 'merge_to_dict' meaning that only non-conflicing key/value pairs found
+#                     in the 'to_merge_dict' will be added.
+#
+export def RecursiveDictionaryMerge(merge_to_dict: dict<any>, to_merge_dict: dict<any>, allow_overwrite: bool)
+    # Cycle over all keys found within the provided 'to_merge_dict' and process each one.
+    for curr_key in keys(to_merge_dict)
+        # Check to see if the 'merge_to_dict' already contains the key; if not than we can copy in the key and its
+        # associated value from the 'to_merge_dict'.  If the 'merge_to_dict' already contains such a key than we will
+        # defer to the value given for 'allow_overwrite' to determine if we should add the key anyways.
+        if has_key(merge_to_dict, curr_key)
+            # If the logic comes here than we have a conflict as the 'merge_to_dict' already contains an entry with the
+            # same key.  Check to see which of the following conditions exists to determine what we do next:
+            #
+            #   1). If the value for the key in both dictionaries is also a dictionary then handle the case specially
+            #       by recursively calling this function with both value dictionaries found.
+            #
+            #   2). If the value for the key in both dictionaries is a list than invoke function
+            #       RecursiveListMerge() to handle merging the child lists.
+            #
+            #   3). If no other condition is found than fallback to the value given for argument 'allow_overwrite' to
+            #       determine how we should handle the conflict (where 'allow_overwrite' as 'true' implies that we
+            #       overwrite the value held by the 'merge_to_dict' with the value found in the 'to_merge_dict' and
+            #       if 'allow_overwrite' is 'false' than we will take no action).
+            #
+            var merge_to_dict_value = merge_to_dict[curr_key]
+            var to_merge_dict_value = to_merge_dict[curr_key]
+
+            var merge_to_value_type = type(merge_to_dict_value)
+            var to_merge_value_type = type(to_merge_dict_value)
+
+            if merge_to_value_type == v:t_dict && to_merge_value_type == v:t_dict
+                # In this case the value in BOTH dictionaries was itself a dictionary so we will recursively call this
+                # function to merge the value dictionaries found.
+                RecursiveDictionaryMerge(merge_to_dict_value, to_merge_dict_value, allow_overwrite)
+
+            elseif merge_to_value_type == v:t_list && to_merge_value_type == v:t_list
+                # In this case the value in BOTH dictionaries was a list so we will invoke function
+                # RecursiveListMerge() to handle a merge of the child lists.
+                RecursiveListMerge(merge_to_dict_value, to_merge_dict_value, allow_overwrite)
+
+            elseif allow_overwrite
+               # If the logic comes here than the value found in at least one of the dictionaries was NOT a dictionary
+               # itself AND the 'allow_overwrite' flag was 'true' (indicating that we will handle the key conflict
+               # by overwriting the existing value).  Replace the value found in the 'merge_to_dict' for the current
+               # key with the value taken from the 'to_merge_dict'.
+               merge_to_dict[curr_key] = to_merge_dict[curr_key]
+
+            endif
+
+        else
+            # If the logic comes here than the 'merge_to_dict' does NOT contain any entry having the current key; simply
+            # add the current key and its value from dictionary 'to_merge_dict'.
+            merge_to_dict[curr_key] = to_merge_dict[curr_key]
+
+        endif
+
+    endfor
+
+enddef
+
+
+# This function handles the recursive merge of one list into another.  This means that, unlike the extend() function
+# available in Vim, it will detect when confilcting elements have lists (or dictionaries) as their values and then
+# recursively merge the content of those structures as opposed to replacing one nested structure with the other.  Since
+# lists are sequentially indexed structures their merge rules include some special provisions and are explained below:
+#
+#   * An element is seen to be in "conflict" between two lists when both lists have an element at the same index
+#     position, the element in the "to_merge_list" is NOT null (i.e., is NOT equal to v:null), and the element in
+#     both lists is not (1) an child list or (2) a child dictionary.  Conflicting elements are resolved during merge
+#     by either replacing the existing value in the 'merge_to_list' (when 'allow_overwrite' is 'true') or by ignoring
+#     the value found in the 'to_merge_list' and retaining the existing value from the 'merge_to_list' (when
+#     'allow_overwrite' is 'false').
+#
+#   * An element is NOT in "conflict" between the two lists when either of the following are true:
+#
+#      1). The element exists in only in the 'to_merge_list' as will be the case when the 'to_merge_list' is longer
+#          then the given 'merge_to_list'.  In this case the element value is simply appended to the 'merge_to_list'
+#          at the same index position.
+#
+#      2). The element value found in the 'to_merge_list' is equal to v:null.  This is effectively the way to "skip"
+#          over an element during merging and to leave any value in the 'merge_to_list' unchanged regardless of the
+#          'allow_overwrite' value given.  Note that this behavior ONLY applies when both lists contain an element
+#          at the same index position.  Also be aware that no special behavior is applied to values in the
+#          'merge_to_list' for v:null; this only affects values found within the provided 'to_merge_list'.
+#
+#      3). The type of value found in both lists at the index position is either a child list or a child dictionary;
+#          in this case the appropriate merge function (either this function or function
+#          RecursiveDictionaryMerge()) will be invoked to merge the child structures before proceeding.
+#
+# Note that merges always occur into the 'merge_to_list' argument provided which means that the content of such list
+# will be modified by the function execution.  If changes to such argument are not desired than the caller should make
+# a deep copy of such list (via function deepcopy()) and then pass the copy to this function instead.
+#
+# Arguments:
+#   merge_to_list - The list that the merge operation will take place into meaning that the list given for this argument
+#                   will ultimately hold the result of the merge operation.  If modification of the provided lists is
+#                   unwanted than a copy should be made via function deepcopy() and the copy passed instead.
+#
+#   to_merge_list - The list whose elements should be merged INTO the 'merge_to_list' argument provided.
+#
+#   allow_overwrite - This is a boolean argument indicating how the merge should behave when the 'merge_to_list'
+#                     has an element seen to be in "conflict" (see the main function documentation) with an element
+#                     found in the 'to_merge_list'.  If provided as a value of 'true' than any conflicting element
+#                     value found to reside within the 'merge_to_list' will be overwritten by the value found within
+#                     the 'to_merge_list'.  When this argument is provided as 'false' than only non-conflicting elements
+#                     from the 'to_merge_list' will be added to the 'merge_to_list'.
+#
+export def RecursiveListMerge(merge_to_list: list<any>, to_merge_list: list<any>, allow_overwrite: bool)
+    # Cycle over all elements found within the provided '_to_merge_list' and process each one.
+    var merge_to_list_size = len(merge_to_list)
+    var to_merge_list_size = len(to_merge_list)
+
+    for curr_index in range(0, to_merge_list_size - 1)
+        if curr_index >= merge_to_list_size
+            # In this case we have an element whose index position ranges past the number of elements that currently
+            # exist in the 'merge_to_list'.  Handle the merge by simply appending the element at the current index
+            # in the 'to_merge_list' to the end of the 'merge_to_list'.
+            add(merge_to_list, to_merge_list[curr_index])
+
+        else
+            # In this case the element is in common between both lists so we will use the rules below to determine
+            # what to do:
+            #
+            #   1). [Special Case] - If the element in the 'to_merge_list' is found to be v:null than we will skip
+            #                        any further processing.  Currently the merge logic will not allow v:null to
+            #           overwrite an existing list element regardless of the value given for argument 'allow_overwrite'.
+            #           The primary use in including v:null values within the 'to_merge_list' is to add "ignore values"
+            #           to indices that changes should not be made to.
+            #
+            #  2). The Element Value is a Child List in BOTH Lists - In this case a child list exists within both
+            #                                                        given lists at the current index position;
+            #           recursively call this function to handle the merge of these child lists before proceeding.
+            #
+            #  3). The Element Value is a Dictionary in BOTH Lists - In this case each of the lists contains a child
+            #                                                        dictionary at the current index position; call
+            #           function RecursiveDictionaryMerge() to handle the merge of these dictionaries before proceeding.
+            #
+            #  4). All Other Values - For any other case we will fall back to the value given for argument
+            #                         'allow_overwrite' to determine what to do.  When 'allow_overwrite' is provided
+            #           as 'true' than we will replace the value in list 'merge_to_list' with the value held by list
+            #           'to_merge_list'.  When 'allow_overwrite' is provided as 'false' than we will take no action.
+            #
+            # Implementation Notes:
+            #
+            #   (1) Why are nulls being handled specially in the merge code?  We didn't do anything special with nulls
+            #       in the dictionary merge logic (i.e., function RecursiveDictionaryMerge()) so it seems kind of
+            #       artificial to be concerned about them here.  The issue is that sometimes you need to overwrite a
+            #       value at a specific index position in a list, OR you want to insert new values at the end of the
+            #       list, but you DON'T want to overwrite other values defined within the list at lower indices; how do
+            #       you do this?  Note that dictionaries don't have this problem since they're not linearly indexed
+            #       structures; this is why there was no concern given to this problem during a dictionary merge.  In
+            #       order to allow the selective injection of values you need some way to "ignore" elements in the
+            #       'to_merge_list' that is provided and looking over what Vim has available for use it seemed like
+            #       v:null might be a good fit for this.
+            #
+            #       Note that we *could* have forced the caller in such a work flow to know (and preemptively add) lower
+            #       index values from the 'merge_to_list' into the lower indices within the 'to_merge_list' so that they
+            #       are the same (e.g., the replacement has no meaningful effect) and then we could've ignored this
+            #       special treatment of null.  The problem there is that it forces the caller to be knowledgable of how
+            #       the merge should be handled and this isn't always the case; especially when the content of the
+            #       'to_merge_list' comes from a source beyond the caller (such as configuration or the user).  It also
+            #       offloads the same problem we have here to the caller which ultimately forces other code (possibly in
+            #       multiple code paths) to find their own way of dealing with the situation; this is generally a bad
+            #       practice.
+            #
+            #   (2) Why have a fixed behavior for the treatment of null values?  Wouldn't this be more flexible if
+            #       we allowed the interpretation of nulls to be controlled via function argument (i.e., either use as
+            #       "ignores" or use as literal values)?  Let us consider the postulate here so we can see the problem
+            #       with this.  If we allow the user to indicate that null should be treated just as any other value
+            #       than we loose the ability to control the selective injection of values.  Essentially this re-creates
+            #       the problem we were trying to solve by treating null specially in the first place and returns us
+            #       back to a workflow with obvious limitations.  At the current time there is also no use case where we
+            #       need to allow an existing value to be replaced with null so digging further into this issue seems
+            #       like a case of diminishing returns.  Should a valid and well defined need for this case arise than
+            #       we may have to revisit this decision.
+            #
+            if to_merge_list[curr_index] != v:null
+                # Retrieve the type of the value held at index 'curr_index' in both lists given to this function call
+                # and store the results.
+                var merge_to_list_value_type = type(merge_to_list[curr_index])
+                var to_merge_list_value_type = type(to_merge_list[curr_index])
+
+                if merge_to_list_value_type == v:t_dict && to_merge_list_value_type == v:t_dict
+                    # In this case we have the same element in both lists and the type of both elements is a dictionary;
+                    # call the RecurisveDictionaryMerge() function to merge the child dictionaries before proceeding.
+                    RecursiveDictionaryMerge(merge_to_list[curr_index], to_merge_list[curr_index], allow_overwrite)
+
+                elseif merge_to_list_value_type == v:t_list && to_merge_list_value_type == v:t_list
+                    # In this case we have the same element in both lists and the type of both elements is a list;
+                    # recursively call this function to merge the child lists before proceeding.
+                    RecursiveListMerge(merge_to_list[curr_index], to_merge_list[curr_index], allow_overwrite)
+
+                elseif allow_overwrite
+                    # In this case we have the same element in both lists and the 'allow_overwrite' argument was given
+                    # as 'true'; simply set the value held by the 'to_merge_list' into the 'merge_to_list' at the
+                    # 'curr_index' position.
+                    merge_to_list[curr_index] = to_merge_list[curr_index]
+
+                endif
+
+            endif
+
+        endif
+
+    endfor
+
+enddef
+
 
 # =====================================
 # ====                             ====
@@ -2897,6 +3246,7 @@ export const PARSE_DICTIONARY_PARSE_FLAGS = "flags"
 
 # Header dictionary keys...
 export const PARSE_DICTIONARY_HEADER_AUTH_KEY = "auth key"
+export const PARSE_DICTIONARY_HEADER_CHAT_REQ_SUPP_DICT = "chat request supplement dict"
 export const PARSE_DICTIONARY_HEADER_MAX_CONTEXT = "max context"
 export const PARSE_DICTIONARY_HEADER_MSG_REGISTER = "message register"
 export const PARSE_DICTIONARY_HEADER_MODEL_ID = "model id"

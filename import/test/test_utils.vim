@@ -121,6 +121,10 @@ const GLOBAL_VARS_DICT =
           {
               "name": "g:llmchat_curl_extra_args",
               "default": ""
+          },
+          {
+              "name": "g:llmchat_chat_request_supplement_dict",
+              "default": { }
           }
       ]
 

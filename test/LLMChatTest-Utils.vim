@@ -632,6 +632,17 @@ function s:TestParseChatBufferToBlocksWithMaxDoc()
         \ "\nShow Reasoning: medium" ..
         \ "\nMax Context Messages: 3" ..
         \ "\nMessage Register: b" ..
+        \ "\nChat Request Supplement Dict: " ..
+        \ "\n{" ..
+        \ "\n  \"a\": \"b\"," ..
+        \ "\n  \"c\": 1.0," ..
+        \ "\n  \"d\":" ..
+        \ "\n  {" ..
+        \ "\n    \"e\": true," ..
+        \ "\n    \"f\": 15," ..
+        \ "\n    \"g\": [ 1, 'a', 4.5, false ]" ..
+        \ "\n  }" ..
+        \ "\n}" ..
         \ "\n" ..
         \ "\nSystem Prompt:   You are a helpful, knowledgable, and respectful" ..
         \ "\nassistant that will respond to any asked questions to the best" ..
@@ -696,6 +707,17 @@ function s:TestParseChatBufferToBlocksWithMaxDoc()
                               \       "show thinking": "medium",
                               \       "max context": 3,
                               \       "message register": "b",
+                              \       "chat request supplement dict":
+                              \       {
+                              \         "a": "b",
+                              \         "c": 1.0,
+                              \         "d":
+                              \         {
+                              \           "e": v:true,
+                              \           "f": 15,
+                              \           "g": [ 1, 'a', 4.5, v:false ]
+                              \         }
+                              \       },
                               \       "system prompt": "You are a helpful, knowledgable, and respectful " ..
                               \                        "assistant that will respond to any asked questions to the " ..
                               \                        "best of your ability.",
@@ -765,6 +787,17 @@ function s:TestParseChatBufferToBlocksWithGoodDocAndDebugModeEnabled()
         \ "\nShow Reasoning: medium" ..
         \ "\nMax Context Messages: 3" ..
         \ "\nMessage Register: B" ..
+        \ "\nChat Request Supplement Dict: " ..
+        \ "\n{" ..
+        \ "\n  \"a\": \"b\"," ..
+        \ "\n  \"c\": 1.0," ..
+        \ "\n  \"d\":" ..
+        \ "\n  {" ..
+        \ "\n    \"e\": true," ..
+        \ "\n    \"f\": 15," ..
+        \ "\n    \"g\": [ 1, 'a', 4.5, false ]" ..
+        \ "\n  }" ..
+        \ "\n}" ..
         \ "\n" ..
         \ "\nSystem Prompt:   You are a helpful, knowledgable, and respectful" ..
         \ "\nassistant that will respond to any asked questions to the best" ..
@@ -829,6 +862,17 @@ function s:TestParseChatBufferToBlocksWithGoodDocAndDebugModeEnabled()
                               \       "show thinking": "medium",
                               \       "max context": 3,
                               \       "message register": "B",
+                              \       "chat request supplement dict":
+                              \       {
+                              \         "a": "b",
+                              \         "c": 1.0,
+                              \         "d":
+                              \         {
+                              \           "e": v:true,
+                              \           "f": 15,
+                              \           "g": [ 1, 'a', 4.5, v:false ]
+                              \         }
+                              \       },
                               \       "system prompt": "You are a helpful, knowledgable, and respectful " ..
                               \                        "assistant that will respond to any asked questions to the " ..
                               \                        "best of your ability.",
@@ -1722,6 +1766,54 @@ function s:TestParseChatBufferToBlocksWithStartingDynamicEmbeddingInUserMessage(
     "  2). Forcefully delete the test chat buffer without saving its content.
     "
     execute "bd! " .. l:embedding_buffer
+    bd!
+
+endfunction
+
+
+" This test asserts the proper operation of function ParseChatBufferToBlocks() when the chat buffer being processed
+" contains a chat request supplementary dictionary in its header that is defined as empty.
+function s:TestParseChatBufferToBlocksWithEmptyChatRequestSuppDict()
+    " Define a chat log document that contains an empty chat request supplementary dictionary definition.  Note that
+    " since such declaration only appears in the header we don't need to define out any of the main body for the
+    " chat document for this test.
+    let l:test_chat_doc =
+        \   "Server URL: https://somehost" ..
+        \ "\nServer Type: Ollama" ..
+        \ "\nModel ID: Some model" ..
+        \ "\nChat Request Supplement Dict: { }" ..
+        \ "\n" ..
+        \ "\n*** ENDSETUP ***"
+
+    " Open a new buffer then write the content of variable 'l:test_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the buffer's initial line (the parse should ignore this so there should not need
+    " to be any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:test_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function to perform a header only parse and store the dictionary that is
+    " returned.
+    let l:actual_parse_dict = s:util.ParseChatBufferToBlocks(1)
+
+    " Now define an expected parse dictionary and show that the 'l:actual_parse_dict' returned from parsing the chat
+    " log document is identical to it.
+    let l:expected_parse_dict = {
+                              \   "header":
+                              \   {
+                              \     "server url": "https://somehost",
+                              \     "server type": "Ollama",
+                              \     "model id": "Some model",
+                              \     "chat request supplement dict": { }
+                              \   }
+                              \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:expected_parse_dict, l:actual_parse_dict)
+
+    " Finally, cleanup by performing the following tasks:
+    "
+    "  1). Forcefully delete the new buffer without saving its content.
+    "
     bd!
 
 endfunction
@@ -3070,6 +3162,346 @@ function s:TestParseChatBufferToBlocksWithDuplicateSystemPromptDeclAndEnabledDeb
     bd!
     unlet g:llmchat_debug_mode_target
     call delete(l:debug_target)
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
+" buffer content being processed contains a duplicate chat request supplementary dictionary declaration in its header.
+function s:TestParseChatBufferToBlocksWithDuplicateChatRequestSuppDict()
+    " Define an invalid chat log document that contains a header with duplicate chat request supplementary dictionary
+    " declarations.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nChat Request Supplement Dict: { }" ..
+      \ "\n" ..
+      \ "\nChat Request Supplement Dict: { }" ..
+      \ "\n" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "duplicate chat request supplementary dictionary definitions; however, no exception " ..
+                           \ "occurred.")
+
+    catch /\c[error].*duplicate 'chat request supplement dict:'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
+    bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a duplicate chat request supplementary dictionary in its header AND
+" debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithDuplicateChatRequestSuppDictAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with duplicate chat request supplementary dictionary
+    " declarations.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nChat Request Supplement Dict: { }" ..
+      \ "\n" ..
+      \ "\nChat Request Supplement Dict: { }" ..
+      \ "\n" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "duplicate chat request supplementary dictionary definitions; however, no exception " ..
+                           \ "occurred.")
+
+    catch /\c[error].*duplicate 'chat request supplement dict:'.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
+" buffer content being processed contains a chat request supplementary dictionary header definition whose value is a
+" malformed dictionary.
+function s:TestParseChatBufferToBlocksWithMalformedChatRequestSuppDict()
+    " Define an invalid chat log document that contains a header with a chat request supplementary dictionary whose
+    " value is a malformed dictionary.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nChat Request Supplement Dict: " ..
+      \ "\n{"
+      \ "\n  \"a " ..
+      \ "\n}" ..
+      \ "\n" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "a malformed chat request supplementary dictionary; however, no exception occurred.")
+
+    catch /\c[error].*unexpected fault.*Vim dictionary.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
+    bd!
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug inforamtion,
+" when the buffer content being processed contains a chat request supplementary dictionary in its header that is
+" malformed AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithMalformedChatRequestSuppDictAndEnabledDebugMode()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with a chat request supplementary dictionary whose
+    " value is a malformed dictionary.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nChat Request Supplement Dict: " ..
+      \ "\n{"
+      \ "\n  \"a " ..
+      \ "\n}" ..
+      \ "\n" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "a malformed chat request supplementary dictionary; however, no exception occurred.")
+
+    catch /\c[error].*unexpected fault.*Vim dictionary.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception with an expected error message when the
+" buffer content being processed contains a chat request supplementary dictionary whose value was NOT a Vim
+" dictionary.
+function s:TestParseChatBufferToBlocksWithInvalidChatRequestSuppDict()
+    " Request the name and path to a temporary file from Vim and then set such temporary file as the target for debug
+    " mode (this will implicitly enable debug mode).
+    let l:debug_target = tempname()
+    let g:llmchat_debug_mode_target = l:debug_target
+
+    " Define an invalid chat log document that contains a header with a chat request supplementary dictionary whose
+    " value is NOT a dictionary.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nChat Request Supplement Dict: \"abc\"" ..
+      \ "\n" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "a chat request supplementary dictionary having a value that was NOT an actual Vim " ..
+                           \ "dictionary type; however, no exception occurred.")
+
+    catch /\c[error].*unexpected fault.*Vim dictionary.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Assert that the 'l:debug_target' is readable to Vim (i.e., exists on disk) and holds non-empty content.
+    AssertTxt(filereadable(l:debug_target),
+            \ "Expected to find a debug output file at path '" .. l:debug_target .. "' but no such file existed.")
+
+    let l:debug_text_lines = join(readfile(l:debug_target), "\n")
+    AssertTxt(!empty(l:debug_text_lines),
+            \ "Expected to find content written to the debug file in use at the completion of testing but such file " ..
+            \ "was empty.")
+
+    " Cleanup - Take the following actions now that the test has completed:
+    "
+    "   1). Forcefully close out the new buffer that was created to hold the test document.
+    "   2). Unset the 'g:llmchat_debug_mode_target' variable to disable debug mode.
+    "   3). Remove the 'l:debug_target' from disk now that testing is complete.
+    "
+    bd!
+    unlet g:llmchat_debug_mode_target
+    call delete(l:debug_target)
+
+endfunction
+
+
+" This test asserts that function ParseChatBufferToBlocks() throws an exception, as well as outputs debug information,
+" when the buffer content being processed contains a chat request supplementary dictionary whose value is NOT a Vim
+" dictionary AND debug mode is enabled.
+function s:TestParseChatBufferToBlocksWithInvalidChatRequestSuppDictAndEnabledDebugMode()
+    " Define an invalid chat log document that contains a header with a chat request supplementary dictionary whose
+    " value is NOT a dictionary.
+    let l:bad_chat_doc =
+      \   "Server Type: Ollama" ..
+      \ "\nServer URL: http://localhost/"  ..
+      \ "\nModel ID: Some model" ..
+      \ "\nChat Request Supplement Dict: \"abc\"" ..
+      \ "\n" ..
+      \ "\n* ENDSETUP *"
+
+    " Open a new buffer then write the content of variable 'l:bad_chat_doc' to it.  Note that we will use the 'put!'
+    " command so that content is inserted BEFORE the first line in the buffer and we'll leave the trailing newline
+    " resulting from the downshift of the first buffer line (the parse should ignore this so there should not need to be
+    " any special effort exerted here in cleaning it up).
+    new
+    silent! put! = l:bad_chat_doc
+
+    " Invoke the ParseChatBufferToBlocks() function and assert that an exception is thrown whose message indicates the
+    " fault we're expecting to see.
+    try
+        call s:util.ParseChatBufferToBlocks()
+
+        " If the logic comes here than fail the test; we should have seen an exception thrown during parse which would
+        " make this line unreachable.
+        call s:testutil.Fail(expand('<sflnum>') - 9,
+                           \ "Expected to see an exception thrown from function ParseChatBufferToBlocks() when it " ..
+                           \ "was invoked to parse the content of a chat buffer whose header section contained " ..
+                           \ "a chat request supplementary dictionary having a value that was NOT an actual Vim " ..
+                           \ "dictionary type; however, no exception occurred.")
+
+    catch /\c[error].*unexpected fault.*Vim dictionary.*/
+        " The caught exception has a message that matches the expression we were looking for; assume that the test
+        " was successful and take no further action.
+    endtry
+
+    " Cleanup - Forcefully close out the new buffer that was created to hold the test document.
+    bd!
 
 endfunction
 
@@ -6320,6 +6752,1644 @@ function s:TestProcessDynamicEmbeddingWithInvalidFileRef()
         " was successful as this was the behavior we expected to see happen.
     endtry
 
+endfunction
+
+
+" *****************************************************
+" ****  RecursiveDictionaryMerge() Function Tests  ****
+" *****************************************************
+
+" This test asserts the behavior of function RecursiveDictionaryMerge() when the dictionary values provided to it are
+" empty.
+function s:TestRecursiveDictionaryMergeWithEmptyDictionaries()
+    " Invoke the RecursiveDictionaryMerge() function with two empty dictionaries and an 'allow_overwrite' flag of
+    " 'false'; confirm that the 'merge to' dictionary remains empty.
+    let l:merge_to_dictionary = { }
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dictionary, { }, v:false)
+
+    AssertTxt(empty(l:merge_to_dictionary), "Expected the 'merge to' dictionary to remain empty but it did not.")
+
+
+    " Invoke the RecursiveDictionaryMerge() function with two empty dictionaries and an 'allow_overwrite' flag of
+    " 'true'; confirm that the 'merge to' dictionary still remains empty.
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dictionary, { }, v:true)
+
+    AssertTxt(empty(l:merge_to_dictionary), "Expected the 'merge to' dictionary to remain empty but it did not.")
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveDictionaryMerge() when the 'merge_to_dict' argument provided is
+" an empty dictionary and the 'to_merge_dict' is non-empty.
+function s:TestRecursiveDictionaryMergeWithEmptyDestAndNonEmptySource()
+    " Create a non-empty 'to merge' dictionary that will be used in the remainder of the test.
+    let l:to_merge_dict = {
+                        \   "key_1": "ABC",
+                        \   "key_2": 1.45,
+                        \   "key_3": 1234
+                        \ }
+
+    " Invoke the RecursiveDictionaryMerge() function using (1) an empty "merge to" dictionary and (2) an
+    " 'allow_overwrite' argument of 'false'.  Note that when we make this function call we will use a copy of the
+    " 'to_merge_dict' so that we can verify no change was made to the 'to_merge_dict' argument.
+    let l:merge_to_dict = { }
+    let l:to_merge_dict_arg = copy(l:to_merge_dict)
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dict, l:to_merge_dict_arg, v:false)
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:to_merge_dict, l:merge_to_dict)
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:to_merge_dict, l:to_merge_dict_arg) "No change
+
+
+    " Invoke the RecursiveDictionaryMerge() function using (1) an empty "merge to" dictionary and (2) an
+    " 'allow_overwrite' argument of 'true'.  Note that when we make this function call we will use a copy of the
+    " 'to_merge_dict' so that we can verify no change was made to the 'to_merge_dict' argument.
+    let l:merge_to_dict = { }
+    let l:to_merge_dict_arg = copy(l:to_merge_dict)
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dict, l:to_merge_dict_arg, v:true)
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:to_merge_dict, l:merge_to_dict)
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:to_merge_dict, l:to_merge_dict_arg) "No change
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveDictionaryMerge() when the 'merg_to_dict' argument provided is
+" non-empty and the 'to_merge_dict' given is empty.
+function s:TestRecursiveDictionaryMergeWithNonEmptyDestAndEmptySource()
+    " Create an example "merge to" dictionary that is non-empty and which will be used by the remainder of the test.
+    let l:merge_to_dict = {
+                        \   "key_1": "ABC",
+                        \   "key_2": 1.45,
+                        \   "key_3": 1234
+                        \ }
+
+    " Invoke the RecursiveDictionaryMerge() function using (1) an empty "to merge" dictionary and (2) an
+    " 'allow_overwrite' argument of 'false'.  Note that when we make this function call we will use a copy of the
+    " 'merge_to_dict' so that we can verify no change was made to the 'merge_to_dict' argument.
+    let l:merge_to_dict_arg = copy(l:merge_to_dict)
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dict_arg, { }, v:false)
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:merge_to_dict, l:merge_to_dict_arg)
+
+
+    " Invoke the RecursiveDictionaryMerge() function using (1) an empty "to merge" dictionary and (2) an
+    " 'allow_overwrite' argument of 'true'.  Note that when we make this function call we will use a copy of the
+    " 'merge_to_dict' so that we can verify no change was made to the 'merge_to_dict' argument.
+    let l:merge_to_dict_arg = copy(l:merge_to_dict)
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dict_arg, { }, v:true)
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:merge_to_dict, l:merge_to_dict_arg)
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveDictionaryMerge() when neither dictionary given to it is empty
+" and there are no key conflicts between dictionaries (note that for this test neither dictionary will contain a child
+" dictionary under any key).
+function s:TestRecursiveDictionaryMergeWithNoConflictingKeys()
+    " Define some base dictionaries that will be used by the testing steps that follow; note that in this test both
+    " dictionaries will be constructed to (1) have no keys in common and (2) to contain NO child dictionaries or lists
+    " (child dictionary and list behavior will be asserted by different tests).
+    let l:merge_to_dict = {
+                        \   "Key_1": "ABC",
+                        \   "Key_2": 1.34,
+                        \   "Key_3": 1234,
+                        \   "Key_4": v:false
+                        \ }
+
+    let l:to_merge_dict = {
+                        \   "Key_A": "XYZ",
+                        \   "Key_B": 7890,
+                        \   "Key_C": 12.4,
+                        \   "Key_D": v:true
+                        \ }
+
+    " Invoke the RecursiveDictionaryMerge() function using copies of the 'merge_to_dict' and 'to_merge_dict' variables,
+    " as well as an 'allow_overwrite' value of 'false', then assert the following:
+    "
+    "   1). The copy of variable 'merge_to_dict' was augmented by the function execution such that it now contains
+    "       all entries from both dictionaries.
+    "   2). The copy of variable 'to_merge_dict' that was passed to the function execution remains identical in
+    "       content to the dictionary held by variable 'to_merge_dict'.
+    "
+    let l:merge_to_dict_arg = copy(l:merge_to_dict)
+    let l:to_merge_dict_arg = copy(l:to_merge_dict)
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dict_arg, l:to_merge_dict_arg, v:false)
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_1"),
+            \ "Expected to find key 'Key_1' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals("ABC", l:merge_to_dict_arg["Key_1"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_2"),
+            \ "Expected to find key 'Key_2' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(1.34, l:merge_to_dict_arg["Key_2"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_3"),
+            \ "Expected to find key 'Key_3' in the 'merge to' dictioanry but it did not exist.")
+    AssertEquals(1234, l:merge_to_dict_arg["Key_3"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_4"),
+            \ "Expected to find key 'Key_4' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(v:false, l:merge_to_dict_arg["Key_4"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_A"),
+            \ "Expected to find key 'Key_A' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals("XYZ", l:merge_to_dict_arg["Key_A"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_B"),
+            \ "Expected to find key 'Key_B' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(7890, l:merge_to_dict_arg["Key_B"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_C"),
+            \ "Expected to find key 'Key_C' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(12.4, l:merge_to_dict_arg["Key_C"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_D"),
+            \ "Expected to find key 'Key_D' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(v:true, l:merge_to_dict_arg["Key_D"])
+
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '',  l:to_merge_dict, l:to_merge_dict_arg)
+
+
+    " Invoke the RecursiveDictionaryMerge() function using copies of the 'merge_to_dict' and 'to_merge_dict' variables,
+    " as well as an 'allow_overwrite' value of 'true', then assert the following:
+    "
+    "   1). The copy of variable 'merge_to_dict' was augmented by the function execution such that it now contains
+    "       all entries from both dictionaries.
+    "   2). The copy of variable 'to_merge_dict' that was passed to the function execution remains identical in
+    "       content to the dictionary held by variable 'to_merge_dict'.
+    "
+    let l:merge_to_dict_arg = copy(l:merge_to_dict)
+    let l:to_merge_dict_arg = copy(l:to_merge_dict)
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dict_arg, l:to_merge_dict_arg, v:true)
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_1"),
+            \ "Expected to find key 'Key_1' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals("ABC", l:merge_to_dict_arg["Key_1"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_2"),
+            \ "Expected to find key 'Key_2' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(1.34, l:merge_to_dict_arg["Key_2"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_3"),
+            \ "Expected to find key 'Key_3' in the 'merge to' dictioanry but it did not exist.")
+    AssertEquals(1234, l:merge_to_dict_arg["Key_3"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_4"),
+            \ "Expected to find key 'Key_4' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(v:false, l:merge_to_dict_arg["Key_4"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_A"),
+            \ "Expected to find key 'Key_A' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals("XYZ", l:merge_to_dict_arg["Key_A"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_B"),
+            \ "Expected to find key 'Key_B' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(7890, l:merge_to_dict_arg["Key_B"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_C"),
+            \ "Expected to find key 'Key_C' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(12.4, l:merge_to_dict_arg["Key_C"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_D"),
+            \ "Expected to find key 'Key_D' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(v:true, l:merge_to_dict_arg["Key_D"])
+
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '',  l:to_merge_dict, l:to_merge_dict_arg)
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveDictionaryMerge() when the dictionaries given to it contain some
+" overlap in the keys that they hold.  For this case the 'allow_overwrite' flag will be 'false' indicating that
+" conflict resolution should NOT merge conflicting keys into the destination dictionary.
+function s:TestRecursiveDictionaryMergeWithConflictingKeysAndForbiddenOverwrite()
+    " Define some base dictionaries that will be used by the testing steps that follow; note that in this test both
+    " dictionaries will be constructed to (1) have some subset of their keys in conflict and (2) to contain NO child
+    " dictionaries or lists (child dictionary and list behavior will be asserted by different tests).
+     let l:merge_to_dict = {
+                        \   "Key_1": "ABC",
+                        \   "Key_2": 1.34,
+                        \   "Key_3": 1234,
+                        \   "Key_4": v:false
+                        \ }
+
+    let l:to_merge_dict = {
+                        \   "Key_3": "XYZ",
+                        \   "Key_4": 7890,
+                        \   "Key_5": 12.4,
+                        \   "Key_6": v:true
+                        \ }
+
+    " Invoke the RecursiveDictionaryMerge() function using copies of the 'merge_to_dict' and 'to_merge_dict' variables,
+    " as well as an 'allow_overwrite' value of 'false', then assert the following:
+    "
+    "  1). The copy of variable 'merge_to_dict' was augmented by the function exeuction such that it contains all keys
+    "      found in the 'merge_to_dict' that were NOT in conflict with keys it already held (all key/value pairs
+    "      initially in the 'merge_to_dict' argument should remain unchanged).
+    "  2). The copy of variable 'to_merge_dict' that was passed to the function execution remains identical in content
+    "      to the dictionary held by variable 'to_merge_dict'.
+    "
+    let l:merge_to_dict_arg = copy(l:merge_to_dict)
+    let l:to_merge_dict_arg = copy(l:to_merge_dict)
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dict_arg, l:to_merge_dict_arg, v:false)
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_1"),
+            \ "Expected to find key 'Key_1' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals("ABC", l:merge_to_dict_arg["Key_1"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_2"),
+            \ "Expected to find key 'Key_2' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(1.34, l:merge_to_dict_arg["Key_2"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_3"),
+            \ "Expected to find key 'Key_3' in the 'merge to' dictioanry but it did not exist.")
+    AssertEquals(1234, l:merge_to_dict_arg["Key_3"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_4"),
+            \ "Expected to find key 'Key_4' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(v:false, l:merge_to_dict_arg["Key_4"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_5"),
+            \ "Expected to find key 'Key_5' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(12.4, l:merge_to_dict_arg["Key_5"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_6"),
+            \ "Expected to find key 'Key_6' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(v:true, l:merge_to_dict_arg["Key_6"])
+
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '',  l:to_merge_dict, l:to_merge_dict_arg)
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveDictionaryMerge() when the dictionaries given to it contain some
+" overlap in the keys that they hold.  For this case the 'allow_overwrite' flag will be 'true' indicating that
+" conflict resolution should simply overwrite the value of conflicting keys.
+function s:TestRecursiveDictionaryMergeWithConflictingKeyAndPermittedOverwrite()
+    " Define some base dictionaries that will be used by the testing steps that follow; note that in this test both
+    " dictionaries will be constructed to (1) have some subset of their keys in conflict and (2) to contain NO child
+    " dictionaries or lists (child dictionary and list behavior will be asserted by different tests).
+     let l:merge_to_dict = {
+                        \   "Key_1": "ABC",
+                        \   "Key_2": 1.34,
+                        \   "Key_3": 1234,
+                        \   "Key_4": v:false
+                        \ }
+
+    let l:to_merge_dict = {
+                        \   "Key_3": "XYZ",
+                        \   "Key_4": 7890,
+                        \   "Key_5": 12.4,
+                        \   "Key_6": v:true
+                        \ }
+
+    " Invoke the RecursiveDictionaryMerge() function using copies of the 'merge_to_dict' and 'to_merge_dict' variables,
+    " as well as an 'allow_overwrite' value of 'true' then assert the following:
+    "
+    "  1). The copy of variable 'merge_to_dict' was augmented by the function execution such that it contains all keys
+    "      found in the 'to_merge_dict' regardless of whether those keys conflicted with already held keys or not.
+    "  2). The copy of variable 'to_merge_dict' that was passed to the function execution remains identical in content
+    "      to the dictionary held by variable 'to_merge_dict'.
+    "
+    let l:merge_to_dict_arg = copy(l:merge_to_dict)
+    let l:to_merge_dict_arg = copy(l:to_merge_dict)
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dict_arg, l:to_merge_dict_arg, v:true)
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_1"),
+            \ "Expected to find key 'Key_1' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals("ABC", l:merge_to_dict_arg["Key_1"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_2"),
+            \ "Expected to find key 'Key_2' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(1.34, l:merge_to_dict_arg["Key_2"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_3"),
+            \ "Expected to find key 'Key_3' in the 'merge to' dictioanry but it did not exist.")
+    AssertEquals("XYZ", l:merge_to_dict_arg["Key_3"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_4"),
+            \ "Expected to find key 'Key_4' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(7890, l:merge_to_dict_arg["Key_4"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_5"),
+            \ "Expected to find key 'Key_5' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(12.4, l:merge_to_dict_arg["Key_5"])
+
+    AssertTxt(has_key(l:merge_to_dict_arg, "Key_6"),
+            \ "Expected to find key 'Key_6' in the 'merge to' dictionary but it did not exist.")
+    AssertEquals(v:true, l:merge_to_dict_arg["Key_6"])
+
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '',  l:to_merge_dict, l:to_merge_dict_arg)
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveDictionaryMerge() when (1) the dictionaries given to it contain
+" some overlap in the keys that they hold and (2) each dictionary contains nested child dictionaries.  For this
+" test the 'allow_overwrite' flag will be 'false' indicating that conflict resolution should NOT merge conflicting
+" keys into the destination dictionary.
+function s:TestRecursiveDictionaryMergeWithNestedChildDictsConflictingKeysAndForbiddenOverwrite()
+    " Define some base dictionaries that will be used by the testing steps that follow; note that in this test both
+    " dictionaries will be constructed to (1) have some subset of their keys in conflict and (2) to contain child
+    " dictionaries both for some keys that overlap and some keys that do not.
+    let l:merge_to_dict = {
+                        \   "Key_1": "ABC",
+                        \   "Key_2":
+                        \   {
+                        \     "Key_2A": 1.34,
+                        \     "Key_2B":
+                        \     {
+                        \       "Key_2BA": v:true
+                        \     }
+                        \   },
+                        \   "Key_3": 1234,
+                        \   "Key_4":
+                        \   {
+                        \     "Key_4A":
+                        \     {
+                        \       "Key_4AA": "Original Value",
+                        \       "Key_4AB": "Original Value"
+                        \     },
+                        \     "Key_4B":
+                        \     {
+                        \       "Key_4BA": 12345
+                        \     },
+                        \     "Key_4C": "Some value",
+                        \     "Key_4D": 7890,
+                        \     "Key_4F": [ 'a', 12, v:true ]
+                        \   }
+                        \ }
+
+    let l:to_merge_dict = {
+                        \   "Key_3":
+                        \   {
+                        \     "Key_3A": "Value replaced by dict"
+                        \   },
+                        \   "Key_4":
+                        \   {
+                        \     "Key_4A":
+                        \     {
+                        \       "Key_4AA": "Altered Value"
+                        \     },
+                        \     "Key_4B":
+                        \     {
+                        \       "Key_4BB": 45678
+                        \     },
+                        \     "Key_4E":
+                        \     {
+                        \       "Key_4EA": v:false
+                        \     }
+                        \   },
+                        \   "Key_5": 34.56,
+                        \   "Key_6":
+                        \   {
+                        \     "Key_6A": "Child Dictionary to Merge",
+                        \     "Key_6B":
+                        \     {
+                        \       "Key_6BA": "Nested Child Dictionary to Merge"
+                        \     }
+                        \   },
+                        \   "Key_7": [ "ABC", 12, v:false, 56.987 ]
+                        \ }
+
+    " Invoke the RecursiveDictionaryMerge() function using copies of the 'merge_to_dict' and 'to_merge_dict' variables,
+    " as well as an 'allow_overwrite' value of 'false', then assert the following:
+    "
+    "  1). The copy of variable 'merge_to_dict' was augmented by the function execution such that it now contains all
+    "      keys and values held by the 'to_merge_dict' that did not conflict with existing keys at any level (note that
+    "      child dictionaries will be recursively merged when conflicting keys were found to both hold dictionary
+    "      types).
+    "  2). The copy of variable 'to_merge_dict' that was passed to the function execution remains identical in content
+    "      to the dictionary held by variable 'to_merge_dict'.
+    "
+    let l:merge_to_dict_arg = deepcopy(l:merge_to_dict)
+    let l:to_merge_dict_arg = deepcopy(l:to_merge_dict)
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dict_arg, l:to_merge_dict_arg, v:false)
+
+    let l:expected_merge_to_result = {
+                                   \   "Key_1": "ABC",
+                                   \   "Key_2":
+                                   \   {
+                                   \     "Key_2A": 1.34,
+                                   \     "Key_2B":
+                                   \     {
+                                   \       "Key_2BA": v:true
+                                   \     }
+                                   \   },
+                                   \   "Key_3": 1234,
+                                   \   "Key_4":
+                                   \   {
+                                   \     "Key_4A":
+                                   \     {
+                                   \       "Key_4AA": "Original Value",
+                                   \       "Key_4AB": "Original Value"
+                                   \     },
+                                   \     "Key_4B":
+                                   \     {
+                                   \       "Key_4BA": 12345,
+                                   \       "Key_4BB": 45678
+                                   \     },
+                                   \     "Key_4C": "Some value",
+                                   \     "Key_4D": 7890,
+                                   \     "Key_4E":
+                                   \     {
+                                   \       "Key_4EA": v:false
+                                   \     },
+                                   \     "Key_4F": [ 'a', 12, v:true ]
+                                   \   },
+                                   \   "Key_5": 34.56,
+                                   \   "Key_6":
+                                   \   {
+                                   \     "Key_6A": "Child Dictionary to Merge",
+                                   \     "Key_6B":
+                                   \     {
+                                   \       "Key_6BA": "Nested Child Dictionary to Merge"
+                                   \     }
+                                   \   },
+                                   \   "Key_7": [ "ABC", 12, v:false, 56.987 ]
+                                   \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9,
+                                          \ '',
+                                          \ l:expected_merge_to_result,
+                                          \ l:merge_to_dict_arg)
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9,
+                                          \ '',
+                                          \ l:to_merge_dict,
+                                          \ l:to_merge_dict_arg)
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveDictionaryMerge() when (1) the dictionaries given to it contain
+" some overlap in the keys that they hold and (2) each dictionary contains nested child dictionaries.  For this test
+" the 'allow_overwrites' flag will be 'true' indicating that conflict resolution should simply overwrite the value of
+" conflicting keys.
+function s:TestRecursiveDictionaryMergeWithNestedChildDictsConflictingKeysAndPermittedOverwrite()
+    " Define some base dictionaries that will be used by the testing steps that follow; note that in this test both
+    " dictionaries will be constructed to (1) have some subset of their keys in conflict and (2) to contain child
+    " dictionaries both for some keys that overlap and some keys that do not.
+    let l:merge_to_dict = {
+                        \   "Key_1": "ABC",
+                        \   "Key_2":
+                        \   {
+                        \     "Key_2A": 1.34,
+                        \     "Key_2B":
+                        \     {
+                        \       "Key_2BA": v:true
+                        \     }
+                        \   },
+                        \   "Key_3": 1234,
+                        \   "Key_4":
+                        \   {
+                        \     "Key_4A":
+                        \     {
+                        \       "Key_4AA": "Original Value",
+                        \       "Key_4AB": "Original Value"
+                        \     },
+                        \     "Key_4B":
+                        \     {
+                        \       "Key_4BA": 12345
+                        \     },
+                        \     "Key_4C": "Some value",
+                        \     "Key_4D": 7890,
+                        \     "Key_4F": [ 'a', 12, v:true ]
+                        \   }
+                        \ }
+
+    let l:to_merge_dict = {
+                        \   "Key_3":
+                        \   {
+                        \     "Key_3A": "Value replaced by dict"
+                        \   },
+                        \   "Key_4":
+                        \   {
+                        \     "Key_4A":
+                        \     {
+                        \       "Key_4AA": "Altered Value"
+                        \     },
+                        \     "Key_4B":
+                        \     {
+                        \       "Key_4BB": 45678
+                        \     },
+                        \     "Key_4E":
+                        \     {
+                        \       "Key_4EA": v:false
+                        \     }
+                        \   },
+                        \   "Key_5": 34.56,
+                        \   "Key_6":
+                        \   {
+                        \     "Key_6A": "Child Dictionary to Merge",
+                        \     "Key_6B":
+                        \     {
+                        \       "Key_6BA": "Nested Child Dictionary to Merge"
+                        \     }
+                        \   },
+                        \   "Key_7": [ "ABC", 12, v:false, 56.987 ]
+                        \ }
+
+    " Invoke the RecursiveDictionaryMerge() function using copies of the 'merge_to_dict' and 'to_merge_dict' variables,
+    " as well as an 'allow_overwrite' value of 'true', then assert the following:
+    "
+    "  1). The copy of variable 'merge_to_dict' was augmented by the function execution such that it contains all keys
+    "      (including from nested dictionaries) found in the 'to_merge_dict' regardless of whether those keys
+    "      conflicted with the already held keys or not.
+    "  2). The copy of variable 'to_merge_dict' that was passed to the function execution remains identical in content
+    "      to the dictionary held by variable 'to_merge_dict.
+    "
+    let l:merge_to_dict_arg = deepcopy(l:merge_to_dict)
+    let l:to_merge_dict_arg = deepcopy(l:to_merge_dict)
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dict_arg, l:to_merge_dict_arg, v:true)
+
+    let l:expected_merge_to_result = {
+                                   \   "Key_1": "ABC",
+                                   \   "Key_2":
+                                   \   {
+                                   \     "Key_2A": 1.34,
+                                   \     "Key_2B":
+                                   \     {
+                                   \       "Key_2BA": v:true
+                                   \     }
+                                   \   },
+                                   \   "Key_3":
+                                   \   {
+                                   \     "Key_3A": "Value replaced by dict"
+                                   \   },
+                                   \   "Key_4":
+                                   \   {
+                                   \     "Key_4A":
+                                   \     {
+                                   \       "Key_4AA": "Altered Value",
+                                   \       "Key_4AB": "Original Value"
+                                   \     },
+                                   \     "Key_4B":
+                                   \     {
+                                   \       "Key_4BA": 12345,
+                                   \       "Key_4BB": 45678
+                                   \     },
+                                   \     "Key_4C": "Some value",
+                                   \     "Key_4D": 7890,
+                                   \     "Key_4E":
+                                   \     {
+                                   \       "Key_4EA": v:false
+                                   \     },
+                                   \     "Key_4F": [ 'a', 12, v:true ]
+                                   \   },
+                                   \   "Key_5": 34.56,
+                                   \   "Key_6":
+                                   \   {
+                                   \     "Key_6A": "Child Dictionary to Merge",
+                                   \     "Key_6B":
+                                   \     {
+                                   \       "Key_6BA": "Nested Child Dictionary to Merge"
+                                   \     }
+                                   \   },
+                                   \   "Key_7": [ "ABC", 12, v:false, 56.987 ]
+                                   \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9,
+                                          \ '',
+                                          \ l:expected_merge_to_result,
+                                          \ l:merge_to_dict_arg)
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9,
+                                          \ '',
+                                          \ l:to_merge_dict,
+                                          \ l:to_merge_dict_arg)
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveDictionaryMerge() when (1) the dictionaries given to it contain
+" some overlap in the keys that they hold and (2) each dictionary contains nested child lists and dictionaries.  For
+" this test the 'allow_overwrite' flag will be 'false' indicating that conflict resolution should NOT merge conflicting
+" keys into the destination dictionary.
+function s:TestRecursiveDictionaryMergeWithNestedStructureTypesConflictingKeysAndForbiddenOverwrite()
+    " Define some base dictionaries that will be used by the testing steps that follow; note that in this test both
+    " dictionaries will be constructed to (1) have some subset of their keys in conflict and (2) to contain child
+    " lists and dictionaries for some keys that overlap and some keys that do not.
+    let l:merge_to_dict = {
+                        \   "Key_1":
+                        \   [
+                        \     {
+                        \       "Key_11": "ABC"
+                        \     }
+                        \   ],
+                        \   "Key_2":
+                        \   [
+                        \     {
+                        \       "Key_21":
+                        \       [
+                        \         "ABC",
+                        \         "DEF",
+                        \         "GHI",
+                        \         "JKL"
+                        \       ]
+                        \     },
+                        \     [
+                        \       {
+                        \         "Key_22": 1234
+                        \       },
+                        \       {
+                        \         "Key_23": 0987
+                        \       }
+                        \     ],
+                        \     {
+                        \       "Key_24": "VVVVV"
+                        \     }
+                        \   ]
+                        \ }
+
+    let l:to_merge_dict = {
+                        \   "Key_2":
+                        \   [
+                        \     {
+                        \       "Key_21":
+                        \       [
+                        \         v:null,
+                        \         "def",
+                        \         v:null,
+                        \         "jkl"
+                        \       ]
+                        \     },
+                        \     [
+                        \       {
+                        \         "Key_22A": 5678
+                        \       },
+                        \       {
+                        \         "Key_23": "wxyz"
+                        \       }
+                        \     ],
+                        \     v:null,
+                        \     "ZZZZ"
+                        \   ],
+                        \   "Key_3": "ABC"
+                        \ }
+
+
+    " Invoke the RecursiveDictionaryMerge() function using copies of the 'merge_to_dict' and 'to_merge_dict' variables,
+    " as well as an 'allow_overwrite' value of 'false', then assert the following:
+    "
+    "   1). The copy of variable 'merge_to_dict' was augumented by the function execution such that it now contains all
+    "       keys and values held by the 'to_merge_dict' that did not conflict with existing keys at any level (note that
+    "       child lists and dictionaries will be recursively merged when conflicting keys were found to have the same
+    "       underlying structure type).
+    "   2). The copy of variable 'to_merge_dict' that was passed to the function execution remains identical in content
+    "       to the dictionary held by variable 'to_merge_dict'.
+    "
+    let l:merge_to_dict_arg = deepcopy(l:merge_to_dict)
+    let l:to_merge_dict_arg = deepcopy(l:to_merge_dict)
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dict_arg, l:to_merge_dict_arg, v:false)
+
+    let l:expected_merge_to_result = {
+                                   \   "Key_1":
+                                   \   [
+                                   \     {
+                                   \       "Key_11": "ABC"
+                                   \     }
+                                   \   ],
+                                   \   "Key_2":
+                                   \   [
+                                   \     {
+                                   \       "Key_21":
+                                   \       [
+                                   \         "ABC",
+                                   \         "DEF",
+                                   \         "GHI",
+                                   \         "JKL"
+                                   \       ]
+                                   \     },
+                                   \     [
+                                   \       {
+                                   \         "Key_22": 1234,
+                                   \         "Key_22A": 5678
+                                   \       },
+                                   \       {
+                                   \         "Key_23": 0987
+                                   \       }
+                                   \     ],
+                                   \     {
+                                   \       "Key_24": "VVVVV"
+                                   \     },
+                                   \     "ZZZZ"
+                                   \   ],
+                                   \   "Key_3": "ABC"
+                                   \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9,
+                                          \ '',
+                                          \ l:expected_merge_to_result,
+                                          \ l:merge_to_dict_arg)
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9,
+                                          \ '',
+                                          \ l:to_merge_dict,
+                                          \ l:to_merge_dict_arg)
+endfunction
+
+
+" This test asserts the behavior of function RecursiveDictionaryMerge() when (1) the dictionaries given to it contain
+" some overlap in the keys that they hold and (2) each dictionary contains nested child lists and dictionaries.  For
+" this test the 'allow_overwrites' flag will be 'true' indicating that conflict resolution should simply overwrite the
+" value of conflicting keys.
+function s:TestRecursiveDictionaryMergeWithNestedStructureTypesConflictingKeysAndPermittedOverwrite()
+    " Define some base dictionaries that will be used by the testing steps that follow; note that in this test both
+    " dictionaries will be constructed to (1) have some subset of their keys in conflict and (2) to contain child
+    " lists and dictionaries for some keys that overlap and some keys that do not.
+    let l:merge_to_dict = {
+                        \   "Key_1":
+                        \   [
+                        \     {
+                        \       "Key_11": "ABC"
+                        \     }
+                        \   ],
+                        \   "Key_2":
+                        \   [
+                        \     {
+                        \       "Key_21":
+                        \       [
+                        \         "ABC",
+                        \         "DEF",
+                        \         "GHI",
+                        \         "JKL"
+                        \       ]
+                        \     },
+                        \     [
+                        \       {
+                        \         "Key_22": 1234
+                        \       },
+                        \       {
+                        \         "Key_23": 0987
+                        \       }
+                        \     ],
+                        \     {
+                        \       "Key_24": "VVVVV"
+                        \     }
+                        \   ]
+                        \ }
+
+    let l:to_merge_dict = {
+                        \   "Key_2":
+                        \   [
+                        \     {
+                        \       "Key_21":
+                        \       [
+                        \         v:null,
+                        \         "def",
+                        \         v:null,
+                        \         "jkl"
+                        \       ]
+                        \     },
+                        \     [
+                        \       {
+                        \         "Key_22A": 5678
+                        \       },
+                        \       {
+                        \         "Key_23": "wxyz"
+                        \       }
+                        \     ],
+                        \     v:null,
+                        \     "ZZZZ"
+                        \   ],
+                        \   "Key_3": "ABC"
+                        \ }
+
+    " Invoke the RecursiveDictionaryMerge() function using copies of the 'merge_to_dict' and 'to_merge_dict' variables,
+    " as well as an 'allow_overwrite' value of 'true', then assert the following:
+    "
+    "   1). The copy of variable 'merge_to_dict' was augmented by the function execution such that it contains all keys
+    "       (including from nested dictionaries and lists) found in the 'to_merge_dict' regardless of whether those keys
+    "       conflicted with the already held keys or not
+    "   2). The copy of variable 'to_merge_dict' that was passed to the function execution remains identical in content
+    "       to the dictionary held by variable 'to_merge_dict'.
+    "
+    let l:merge_to_dict_arg = deepcopy(l:merge_to_dict)
+    let l:to_merge_dict_arg = deepcopy(l:to_merge_dict)
+
+    call s:util.RecursiveDictionaryMerge(l:merge_to_dict_arg, l:to_merge_dict_arg, v:true)
+
+    let l:expected_merge_to_result = {
+                                   \   "Key_1":
+                                   \   [
+                                   \     {
+                                   \       "Key_11": "ABC"
+                                   \     }
+                                   \   ],
+                                   \   "Key_2":
+                                   \   [
+                                   \     {
+                                   \       "Key_21":
+                                   \       [
+                                   \         "ABC",
+                                   \         "def",
+                                   \         "GHI",
+                                   \         "jkl"
+                                   \       ]
+                                   \     },
+                                   \     [
+                                   \       {
+                                   \         "Key_22": 1234,
+                                   \         "Key_22A": 5678
+                                   \       },
+                                   \       {
+                                   \         "Key_23": "wxyz"
+                                   \       }
+                                   \     ],
+                                   \     {
+                                   \       "Key_24": "VVVVV"
+                                   \     },
+                                   \     "ZZZZ"
+                                   \   ],
+                                   \   "Key_3": "ABC"
+                                   \ }
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9,
+                                          \ '',
+                                          \ l:expected_merge_to_result,
+                                          \ l:merge_to_dict_arg)
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9,
+                                          \ '',
+                                          \ l:to_merge_dict,
+                                          \ l:to_merge_dict_arg)
+endfunction
+
+
+" ***********************************************
+" ****  RecursiveListMerge() Function Tests  ****
+" ***********************************************
+
+" This test asserts the behavior of function RecursiveListMerge() when the list values provided to it are empty.
+function s:TestRecursiveListMergeWithEmptyLists()
+    " Invoke the RecursiveListMerge() function with two empty lists and an 'allow_overwrite' flag of 'false'; confirm
+    " that the 'merge to' list remains empty.
+    let l:merge_to_list = [ ]
+
+    call s:util.RecursiveListMerge(l:merge_to_list, [ ], v:false)
+
+    AssertTxt(empty(l:merge_to_list), "Expected the 'merge to' list to remain empty but it did not.")
+
+
+    " Invoke the RecursiveListMerge() function with two empty lists and an 'allow_overwrite' flag of 'true'; confirm
+    " that the 'merge to' dictionary still remains empty.
+    call s:util.RecursiveListMerge(l:merge_to_list, [ ], v:true)
+
+    AssertTxt(empty(l:merge_to_list), "Expected the 'merge to' list to remain empty but it did not.")
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveListMerge() when the 'merge_to_list' argument provided is an
+" empty list and the 'to_merge_list' is non-empty.
+function s:TestRecursiveListMergeWithEmptyDestAndNonEmptySource()
+    " Create a non-empty 'to merge' list that will be used in the remainder of the test.
+    let l:to_merge_list = [ "ABC", 1.45, 1234, v:true ]
+
+    "Invoke the RecursiveListMerge() function using (1) an empty "merge to" list and (2) an 'allow_overwrite' argument
+    "of 'false'.  Note that when we make this function call we will use a copy of the 'to_merge_list' so that we can
+    "verify no change was made to the 'to_merge_list' argument.
+    let l:merge_to_list = [ ]
+    let l:to_merge_list_arg = copy(l:to_merge_list)
+
+    call s:util.RecursiveListMerge(l:merge_to_list, l:to_merge_list, v:false)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:to_merge_list, l:merge_to_list)
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:to_merge_list, l:to_merge_list_arg)  "No changes
+
+
+    " Invoke the RecursiveListMerge() function using (1) an empty "merge to" dictionary and (2) an 'allow_overwrite'
+    " argument of 'true'.  Note that when we make this function call we will use a copy of the 'to_merge_dict' so that
+    " we can verify no change was made to the 'to_merge_dict' argument.
+    let l:merge_to_list = [ ]
+    let l:to_merge_list_arg = copy(l:to_merge_list)
+
+    call s:util.RecursiveListMerge(l:merge_to_list, l:to_merge_list, v:true)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:to_merge_list, l:merge_to_list)
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:to_merge_list, l:to_merge_list_arg)  "No changes
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveListMerge() when the 'merge_to_list' argument provided is
+" non-empty and hte 'to_merge_list' given is empty.
+function s:TestRecursiveListMergeWithNonEmptyDestAndEmptySource()
+    " Create an example "merge to" list that is non-empty and which will be used by the remainder of the test.
+    let l:merge_to_list = [ "ABC", 1.45, 1234, v:false ]
+
+    " Invoke the RecursiveListMerge() function using (1) an empty "to merge" list and (2) an 'allow_overwrite' argument
+    " of 'false'.  Note that when we make this function call we will use a copy of the 'merge_to_list' so that we can
+    " verify no change was made to the 'merge_to_list' argument.
+    let l:merge_to_list_arg = copy(l:merge_to_list)
+
+    call s:util.RecursiveListMerge(l:merge_to_list_arg, [ ], v:false)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:merge_to_list, l:merge_to_list_arg)
+
+
+    " Invoke the RecursiveListMerge() function using (1) an empty "to merge" list and (2) an 'allow_overwrite' argument
+    " of 'true'.  Note that when we make this function call we will use a copy of the 'merge_to_list' so that we can
+    " verify no change was made to the 'merge_to_list' argument.
+    let l:merge_to_list_arg = copy(l:merge_to_list)
+
+    call s:util.RecursiveListMerge(l:merge_to_list_arg, [ ], v:true)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:merge_to_list, l:merge_to_list_arg)
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveListMerge() when neither list given to it is empty and there are
+" no element conflicts between the lists (i.e, the "to merge" list contains values of v:null for all elements that
+" are in common with the "merge to" list).
+function s:TestRecursiveListMergeWithNoConflictingElements()
+    " Define some base lists that will be used by the testing steps that follow; note that in this test both lists
+    " will be constructed to (1) have no elements with non-null values that are in common and (2) to contain NO child
+    " lists
+    let l:merge_to_list = [ "ABC", 1.34, 1234, v:false ]
+    let l:to_merge_list = [ v:null, v:null, v:null, v:null, "XYZ", 7890, 12.4, v:true ]
+
+    " Invoke the RecursiveListMerge() function using copies of the 'merge_to_list' and 'to_merge_list' variables, as
+    " well as an 'allow_overwrite' value of 'false', then assert the following:
+    "
+    "   1). The copy of variable 'merge_to_list' was augmented by the function execution such that it now contains
+    "       all elements from both lists.
+    "   2). The copy of variable 'to_merge_list' that was passed to the function execution remains identical in content
+    "       to the list held by variable 'to_merge_list'.
+    "
+    let l:merge_to_list_arg = copy(l:merge_to_list)
+    let l:to_merge_list_arg = copy(l:to_merge_list)
+
+    call s:util.RecursiveListMerge(l:merge_to_list_arg, l:to_merge_list_arg, v:false)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ [ "ABC", 1.34, 1234, v:false, "XYZ", 7890, 12.4, v:true ],
+                                   \ l:merge_to_list_arg)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9, '', l:to_merge_list, l:to_merge_list_arg)
+
+
+    " Invoke the RecursiveListMerge() function using copies of the 'merge_to_list' and 'to_merge_list' variables, as
+    " well as an 'allow_overwrite' value of 'true', then assert the following:
+    "
+    "   1). The copy of variable 'merge_to_list' was augmented by the function execution such that it now contains
+    "       all elements from both lists.
+    "   2). The copy of variable 'to_merge_list' that was passed to the function execution remains identical in content
+    "       to the list held by variable 'to_merge_list'.
+    "
+    let l:merge_to_list_arg = copy(l:merge_to_list)
+    let l:to_merge_list_arg = copy(l:to_merge_list)
+
+    call s:util.RecursiveListMerge(l:merge_to_list_arg, l:to_merge_list_arg, v:true)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ [ "ABC", 1.34, 1234, v:false, "XYZ", 7890, 12.4, v:true ],
+                                   \ l:merge_to_list_arg)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:to_merge_list,
+                                   \ l:to_merge_list_arg)
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveListMerge() when the lists given to it contain some overlap in
+" the elements that they hold.  For this case the 'allow_overwrite' flag will be 'false' indicating that conflict
+" resolution should NOT merge conflicting elements into the destination list.
+function s:TestRecursiveListMergeWithConflictingElementsAndForbiddenOverwrite()
+    " Define some base lists that will be used by the testing steps that follow; note that in this test both lists
+    " will be constructed to (1) have some subset of their elements that contain non-null values in conflict and (2)
+    " to contain NO child lists or dictionaries (child list and dictionary behavior will be asserted by different
+    " tests).
+    let l:merge_to_list = [ "ABC", 1.34, 1234, v:false ]
+    let l:to_merge_list = [ v:null, v:null, "XYZ", 1790, 12.4, v:true ]
+
+    " Invoke the RecursiveListMerge() function using copies of the 'merge_to_list' and 'to_merge_list' variables, as
+    " well as an 'allow_overwrite' value of 'false', then assert the following:
+    "
+    "   1). The copy of variable 'merge_to_list' was augmented by the function execution such that it contains all
+    "       elements held by the 'to_merge_list' that do not conflict with elements already held (i.e., all elements
+    "       already held by the 'merge_to_list' should remain unchanged).
+    "   2). The copy of variable 'to_merge_list' that was passed to the function execution remains identical in content
+    "       to the dictionary held by varaible 'to_merge_list'.
+    "
+    let l:merge_to_list_arg = copy(l:merge_to_list)
+    let l:to_merge_list_arg = copy(l:to_merge_list)
+
+    call s:util.RecursiveListMerge(l:merge_to_list_arg, l:to_merge_list_arg, v:false)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ [ "ABC", 1.34, 1234, v:false, 12.4, v:true ],
+                                   \ l:merge_to_list_arg)
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:to_merge_list,
+                                   \ l:to_merge_list_arg)
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveListMerge() when the lists given to it contain some overlap in the
+" elements that they hold.  For this case the 'allow_overlap' flag will be 'true' indicating that conflict resolution
+" should simply overwrite the value of conflicting elements.
+function s:TestRecursiveListMergeWithConflictingKeyAndPermittedOverwrite()
+    " Define some base dictionaries that will be used by the testing steps that follow; note that in this test both
+    " lists will be constructed to (1) have some subset of their elements in conflict and (2) to contain NO child
+    " lists or dictionaries (child list and dictionary behavior will be asserted by different tests).
+    let l:merge_to_list = [ "ABC", 1.34, 1234, v:false ]
+    let l:to_merge_list = [ v:null, v:null, "XYZ", 7890, 12.4, v:true ]
+
+    " Invoke the RecursiveListMerge() function using copies of the 'merge_to_list' and 'to_merge_list' variables, as
+    " well as an 'allow_overwrite' value of 'true' then assert the following:
+    "
+    "   1). The copy of variable 'merge_to_list' was augmented by the function execution such that it contains all
+    "       elements found in the 'to_merge_list' regardless of whether those elements conflicted with already held
+    "       values or not.
+    "   2). The copy of variable 'to_merge_list' that was passed to the function execution remains identical in
+    "       content to the dictionary held by variable 'to_merge_list'.
+    "
+    let l:merge_to_list_arg = copy(l:merge_to_list)
+    let l:to_merge_list_arg = copy(l:to_merge_list)
+
+    call s:util.RecursiveListMerge(l:merge_to_list_arg, l:to_merge_list_arg, v:true)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ [ "ABC", 1.34, "XYZ", 7890, 12.4, v:true ],
+                                   \ l:merge_to_list_arg)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:to_merge_list,
+                                   \ l:to_merge_list_arg)
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveListMerge() when (1) the lists given to it contain some overlap
+" in the elements that they hold and (2) each list contains nested child lists.  For this test the 'allow_overwrite'
+" flag will be 'false' indicating that conflict resolution should NOT merge conflicting element vlaues into the
+" destination list.
+function s:TestRecursiveListMergeWithNestedChildListsConflictingKeysAndForbiddentOverwrite()
+    " Define some base lists that will be used by the testing steps that follow; note that in this test both lists
+    " will be constructed to (1) have some subset of their elements in conflict and (2) to contain child lists both
+    " for some elements that conflict and for some elements that do not.
+    let l:merge_to_list = [
+                        \   "ABC",
+                        \   [
+                        \     1.34,
+                        \     [
+                        \       v:true
+                        \     ],
+                        \   ],
+                        \   1234,
+                        \   [
+                        \     [
+                        \       "Original Value",
+                        \       "Original Value"
+                        \     ],
+                        \     [
+                        \       12345
+                        \     ],
+                        \     "Some value",
+                        \     7890,
+                        \     {
+                        \       "Key_1": 'a',
+                        \       "Key_2": 12,
+                        \       "Key_3": v:true
+                        \     }
+                        \   ]
+                        \ ]
+
+    let l:to_merge_list = [
+                        \   v:null,
+                        \   v:null,
+                        \   [
+                        \     "Value replaced by list"
+                        \   ],
+                        \   [
+                        \     [
+                        \       "Altered Value"
+                        \     ],
+                        \     [
+                        \       v:null,
+                        \       45678
+                        \     ],
+                        \     v:null,
+                        \     v:null,
+                        \     v:null,
+                        \     [
+                        \       v:false
+                        \     ]
+                        \   ],
+                        \   34.56,
+                        \   [
+                        \     "Child List to Merge",
+                        \     [
+                        \       "Nested Child List to Merge"
+                        \     ]
+                        \   ],
+                        \   {
+                        \     "Key_1": "ABC",
+                        \     "Key_2": 12,
+                        \     "Key_3": v:false,
+                        \     "Key_4": 56.987
+                        \   }
+                        \ ]
+
+    " Invoke the RecursiveListMerge() function using copies of the 'merge_to_list' and 'to_merge_list' variables, as
+    " well as an 'allow_overwrite' value of 'false', then assert the following:
+    "
+    "   1). The copy of variable 'merge_to_list' was augmented by the function execution such that it now contains all
+    "       elements held by the 'to_merge_list' that did NOT conflict with existing elements at any level in the list
+    "       (note that child lists will be recursively merged when conflicting elements were found to both hold list
+    "       types).
+    "   2). The copy of variable 'to_merge_list' that was passed to the function execution remains identical in content
+    "       to the dictionary held by variable 'to_merge_list'.
+    "
+    let l:merge_to_list_arg = deepcopy(l:merge_to_list)
+    let l:to_merge_list_arg = deepcopy(l:to_merge_list)
+
+    call s:util.RecursiveListMerge(l:merge_to_list_arg, l:to_merge_list_arg, v:false)
+
+    let l:expected_merge_to_result = [
+                                   \   "ABC",
+                                   \   [
+                                   \     1.34,
+                                   \     [
+                                   \       v:true
+                                   \     ]
+                                   \   ],
+                                   \   1234,
+                                   \   [
+                                   \     [
+                                   \       "Original Value",
+                                   \       "Original Value"
+                                   \     ],
+                                   \     [
+                                   \       12345,
+                                   \       45678
+                                   \     ],
+                                   \     "Some value",
+                                   \     7890,
+                                   \     {
+                                   \       "Key_1": 'a',
+                                   \       "Key_2": 12,
+                                   \       "Key_3": v:true
+                                   \     },
+                                   \     [
+                                   \       v:false
+                                   \     ]
+                                   \   ],
+                                   \   34.56,
+                                   \   [
+                                   \     "Child List to Merge",
+                                   \     [
+                                   \       "Nested Child List to Merge"
+                                   \     ],
+                                   \   ],
+                                   \   {
+                                   \     "Key_1": "ABC",
+                                   \     "Key_2": 12,
+                                   \     "Key_3": v:false,
+                                   \     "Key_4": 56.987
+                                   \   }
+                                   \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_merge_to_result,
+                                   \ l:merge_to_list_arg)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:to_merge_list,
+                                   \ l:to_merge_list_arg)
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveListMerge() when (1) the lists given to it contain some overlap
+" in the elements that they hold and (2) each list contains nested child lists.  For this test the 'allow_overwrites'
+" flag will be 'true' indicating that conflict resolution should simply overwrite the value of conflicting elements.
+function s:TestRecursiveListMergeWithNestedChildListsConflictingKeysAndPermittedOverwrite()
+    "Define some base lists that will be used by the testing steps that follow; note that in this test both lists will
+    "be constructed to (1) have some subset of their elements in conflict and (2) to contain child lists both for some
+    "elements that overlap and some that do not.
+    let l:merge_to_list = [
+                        \   "ABC",
+                        \   [
+                        \     1.34,
+                        \     [
+                        \       v:true
+                        \     ],
+                        \   ],
+                        \   1234,
+                        \   [
+                        \     [
+                        \       "Original Value",
+                        \       "Original Value"
+                        \     ],
+                        \     [
+                        \       12345
+                        \     ],
+                        \     "Some value",
+                        \     7890,
+                        \     {
+                        \       "Key_1": 'a',
+                        \       "Key_2": 12,
+                        \       "Key_3": v:true
+                        \     }
+                        \   ]
+                        \ ]
+
+    let l:to_merge_list = [
+                        \   v:null,
+                        \   v:null,
+                        \   [
+                        \     "Value replaced by list"
+                        \   ],
+                        \   [
+                        \     [
+                        \       "Altered Value"
+                        \     ],
+                        \     [
+                        \       v:null,
+                        \       45678
+                        \     ],
+                        \     v:null,
+                        \     v:null,
+                        \     v:null,
+                        \     [
+                        \       v:false
+                        \     ]
+                        \   ],
+                        \   34.56,
+                        \   [
+                        \     "Child List to Merge",
+                        \     [
+                        \       "Nested Child List to Merge"
+                        \     ]
+                        \   ],
+                        \   {
+                        \     "Key_1": "ABC",
+                        \     "Key_2": 12,
+                        \     "Key_3": v:false,
+                        \     "Key_4": 56.987
+                        \   }
+                        \ ]
+
+
+    " Invoke the RecursiveListMerge() function using copies of the 'merge_to_list' and 'to_merge_list' variables, as
+    " well as an 'allow_overwrite' value of 'true', then assert the following:
+    "
+    "   1). The copy of variable 'merge_to_list' was augmented by the function execution such that it contains all
+    "       elements (including from nested lists) found in the 'to_merge_list' regardless of whether those elements
+    "       conflicted with the already held elements or not.
+    "   2). The copy of variable 'to_merge_list' that was passed to the function execution remains identical in
+    "       content to the list held by variable 'to_merge_list'.
+    "
+    let l:merge_to_list_arg = deepcopy(l:merge_to_list)
+    let l:to_merge_list_arg = deepcopy(l:to_merge_list)
+
+    call s:util.RecursiveListMerge(l:merge_to_list_arg, l:to_merge_list_arg, v:true)
+
+    let l:expected_merge_to_result = [
+                                   \   "ABC",
+                                   \   [
+                                   \     1.34,
+                                   \     [
+                                   \       v:true
+                                   \     ],
+                                   \   ],
+                                   \   [
+                                   \     "Value replaced by list"
+                                   \   ],
+                                   \   [
+                                   \     [
+                                   \       "Altered Value",
+                                   \       "Original Value"
+                                   \     ],
+                                   \     [
+                                   \       12345,
+                                   \       45678
+                                   \     ],
+                                   \     "Some value",
+                                   \     7890,
+                                   \     {
+                                   \       "Key_1": 'a',
+                                   \       "Key_2": 12,
+                                   \       "Key_3": v:true
+                                   \     },
+                                   \     [
+                                   \       v:false
+                                   \     ]
+                                   \   ],
+                                   \   34.56,
+                                   \   [
+                                   \     "Child List to Merge",
+                                   \     [
+                                   \       "Nested Child List to Merge"
+                                   \     ]
+                                   \   ],
+                                   \   {
+                                   \     "Key_1": "ABC",
+                                   \     "Key_2": 12,
+                                   \     "Key_3": v:false,
+                                   \     "Key_4": 56.987
+                                   \   }
+                                   \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_merge_to_result,
+                                   \ l:merge_to_list_arg)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:to_merge_list,
+                                   \ l:to_merge_list_arg)
+
+endfunction
+
+
+" This test asserts the behavior of function RecursiveListMerge() when (1) the lists given to it contain some overlap
+" in the elements that they hold and (2) each list contains nested child dictionaries and lists.  For this test the
+" 'allow_overwrite' flag will be 'false' indicating that conflict resolution should NOT merge conflicting elements into
+" the destination list.
+function s:TestRecursiveListMergeWithNestedStructureTypesConflictingKeysAndForbiddenOverwrite()
+    " Define some basic lists that will be used by the testing steps that follow; note that in this test both
+    " lists will be constructed to (1) have some subset of their elements in conflict and (2) to contain child
+    " dictionaries and lists for some elements that overlap and some elements that do not.
+    let l:merge_to_list = [
+                        \   {
+                        \     "Key_1":
+                        \     [
+                        \       "ABC"
+                        \     ]
+                        \   },
+                        \   [
+                        \     {
+                        \       "Key_2":
+                        \       [
+                        \         "ABC",
+                        \         "DEF",
+                        \         "GHI",
+                        \         "JKL"
+                        \       ]
+                        \     },
+                        \     {
+                        \       "Key_3": 1234
+                        \     },
+                        \     {
+                        \       "Key_4": 0987
+                        \     },
+                        \     {
+                        \       "Key_51": "MNP",
+                        \       "Key_52": 56.78
+                        \     }
+                        \   ]
+                        \ ]
+
+    let l:to_merge_list = [
+                        \   v:null,
+                        \   [
+                        \     {
+                        \       "Key_2":
+                        \       [
+                        \         v:null,
+                        \         "def",
+                        \         v:null,
+                        \         "jkl"
+                        \       ]
+                        \     },
+                        \     {
+                        \       "Key_3A": 7890
+                        \     },
+                        \     {
+                        \       "Key_4": "xyz"
+                        \     },
+                        \     v:null,
+                        \     "End of Array"
+                        \   ],
+                        \   {
+                        \     "Key_6": "A",
+                        \     "Key_6A": v:false
+                        \   }
+                        \ ]
+
+    " Invoke the RecursiveListMerge() function using copies of the 'merge_to_list' and 'to_merge_list' variables, as
+    " well as an 'allow_overwrite' value of 'false', then assert the following:
+    "
+    "   1). The copy of variable 'merge_to_list' was augmented by the function execution such that it now contains all
+    "       elements held by the 'to_merge_list' that did NOT conflict with existing elements at any level (note that
+    "       child dictionaries and lists will be recursively merged when conflicting elements were found to have the
+    "       same underlying structure type).
+    "   2). The copy of variable 'to_merge_list' that was passed to the function execution remains identical in content
+    "       to the list held by variable 'to_merge_list'.
+    "
+    let l:merge_to_list_arg = deepcopy(l:merge_to_list)
+    let l:to_merge_list_arg = deepcopy(l:to_merge_list)
+
+    call s:util.RecursiveListMerge(l:merge_to_list_arg, l:to_merge_list_arg, v:false)
+
+    let l:expected_merge_to_result = [
+                                   \   {
+                                   \     "Key_1":
+                                   \     [
+                                   \       "ABC"
+                                   \     ]
+                                   \   },
+                                   \   [
+                                   \     {
+                                   \       "Key_2":
+                                   \       [
+                                   \         "ABC",
+                                   \         "DEF",
+                                   \         "GHI",
+                                   \         "JKL"
+                                   \       ]
+                                   \     },
+                                   \     {
+                                   \       "Key_3": 1234,
+                                   \       "Key_3A": 7890
+                                   \     },
+                                   \     {
+                                   \       "Key_4": 0987
+                                   \     },
+                                   \     {
+                                   \       "Key_51": "MNP",
+                                   \       "Key_52": 56.78
+                                   \     },
+                                   \     "End of Array"
+                                   \   ],
+                                   \   {
+                                   \     "Key_6": "A",
+                                   \     "Key_6A": v:false
+                                   \   }
+                                   \ ]
+
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_merge_to_result,
+                                   \ l:merge_to_list_arg)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:to_merge_list,
+                                   \ l:to_merge_list_arg)
+endfunction
+
+
+" This test aserts the behavior of function RecursiveListMerge() when (1) the lists given to it contain some overlap in
+" the elements that they hold and (2) each list contains nested child dictionaries and lists.  For this test the
+" 'allow_overwrites' flag will be 'true' indicating that conflict resolution should simply overwrite the value of
+" conflicting elements.
+function s:TestRecursiveListMergeWithNestedStructureTypesConflictingKeysAndPermittedOverwrite()
+    " Define some base lists that will be used by the testing steps that follow; note that in this test both lists
+    " will be constructed to (1) have some subset their elements in conflict and (2) to contain child dictionaries and
+    " lists for some elements that overlap and some that do not.
+    let l:merge_to_list = [
+                        \   {
+                        \     "Key_1":
+                        \     [
+                        \       "ABC"
+                        \     ]
+                        \   },
+                        \   [
+                        \     {
+                        \       "Key_2":
+                        \       [
+                        \         "ABC",
+                        \         "DEF",
+                        \         "GHI",
+                        \         "JKL"
+                        \       ]
+                        \     },
+                        \     {
+                        \       "Key_3": 1234
+                        \     },
+                        \     {
+                        \       "Key_4": 0987
+                        \     },
+                        \     {
+                        \       "Key_51": "MNP",
+                        \       "Key_52": 56.78
+                        \     }
+                        \   ]
+                        \ ]
+
+    let l:to_merge_list = [
+                        \   v:null,
+                        \   [
+                        \     {
+                        \       "Key_2":
+                        \       [
+                        \         v:null,
+                        \         "def",
+                        \         v:null,
+                        \         "jkl"
+                        \       ]
+                        \     },
+                        \     {
+                        \       "Key_3A": 7890
+                        \     },
+                        \     {
+                        \       "Key_4": "xyz"
+                        \     },
+                        \     v:null,
+                        \     "End of Array"
+                        \   ],
+                        \   {
+                        \     "Key_6": "A",
+                        \     "Key_6A": v:false
+                        \   }
+                        \ ]
+
+
+    " Invoke the RecursiveListMerge() function using copies of the 'merge_to_list' and 'to_merge_list' variables, as
+    " well as an 'allow_overwrite' value of 'true', then assert the following:
+    "
+    "   1). The copy of variable 'merge_to_list' was augmented by the function execution such that it contains all
+    "       elements (including from nested lists and dictionaries) found in the 'to_merge_list' regardless of whether
+    "       those elements conflicted with already held elements or not.
+    "   2). The copy ov variable 'to_merge_list' that was passed to the function execution remains identical in content
+    "       to the list held by variable 'to_merge_list'.
+    "
+    let l:merge_to_list_arg = deepcopy(l:merge_to_list)
+    let l:to_merge_list_arg = deepcopy(l:to_merge_list)
+
+    call s:util.RecursiveListMerge(l:merge_to_list_arg, l:to_merge_list_arg, v:true)
+
+    let l:expected_merge_to_result = [
+                                   \   {
+                                   \     "Key_1":
+                                   \     [
+                                   \       "ABC"
+                                   \     ]
+                                   \   },
+                                   \   [
+                                   \     {
+                                   \       "Key_2":
+                                   \       [
+                                   \         "ABC",
+                                   \         "def",
+                                   \         "GHI",
+                                   \         "jkl"
+                                   \       ]
+                                   \     },
+                                   \     {
+                                   \       "Key_3": 1234,
+                                   \       "Key_3A": 7890
+                                   \     },
+                                   \     {
+                                   \       "Key_4": "xyz"
+                                   \     },
+                                   \     {
+                                   \       "Key_51": "MNP",
+                                   \       "Key_52": 56.78
+                                   \     },
+                                   \     "End of Array"
+                                   \   ],
+                                   \   {
+                                   \     "Key_6": "A",
+                                   \     "Key_6A": v:false
+                                   \   }
+                                   \ ]
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:expected_merge_to_result,
+                                   \ l:merge_to_list_arg)
+
+    call s:testutil.AssertEqualLists(expand('<sflnum>') - 9,
+                                   \ '',
+                                   \ l:to_merge_list,
+                                   \ l:to_merge_list_arg)
 endfunction
 
 

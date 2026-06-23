@@ -2897,6 +2897,91 @@ function s:TestCreateOllamaChatRequestPayloadWithLimitedMessageContext()
 endfunction
 
 
+" This test verifies that function CreateOllamaChatRequestPayload() behaves as expected when the parse dictionary it
+" is given contains a non-empty chat request supplement dictionary.
+function s:TestCreateOllamaChatRequestPayloadWithChatRequestSupplementDict()
+    " Create a minimal parse dictionary for testing as we are not trying to verify behavior specific to the content of
+    " such dictionary.
+    let l:test_parse_dict = {
+                          \   "header":
+                          \   {
+                          \     "server type": "Ollama",
+                          \     "server url": "http://localhost:11434",
+                          \     "model id": "qwen:latest",
+                          \     "chat request supplement dict":
+                          \     {
+                          \       "a": "b",
+                          \       "c":
+                          \       {
+                          \         "d": 1.5,
+                          \         "e": 15
+                          \       },
+                          \       "messages":
+                          \       [
+                          \         {
+                          \           "injected_value": v:true
+                          \         }
+                          \       ]
+                          \     }
+                          \   },
+                          \   "messages":
+                          \   [
+                          \     {
+                          \       "user": "How are you today?"
+                          \     }
+                          \   ]
+                          \ }
+
+    " Invoke the CreateOllamaChatRequestPayload() function and provide to it (1) the test parse dictionary created
+    " earlier and (2) the path to a temporary file that it can output its result to.
+    let l:temp_file = tempname()
+
+    call LLMChat#send_chat#CreateOllamaChatRequestPayload(l:test_parse_dict, l:temp_file)
+
+
+    " Read all lines from the temporary file that function CreateOllamaChatRequestPayload() wrote its output to, join
+    " the lines back together using newline sequences, then compare the result to an expected text block.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this becomes too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
+    let l:expected_output = "{" ..
+                           \   "\"messages\":" ..
+                           \     "[" ..
+                           \       "{" ..
+                           \          "\"role\":\"user\"," ..
+                           \          "\"injected_value\":true," ..
+                           \          "\"content\":\"How are you today?\"" ..
+                           \       "}" ..
+                           \     "]," ..
+                           \   "\"a\":\"b\"," ..
+                           \   "\"c\":" ..
+                           \     "{" ..
+                           \       "\"d\":1.5," ..
+                           \       "\"e\":15" ..
+                           \     "}," ..
+                           \   "\"model\":\"qwen:latest\"," ..
+                           \   "\"stream\":false," ..
+                           \   "\"think\":false" ..
+                           \"}"
+
+    let l:actual_output = join(readfile(l:temp_file), "\n")
+
+    call s:testutil.AssertEqualTextBlocks(expand('<sflnum>') - 9, '', l:expected_output, l:actual_output)
+
+
+    " Remove the temporary file now that testing has completed.
+    call delete(l:temp_file)
+
+endfunction
+
+
 " **************************************************************
 " ****  CreateOpenWebUIChatRequestPayload() Function Tests  ****
 " **************************************************************
@@ -3242,6 +3327,89 @@ function s:TestCreateOpenWebUIChatRequestPayloadWithLimitedMessageContext()
 
 endfunction
 
+
+" This test verifies that function CreateOpenWebUIChatRequestPayload() behaves as expected when the parse dictionary it
+" is given contains a non-empty chat request supplement dictionary.
+function s:TestCreateOpenUebUiChatRequestPayloadWithChatRequestSupplementDict()
+    " Create a minimal parse dictionary for testing as we are not trying to verify behavior specific to the content of
+    " such dictionary.
+    let l:test_parse_dict = {
+                          \   "header":
+                          \   {
+                          \     "server type": "Open WebUI",
+                          \     "server url": "http://localhost:11434",
+                          \     "model id": "qwen:latest",
+                          \     "chat request supplement dict":
+                          \     {
+                          \       "a": "b",
+                          \       "c":
+                          \       {
+                          \         "d": 1.5,
+                          \         "e": 15
+                          \       },
+                          \       "messages":
+                          \       [
+                          \         {
+                          \           "injected_value": v:true
+                          \         }
+                          \       ]
+                          \     }
+                          \   },
+                          \   "messages":
+                          \   [
+                          \     {
+                          \       "user": "How are you today?"
+                          \     }
+                          \   ]
+                          \ }
+
+    " Invoke the CreateOpenWebUIChatRequestPayload() function and provide to it (1) the minimal parse dictionary created
+    " earlier and (2) the path to a temporary file that it can output its result to.
+    let l:temp_file = tempname()
+
+    call LLMChat#send_chat#CreateOpenWebUIChatRequestPayload(l:test_parse_dict, l:temp_file)
+
+
+    " Read all lines from the temporary file that function CreateOpenWebUIChatRequestPayload() wrote its output to, join
+    " the lines back together using newline sequences, then compare the result to an expected text block.
+    "
+    " WARNING: The verification for this test is likely very fragile since (1) we're trying to compare directly to the
+    "          JSON output created by Vim and (2) the order in which Vim adds key/value pairings from a dictionary into
+    "          a JSON string appears to be arbitrary.  The 'l:expected_output' value below is currently organized to
+    "          reflect the ordering actually seen from Vim during test runs but this doesn't mean such ordering will
+    "          remain the same (typically within a particular software release orderings are consistent but across
+    "          releases they may come to vary).  If this become too fragile we can parse the JSON into a dictionary and
+    "          compare that way but this may loose visibility into how the different types are actually being
+    "          converted (which is why the test is the way it is).
+    "
+    let l:expected_output = "{" ..
+                          \    "\"messages\":" ..
+                          \      "[" ..
+                          \        "{" ..
+                          \           "\"role\":\"user\"," ..
+                          \           "\"injected_value\":true," ..
+                          \           "\"content\":\"How are you today?\"" ..
+                          \        "}" ..
+                          \      "]," ..
+                          \    "\"a\":\"b\"," ..
+                          \    "\"c\":" ..
+                          \    "{" ..
+                          \      "\"d\":1.5," ..
+                          \      "\"e\":15" ..
+                          \    "}," ..
+                          \    "\"model\":\"qwen:latest\"," ..
+                          \    "\"stream\":false" ..
+                          \ "}"
+
+    let l:actual_output = join(readfile(l:temp_file), "\n")
+
+    call s:testutil.AssertEqualTextBlocks(expand('<sflnum>') - 9, '', l:expected_output, l:actual_output)
+
+
+    " Remove the temporary file now that testing has completed.
+    call delete(l:temp_file)
+
+endfunction
 
 
 " *************************************************************
@@ -4355,6 +4523,179 @@ function s:TestGetOptionsDictForJSONOutputWithAllOptionDataTypes()
                                           \ '',
                                           \ l:expected_dict,
                                           \ l:actual_dict)
+
+endfunction
+
+
+" *********************************************************
+" ****  GetChatRequestSupplementDict() Function Tests  ****
+" *********************************************************
+
+" This test asserts the proper behavior of function GetChatRequestSupplementDict() when (1) a chat request supplement
+" dictionary has been defined within the 'header_dict' argument given to the fuction and (2) the
+" 'g:llmchat_chat_request_supplement_dict' variable is not set.
+function s:TestChatRequestSupplementDictWithHeaderDefinedDictionary()
+    " Define a "supplement dictionary" that will be used later in the testing of function
+    " GetChatRequestSupplementDict().
+    let l:supplement_dict = {
+                          \   "a": "b",
+                          \   "c": 45,
+                          \   "d":
+                          \   {
+                          \     "e": v:true
+                          \   },
+                          \   "messages":
+                          \   [
+                          \     {
+                          \       "inserted_value": v:false
+                          \     }
+                          \   ]
+                          \ }
+
+    " Now define a "header dictionary" that will include the supplement dictionary.  Note that we don't concern
+    " ourselves with building out a fully flushed and valid header dictionary here since function
+    " GetChatRequestSupplementDict() makes no requirement of this.
+    let l:header_dict = {
+                      \   "chat request supplement dict": l:supplement_dict
+                      \ }
+
+    " Verify that the 'g:llmchat_chat_request_supplement_dict' either (1) does not exist or (2) has been set to the
+    " empty dictionary.
+    AssertTxt(!exists("g:llmchat_chat_request_supplement_dict") ||
+            \ g:llmchat_chat_request_supplement_dict == { },
+            \ "Expected variable 'g:llmchat_chat_request_supplement_dict' to be empty or unset but it was not.")
+
+    " Now invoke function GetChatRequestSupplementDict() and assert that a dictionary equal to the
+    " l:supplement_dict is returned back to us.
+    let l:actual_dict = GetChatRequestSupplementDict(l:header_dict)
+
+    let l:actual_type = type(l:actual_dict)
+    AssertTxt(l:actual_type == v:t_dict,
+            \ "Expected to see a dictionary returned but instead a value of type " .. l:actual_type .. "was found.")
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:supplement_dict, l:actual_dict)
+
+endfunction
+
+
+" This test asserts the proper behavior of function GetChatRequestSupplementDict() when (1) NO chat request supplement
+" dictionary has been defined in the 'header_dict' argument given to the function but (2) global variable
+" 'g:llmchat_chat_request_supplement_dict' was set to a non-empty dictionary value.
+function s:TestChatRequestSupplementDictWithGlobalDictValue()
+    " Set global variable 'g:llmchat_chat_request_supplement_dict' to hold a known dictionary value.
+    let g:llmchat_chat_request_supplement_dict = {
+                                               \   "test": 3345,
+                                               \   "a":
+                                               \   {
+                                               \     "b": v:true
+                                               \   }
+                                               \ }
+
+    " Invoke function GetChatRequestSupplementDict() and pass to it an empty dictionary value.  Not that such function
+    " does not require a fully flushed out and valid header dictionary be given so we are not concerned with creating
+    " such a value for testing.
+    let l:actual_dict = GetChatRequestSupplementDict({})
+
+
+    " Now validate that the 'l:actual_dict' returned by the function call is identical to the value held by global
+    " variable 'g:llmchat_request_supplement_dict'.
+    let l:actual_type = type(l:actual_dict)
+    AssertTxt(l:actual_type == v:t_dict,
+            \ "Expected to see a dictionary value returned but instead a value of type " .. l:actual_type .. " was " ..
+            \ "found.")
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9,
+                                          \ '',
+                                          \ g:llmchat_chat_request_supplement_dict,
+                                          \ l:actual_dict)
+
+    " Take the following actions to clean after this test execution:
+    "
+    "   1). Restore the value held by variable 'g:llmchat_request_supplement_dict' back to an empty dictionary.
+    "
+    let g:llmchat_request_supplement_dict = { }
+
+endfunction
+
+
+" This test asserts the proper behavior of function GetChatRequestSupplementDict() when (1) a chat request supplement
+" dictionary was defined in the 'header_dict' argument given to the function AND (2) global variable
+" 'g:llmchat_chat_request_supplement_dict' was also set to a non-empty dictionary (in this case both dictionaries have
+" different contents).
+function s:TestChatRequestSupplementDictWithBothHeaderDefinedAndGlobalDictValues()
+    " Define a "supplement dictionary" that will be used later in the testing of function
+    " GetChatRequestSupplementDict().
+    let l:supplement_dict = {
+                          \   "a": "b",
+                          \   "c": 45,
+                          \   "d":
+                          \   {
+                          \     "e": v:true
+                          \   },
+                          \   "messages":
+                          \   [
+                          \     {
+                          \       "inserted_value": v:false
+                          \     }
+                          \   ]
+                          \ }
+
+    " Now define a "header dictionary" that will include the supplement dictionary.  Note that we don't concern
+    " ourselves with building out a fully flushed and valid header dictionary here since function
+    " GetChatRequestSupplementDict() makes no requirement of this.
+    let l:header_dict = {
+                      \   "chat request supplement dict": l:supplement_dict
+                      \ }
+
+
+    " Set global variable 'g:llmchat_chat_request_supplement_dict' to hold a known dictionary value.
+    let g:llmchat_chat_request_supplement_dict = {
+                                               \   "test": 3345,
+                                               \   "a":
+                                               \   {
+                                               \     "b": v:true
+                                               \   }
+                                               \ }
+
+
+    " Now invoke function GetChatRequestSupplementDict() and assert that a dictionary equal to the
+    " l:supplement_dict is returned back to us.
+    let l:actual_dict = GetChatRequestSupplementDict(l:header_dict)
+
+    let l:actual_type = type(l:actual_dict)
+    AssertTxt(l:actual_type == v:t_dict,
+            \ "Expected to see a dictionary returned but instead a value of type " .. l:actual_type .. "was found.")
+
+    call s:testutil.AssertEqualDictionaries(expand('<sflnum>') - 9, '', l:supplement_dict, l:actual_dict)
+
+
+    " Take the following actions to clean after this test execution:
+    "
+    "   1). Restore the value held by variable 'g:llmchat_request_supplement_dict' back to an empty dictionary.
+    "
+    let g:llmchat_request_supplement_dict = { }
+
+endfunction
+
+
+" This test asserts the proper behavior of function GetChatRequestSupplementDict() when NO chat supplement dictionary
+" is defined either in the 'header_dict' argument provided to the function or by global variable
+" 'g:llmchat_chat_request_supplement_dict'.
+function s:TestChatRequestSupplementDictWithNoDefinedDict()
+    " Verify that the 'g:llmchat_chat_request_supplement_dict' either (1) does not exist or (2) has been set to the
+    " empty dictionary.
+    AssertTxt(!exists("g:llmchat_chat_request_supplement_dict") ||
+            \ g:llmchat_chat_request_supplement_dict == { },
+            \ "Expected variable 'g:llmchat_chat_request_supplement_dict' to be empty or unset but it was not.")
+
+
+    " Now pass an empty dictionary argument to function GetChatRequestSupplementDict() and assert that an empty
+    " dictionary is returned.  Note that the function does not mandate (at this time) that the dictionary it is given
+    " be a fully flushed out and valid header dictionary so we don't take the time here to create such a structure.
+    let l:actual_dict = GetChatRequestSupplementDict({})
+
+    AssertTxt(empty(l:actual_dict),
+            \ "Expected the dictionary returned to be empty but this was not the case.")
 
 endfunction
 

@@ -481,6 +481,110 @@ Auth Token - This option explicitly gives a bearer token that should be
     authentication tokens.  For other options please see section
     |LLMChat_Authentication| within this document.
 
+Chat Request Supplement Dict - This option declares a "supplementary dictionary"
+                               that should be used to insert additional values
+    into the JSON request bodies for chat requests made from the chat document
+    that contains it.  The content of this dictionary will be recursively
+    merged, in tree fashion, to the content of each chat request JSON created
+    before the request is sent to the remote LLM.  Such merging essentially
+    means that child structures such as lists and dictionaries found within the
+    dictionary defined by this option, and which correspond to lists or
+    dictionaries found under the same key in the request, will be merged
+    together as well in the request content.
+
+    The general use case for this option is in the injection of setup specific
+    content that would otherwise be too niche for the plugin itself to inject
+    into requests.  As an example of this consider the keep-alive value provided
+    by Ollama which defines how long a model should remain loaded in the GPU
+    for use.  There is currently no chat option available to manipulate such
+    setting because (1) the option is actually limited to Ollama and (2) for
+    Ollama requests being routed through Open WebUI the plugin would have to
+    know the details of the nested configuration (i.e., specifically that the
+    request would be routed to Ollama) in order to properly include the setting.
+    By enabling the use of supplementary values from an arbitrarily defined
+    dictionary is is now possible to inject such setting information into chat
+    requests in a manner consistent with the remote service the chat request
+    will go to.
+
+    Be aware that when defining the value for this option the following
+    caveats apply:
+
+      1). The Value MUST be a Valid Vim Dictionary - The value provided to this
+                                                     option must be a valid, and
+              fully qualified Vim dictionary.  For details on how to define a
+              dictionary please see ":help |Dictionaries|".
+
+      2). The Option Value MUST End With an Empty Line - To allow pretty-printed
+                                                         dictionaries to be
+              defined, the value for this option is allowed to extend over
+              multiple lines.  Therefore, to communicate to the parser that the
+              definition is complete, a minimum of one completely blank line
+              must be left after the option declaration is finished.  Note that
+              because the option is seen to be terminated at the first empty
+              line found after its declaration the option value itself therefore
+              cannot contain any empty lines.
+
+      3). Overrides are NOT ALLOWED - This means that if a value declared within
+                                      the dictionary specified by this option is
+              found to collide with a value already defined in the request JSON
+              than the value declared here will be ignored.  As an example of
+              this let us assume that we try to overrride the 'stream' setting
+              defined in the request so that we can control whether or not
+              response streaming will be employed (rather than using the
+              'llmchat_use_streaming_mode' global variable).  In such a case the
+              stream setting defined here will be ignored as that value is
+              already populated into the request JSON before merging with the
+              dictionary defined by this option takes place.  This example is
+              also meant to illustrate why such behavior is not allowed since,
+              if we could override things like the stream setting here, we could
+              implicitly break logic within the plugin that was expecting the
+              setting it explicitly provided to be the setting actually used.
+
+      4). Be Aware of Vim Type Idiosyncrasies - Vim uses a simplified series
+                                                of types which do not align
+              cleanly with the types used in JSON documents.  Since the
+              dictionary declared by this option must use Vim types you need to
+              be aware of how these will be translated into JSON so that your
+              injected values are interpreted correctly.  The most notable of
+              these idiosyncrasies are boolean values, which must be given as
+              v:true or v:false, and null, which must be given as v:null.  For
+              full details on the type mapping used by Vim when encoding
+              dictionary content into JSON please see ":help |json_encode()|".
+
+      5). No Automatic Support Exists for Dynamic Injections - The intended use
+                                                               case for this
+              option is the injection of niche, custom values during a chat
+              request where such values occupy a static position within the
+              request JSON.  The merge process used to insert custom values does
+              not have any dynamic aspect to it so attempting to merge custom
+              settings into dynamic parts of the document is not directly
+              supported (for example attempting to automatically insert values
+              into a subsection of the ever-growing list of added messages).  It
+              is still possible to add such content but it must be done manually
+              by updating the dictionary before each chat submission takes
+              place.
+
+      6). Special Note: Injecting into Child Lists - The merging of values into
+                                                     child lists has a unique
+              issue since it is sometimes necessary to put values at specific
+              offsets within the list (for instance adding an intentional value
+              to just elements 3 and 4).  In order to do such a merge you would
+              need to fill in "dummy" values for elements 0, 1, and 2 within
+              the child list held by this dictionary so that the real values are
+              injected at the proper index positions.  In general dummy values
+              should be selected so that if they DO NOT collide with the
+              information already found in the request JSON than they don't
+              cause any issues; obviously since overwrites are not allowed the
+              selection of values that WILL collide is not of concern outside of
+              general readibility (i.e., the understanding that such values were
+              never expected to merge).
+
+    Note that, in addition to this option which only applies to the scope of
+    the chat that includes it, there is also a global variable that provides
+    this same functionality across ALL chats.  For more details see the
+    inline documentation accompanying variable
+    'g:llmchat_chat_request_supplement_dict' in the plugin/LLMChat.vim file.
+
 Max Context Messages - This option allows the user to control how many messages
                        from the chat log are included in requests made to the
     LLM as its context history.  When the value given for this option is less
